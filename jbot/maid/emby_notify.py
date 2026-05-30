@@ -173,6 +173,7 @@ async def on_new_media(event):
     if not info:
         return
 
-    logger.info(f"[emby-notify] 检测到新入库: {info['title']}"); logger.info(f"[emby-notify] MD内容: {md[:200]}")
     md = build_markdown(info)
+    logger.info(f"[emby-notify] 检测到新入库: {info['title']}")
+    logger.info(f"[emby-notify] MD内容: {md[:200]}")
     await push_to_wechat("入库通知", md)
