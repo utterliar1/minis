@@ -127,13 +127,14 @@ async def stickertopic(event):
                     anim = parse_tgs(tgs_file)
                     filename = "sticker_" + str(random())[2:8] + ".gif"
                     export_gif(anim, filename)
-                except ImportError:
+                except ImportError as ie:
+                    logger.error(f"[sticker] ImportError: {ie}")
                     await event.edit("出错了呜呜呜 ~ 缺少 lottie 库，请执行: pip install lottie")
                     await sleep(3)
                     await event.delete()
                     return
                 except Exception as e:
-                    logger.error(f"[sticker] 动态贴纸转换失败: {e}")
+                    logger.error(f"[sticker] 动态贴纸转换失败: {type(e).__name__}: {e}")
                     await event.edit("出错了呜呜呜 ~ 动态贴纸转换失败")
                     await sleep(2)
                     await event.delete()
