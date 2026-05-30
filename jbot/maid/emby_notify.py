@@ -3,23 +3,22 @@
 """
 emby-notify - 新入库消息监控 & PushPlus 微信推送
 
-环境变量：
-  MONITOR_CHATS   - 接收入库消息的 bot 用户名或 chat_id，多个逗号分隔
-  PUSHPLUS_TOKEN  - PushPlus 推送 token (https://www.pushplus.plus)
-  PUSHPLUS_TOPIC  - PushPlus 群组编码（可选）
+在 diybotset.json 中添加以下配置：
+  "monitor_chats": "@kmll_nanshare_bot",
+  "pushplus_token": "你的token",
+  "pushplus_topic": ""
 """
 
-import os
 import re
 
 import httpx
 from telethon import events
 
-from jbot import client, logger
+from jbot import client, logger, diybotset
 
-# ==================== 配置（全部从环境变量读取） ====================
-_raw = os.getenv("MONITOR_CHATS", "")
+# ==================== 配置（从 diybotset.json 读取） ====================
 MONITOR_CHATS = []
+_raw = str(diybotset.get("monitor_chats", ""))
 for item in _raw.split(","):
     item = item.strip()
     if not item:
@@ -29,8 +28,8 @@ for item in _raw.split(","):
     except ValueError:
         MONITOR_CHATS.append(item)
 
-PUSHPLUS_TOKEN = os.getenv("PUSHPLUS_TOKEN", "")
-PUSHPLUS_TOPIC = os.getenv("PUSHPLUS_TOPIC", "")
+PUSHPLUS_TOKEN = diybotset.get("pushplus_token", "")
+PUSHPLUS_TOPIC = diybotset.get("pushplus_topic", "")
 PUSHPLUS_URL = "http://www.pushplus.plus/send"
 
 logger.info(f"[emby-notify] 插件已加载, MONITOR_CHATS={MONITOR_CHATS}, PUSHPLUS_TOKEN={'已设置' if PUSHPLUS_TOKEN else '未设置'}")
@@ -143,7 +142,7 @@ def build_html(info):
 # ==================== PushPlus 推送 ====================
 async def push_to_wechat(title, html):
     if not PUSHPLUS_TOKEN:
-        logger.warning("[emby-notify] PUSHPLUS_TOKEN 未配置")
+        logger.warning("[emby-notify] pushplus_token 未配置")
         return
     payload = {"token": PUSHPLUS_TOKEN, "title": title, "content": html, "template": "html"}
     if PUSHPLUS_TOPIC:
