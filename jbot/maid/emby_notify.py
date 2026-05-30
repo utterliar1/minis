@@ -101,7 +101,7 @@ def build_markdown(info):
     if info.get("season") or info.get("episode"):
         se = f" {info.get('season', '')} {info.get('episode', '')}"
 
-    lines = [f"**📺 {title}{se}**", ""]
+    lines = [f"**📺 新入库 {info.get("type", "")} {title}{se}**", ""]
 
     if info.get("media_type"):
         lines.append(f"- **媒体类型：** {info['media_type']}")
