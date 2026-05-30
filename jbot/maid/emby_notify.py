@@ -10,6 +10,7 @@ emby-notify - 新入库消息监控 & PushPlus 微信推送
 """
 
 import re
+import time
 
 import httpx
 from telethon import events
@@ -94,57 +95,61 @@ def parse_media(text):
     return info
 
 
-# ==================== 构造 HTML ====================
-def build_html(info):
+# ==================== 构造 Markdown ====================
+def build_markdown(info):
     title = info.get("title", "未知")
-    se = f" {info.get('season', '')} {info.get('episode', '')}" if info.get("season") or info.get("episode") else ""
+    se = ""
+    if info.get("season") or info.get("episode"):
+        se = f" {info.get('season', '')} {info.get('episode', '')}"
 
-    rows = []
+    lines = [f"## 📺 {title}{se}", ""]
+
     if info.get("media_type"):
-        rows.append(("媒体类型", info["media_type"]))
+        lines.append(f"- **媒体类型：** {info['media_type']}")
     if info.get("rating"):
-        rows.append(("⭐ 评分", info["rating"]))
+        lines.append(f"- **⭐ 评分：** {info['rating']}")
     if info.get("tmdb_id"):
-        rows.append(("TMDB ID", info["tmdb_id"]))
+        lines.append(f"- **TMDB ID：** {info['tmdb_id']}")
     if info.get("imdb_id"):
-        rows.append(("IMDB ID", info["imdb_id"]))
+        lines.append(f"- **IMDB ID：** {info['imdb_id']}")
     if info.get("time"):
-        rows.append(("操作时间", info["time"]))
-
-    tr = ""
-    for label, value in rows:
-        tr += f'<tr><td style="padding:8px 12px;color:#666;white-space:nowrap">{label}</td><td style="padding:8px 12px;color:#333">{value}</td></tr>'
-
-    html = f'''<div style="font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-<h2 style="color:#333;border-bottom:2px solid #4CAF50;padding-bottom:12px">📺 {title}{se}</h2>
-<table style="width:100%;border-collapse:collapse;margin:14px 0">{tr}</table>'''
+        lines.append(f"- **操作时间：** {info['time']}")
 
     if info.get("synopsis"):
-        html += f'<div style="background:#f8f9fa;padding:14px 18px;border-radius:8px;margin:16px 0"><strong>📝 简介</strong><br><span style="color:#555;line-height:1.6">{info["synopsis"]}</span></div>'
+        lines.append("")
+        lines.append(f"> {info['synopsis']}")
 
     if info.get("comment"):
-        html += f'<div style="background:#fff8e1;padding:10px 18px;border-radius:8px;margin:16px 0">🍺 {info["comment"]}</div>'
+        lines.append("")
+        lines.append(f"🍺 {info['comment']}")
 
     links = []
     if info.get("tmdb_link"):
-        links.append(f'<a href="{info["tmdb_link"]}" style="color:#1976D2;text-decoration:none">🔗 TMDB</a>')
+        links.append(f"[TMDB]({info['tmdb_link']})")
     if info.get("douban_link"):
-        links.append(f'<a href="{info["douban_link"]}" style="color:#2E7D32;text-decoration:none">✳️ 豆瓣</a>')
+        links.append(f"[豆瓣]({info['douban_link']})")
     if info.get("imdb_link"):
-        links.append(f'<a href="{info["imdb_link"]}" style="color:#F57C00;text-decoration:none">🌟 IMDb</a>')
+        links.append(f"[IMDb]({info['imdb_link']})")
     if links:
-        html += f'<div style="margin-top:16px;padding-top:16px;border-top:1px solid #eee">{" &nbsp;|&nbsp; ".join(links)}</div>'
+        lines.append("")
+        lines.append(" | ".join(links))
 
-    html += "</div>"
-    return html
+    return "\n".join(lines)
 
 
 # ==================== PushPlus 推送 ====================
-async def push_to_wechat(title, html):
+async def push_to_wechat(title, content):
     if not PUSHPLUS_TOKEN:
         logger.warning("[emby-notify] pushplus_token 未配置")
         return
-    payload = {"token": PUSHPLUS_TOKEN, "title": title, "content": html, "template": "html"}
+    payload = {
+        "token": PUSHPLUS_TOKEN,
+        "title": title,
+        "content": content,
+        "template": "markdown",
+        "channel": "wechat",
+        "timestamp": int(time.time() * 1000),
+    }
     if PUSHPLUS_TOPIC:
         payload["topic"] = PUSHPLUS_TOPIC
     try:
@@ -174,5 +179,5 @@ async def on_new_media(event):
         push_title += f" {info.get('season', '')} {info.get('episode', '')}"
 
     logger.info(f"[emby-notify] 检测到新入库: {push_title}")
-    html = build_html(info)
-    await push_to_wechat(push_title, html)
+    md = build_markdown(info)
+    await push_to_wechat(push_title, md)
