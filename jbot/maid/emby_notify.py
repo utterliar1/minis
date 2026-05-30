@@ -32,7 +32,7 @@ PUSHPLUS_TOKEN = diybotset.get("pushplus_token", "")
 PUSHPLUS_TOPIC = diybotset.get("pushplus_topic", "")
 PUSHPLUS_URL = "https://www.pushplus.plus/send"
 
-logger.info(f"[emby-notify] 已加载, MONITOR_CHATS={MONITOR_CHATS}, TOKEN={'OK' if PUSHPLUS_TOKEN else '未设置'}")
+logger.info(f"[emby-notify] 已加载")
 
 
 # ==================== 消息解析 ====================
@@ -175,5 +175,4 @@ async def on_new_media(event):
 
     md = build_markdown(info)
     logger.info(f"[emby-notify] 检测到新入库: {info['title']}")
-    logger.info(f"[emby-notify] MD内容: {md[:200]}")
     await push_to_wechat("入库通知", md)
