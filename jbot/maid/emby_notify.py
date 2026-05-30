@@ -172,7 +172,7 @@ async def on_new_media(event):
     if not info:
         return
 
-    push_title = f"📺 新入库：{info['title']}"
+    push_title = f"📺 新入库 {info.get('type', '')} {info['title']}"
     if info.get("season") or info.get("episode"):
         push_title += f" {info.get('season', '')} {info.get('episode', '')}"
 
