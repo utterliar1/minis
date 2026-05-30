@@ -1,9 +1,0 @@
-﻿{
-    "api_id": 12345678,
-    "api_hash": "your_api_hash_here",
-    "session_name": "emby_notify",
-    "monitor_chats": ["your_bot_username"],
-    "pushplus_token": "your_pushplus_token_here",
-    "pushplus_topic": "",
-    "include_cover": true
-}
