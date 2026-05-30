@@ -101,7 +101,7 @@ def build_markdown(info):
     if info.get("season") or info.get("episode"):
         se = f" {info.get('season', '')} {info.get('episode', '')}"
 
-        lines = ["**📺 新入库 " + info.get("type", "") + " " + title + se + "**", ""]
+            lines = [f'**📺 新入库 {info["type"]} {title}{se}**', '']
 
     if info.get("media_type"):
         lines.append(f"- **媒体类型：** {info['media_type']}")
@@ -172,10 +172,10 @@ async def on_new_media(event):
     if not info:
         return
 
-    push_title = f"📺 新入库 {info.get('type', '')} {info['title']}"
+    push_title = '入库通知'
     if info.get("season") or info.get("episode"):
-        push_title += f" {info.get('season', '')} {info.get('episode', '')}"
+        
 
-    logger.info(f"[emby-notify] 检测到新入库: {push_title}")
+    logger.info(f"[emby-notify] 检测到新入库: {info['title']}")
     md = build_markdown(info)
     await push_to_wechat(push_title, md)
