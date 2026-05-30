@@ -643,8 +643,15 @@ async def upload_sticker(animated, message, context, file, conversation):
             await context.edit("上传动图中 . . .")
         except:
             pass
-        await conversation.send_file("AnimatedSticker.tgs", force_document=True)
-        remove("AnimatedSticker.tgs")
+        # 优先 tgs，其次 webm
+        if os.path.exists("AnimatedSticker.tgs"):
+            sticker_file = "AnimatedSticker.tgs"
+        elif os.path.exists("AnimatedSticker.webm"):
+            sticker_file = "AnimatedSticker.webm"
+        else:
+            raise FileNotFoundError("找不到动态贴纸文件")
+        await conversation.send_file(sticker_file, force_document=True)
+        safe_remove(sticker_file)
     else:
         file.seek(0)
         try:
