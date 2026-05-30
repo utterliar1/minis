@@ -48,7 +48,7 @@ def parse_media(text):
     if not info.get("title"):
         return None
 
-    m = re.search(r"([Ss]\d+)\s+([Ee][\d\-]+)", text)
+    m = re.search(r"([Ss]\d+)\s+([Ee][\d\-Ee]+)", text)
     if m:
         info["season"] = m.group(1).upper()
         info["episode"] = m.group(2).upper()
