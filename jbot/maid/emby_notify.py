@@ -10,7 +10,6 @@ emby-notify - 新入库消息监控 & PushPlus 微信推送
 """
 
 import re
-import time
 
 import httpx
 from telethon import events
@@ -148,7 +147,6 @@ async def push_to_wechat(title, content):
         "content": content,
         "template": "markdown",
         "channel": "wechat",
-        "timestamp": int(time.time() * 1000),
     }
     if PUSHPLUS_TOPIC:
         payload["topic"] = PUSHPLUS_TOPIC
