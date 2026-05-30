@@ -30,7 +30,7 @@ for item in _raw.split(","):
 
 PUSHPLUS_TOKEN = diybotset.get("pushplus_token", "")
 PUSHPLUS_TOPIC = diybotset.get("pushplus_topic", "")
-PUSHPLUS_URL = "http://www.pushplus.plus/send"
+PUSHPLUS_URL = "https://www.pushplus.plus/send"
 
 logger.info(f"[emby-notify] 插件已加载, MONITOR_CHATS={MONITOR_CHATS}, PUSHPLUS_TOKEN={'已设置' if PUSHPLUS_TOKEN else '未设置'}")
 
