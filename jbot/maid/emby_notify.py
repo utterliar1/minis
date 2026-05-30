@@ -218,4 +218,9 @@ async def on_new_media(event):
     md = build_markdown(info)
     logger.info(f"[emby-notify] 检测到新入库: {info['title']}")
     logger.info(f"[emby-notify] MD内容: {md[:200]}")
-    await push_to_wechat("入库通知", md)
+    if WECOM_CORPID and WECOM_SECRET and WECOM_AGENTID:
+        await push_to_wecom("入库通知", md)
+    elif PUSHPLUS_TOKEN:
+        await push_to_wechat("入库通知", md)
+    else:
+        logger.warning("[emby-notify] 未配置推送方式")
