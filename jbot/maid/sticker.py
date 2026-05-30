@@ -119,22 +119,29 @@ async def stickertopic(event):
                 image.save(filename, "PNG")
             else:
                 # 动态贴纸转 GIF
+                await event.edit("正在转换动态贴纸...\n" + progress_bar(50))
+                tgs_file = "AnimatedSticker.tgs" if os.path.exists("AnimatedSticker.tgs") else "AnimatedSticker.webm"
+                filename = "sticker_" + str(random())[2:8] + ".gif"
                 try:
-                    from lottie.parsers.tgs import parse_tgs
-                    from lottie.exporters.gif import export_gif
-                    await event.edit("正在转换动态贴纸...\n" + progress_bar(50))
-                    tgs_file = "AnimatedSticker.tgs" if os.path.exists("AnimatedSticker.tgs") else "AnimatedSticker.webm"
-                    anim = parse_tgs(tgs_file)
-                    filename = "sticker_" + str(random())[2:8] + ".gif"
-                    export_gif(anim, filename)
-                except ImportError as ie:
-                    logger.error(f"[sticker] ImportError: {ie}")
-                    await event.edit("出错了呜呜呜 ~ 缺少 lottie 库，请执行: pip install lottie")
-                    await sleep(3)
-                    await event.delete()
-                    return
+                    import subprocess
+                    cmd = ["ffmpeg", "-y", "-i", tgs_file, "-vf", "scale=512:512:flags=lanczos", "-loop", "0", filename]
+                    result = subprocess.run(cmd, capture_output=True, timeout=30)
+                    if result.returncode != 0:
+                        raise Exception(result.stderr.decode())
+                except FileNotFoundError:
+                    try:
+                        from lottie.parsers.tgs import parse_tgs
+                        from lottie.exporters.gif import export_gif
+                        anim = parse_tgs(tgs_file)
+                        export_gif(anim, filename)
+                    except Exception as e2:
+                        logger.error(f"[sticker] lottie 也失败: {e2}")
+                        await event.edit("出错了呜呜呜 ~ 请安装 ffmpeg: apk add ffmpeg")
+                        await sleep(3)
+                        await event.delete()
+                        return
                 except Exception as e:
-                    logger.error(f"[sticker] 动态贴纸转换失败: {type(e).__name__}: {e}")
+                    logger.error(f"[sticker] 转换失败: {e}")
                     await event.edit("出错了呜呜呜 ~ 动态贴纸转换失败")
                     await sleep(2)
                     await event.delete()
