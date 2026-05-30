@@ -16,7 +16,7 @@ from telethon import events
 
 from jbot import client, logger, diybotset
 
-# ==================== 配置（从 diybotset.json 读取） ====================
+# ==================== 配置 ====================
 MONITOR_CHATS = []
 _raw = str(diybotset.get("monitor_chats", ""))
 for item in _raw.split(","):
@@ -32,7 +32,7 @@ PUSHPLUS_TOKEN = diybotset.get("pushplus_token", "")
 PUSHPLUS_TOPIC = diybotset.get("pushplus_topic", "")
 PUSHPLUS_URL = "https://www.pushplus.plus/send"
 
-logger.info(f"[emby-notify] 插件已加载, MONITOR_CHATS={MONITOR_CHATS}, PUSHPLUS_TOKEN={'已设置' if PUSHPLUS_TOKEN else '未设置'}")
+logger.info(f"[emby-notify] 已加载, MONITOR_CHATS={MONITOR_CHATS}, TOKEN={'OK' if PUSHPLUS_TOKEN else '未设置'}")
 
 
 # ==================== 消息解析 ====================
@@ -41,7 +41,7 @@ def parse_media(text):
         return None
 
     info = {}
-    m = re.search(r"[📺🎬]\s*新入库\s+(\S+)\s+(.+?)(?:\s+[Ss]\d+|\s*$)", text)
+    m = re.search(r"[\u{1F4FA}\u{1F3AC}]\s*新入库\s+(\S+)\s+(.+?)(?:\s+[Ss]\d+|\s*$)", text)
     if m:
         info["type"] = m.group(1)
         info["title"] = m.group(2).strip()
@@ -53,11 +53,11 @@ def parse_media(text):
         info["season"] = m.group(1).upper()
         info["episode"] = m.group(2).upper()
 
-    m = re.search(r"⭐️?\s*评分[：:]\s*(\S+)", text)
+    m = re.search(r"[⭐️]?\s*评分[：:]\s*(\S+)", text)
     if m:
         info["rating"] = m.group(1)
 
-    m = re.search(r"[📺🎬]\s*媒体类型[：:]\s*(\S+)", text)
+    m = re.search(r"[\u{1F4FA}\u{1F3AC}]\s*媒体类型[：:]\s*(\S+)", text)
     if m:
         info["media_type"] = m.group(1)
 
@@ -69,11 +69,11 @@ def parse_media(text):
     if m:
         info["imdb_id"] = m.group(1)
 
-    m = re.search(r"🕒\s*操作时间[：:]\s*(.+)", text)
+    m = re.search(r"[🕒]\s*操作时间[：:]\s*(.+)", text)
     if m:
         info["time"] = m.group(1).strip()
 
-    m = re.search(r"📝\s*简介[：:]\s*(.+?)(?:\n\n|\Z)", text, re.DOTALL)
+    m = re.search(r"[📝]\s*简介[：:]\s*(.+?)(?:\n\n|\\Z)", text, re.DOTALL)
     if m:
         info["synopsis"] = m.group(1).strip()
 
@@ -87,7 +87,7 @@ def parse_media(text):
     if m:
         info["imdb_link"] = m.group(1)
 
-    m = re.search(r"🍺\s*(.+)", text)
+    m = re.search(r"[🍺]\s*(.+)", text)
     if m:
         info["comment"] = m.group(1).strip()
 
@@ -97,11 +97,12 @@ def parse_media(text):
 # ==================== 构造 Markdown ====================
 def build_markdown(info):
     title = info.get("title", "未知")
+    media_type = info.get("type", "")
     se = ""
     if info.get("season") or info.get("episode"):
         se = f" {info.get('season', '')} {info.get('episode', '')}"
 
-    lines = [f'**📺 新入库 {info["type"]} {title}{se}**', '']
+    lines = [f"**📺 新入库 {media_type} {title}{se}**", ""]
 
     if info.get("media_type"):
         lines.append(f"- **媒体类型：** {info['media_type']}")
@@ -172,10 +173,6 @@ async def on_new_media(event):
     if not info:
         return
 
-    push_title = '入库通知'
-    if info.get("season") or info.get("episode"):
-        
-
     logger.info(f"[emby-notify] 检测到新入库: {info['title']}")
     md = build_markdown(info)
-    await push_to_wechat(push_title, md)
+    await push_to_wechat("入库通知", md)
