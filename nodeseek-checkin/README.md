@@ -9,20 +9,27 @@
 - 🔀 随机延迟签到（避免被检测）
 - 📱 多账号支持
 - 🔔 集成青龙面板通知推送（sendNotify.js）
+- 🍪 配套猴油脚本，一键提取 Cookie
 
 ## 环境要求
 
 - Node.js >= 18.0.0
 
-## 使用方法
+## 快速开始
 
-### 1. 获取 Cookie
+### 1. 安装猴油脚本（推荐）
 
-1. 登录 [https://www.nodeseek.com](https://www.nodeseek.com)
-2. 按 `F12` 打开开发者工具
-3. 切换到 `Network` 标签
-4. 刷新页面，找到任意请求
-5. 在 `Request Headers` 中复制 `Cookie` 值
+安装配套的猴油脚本 `nodeseek-cookie-extractor.user.js`，登录 NodeSeek 后会自动显示 Cookie 提取面板。
+
+**安装方式：**
+- 安装 [Tampermonkey](https://www.tampermonkey.net/) 或 [Violentmonkey](https://violentmonkey.github.io/)
+- 点击脚本文件安装，或手动创建新脚本并粘贴代码
+
+**使用方法：**
+1. 访问 https://www.nodeseek.com
+2. 登录你的账号
+3. 页面右上角会自动弹出 Cookie 提取面板
+4. 点击「📋 复制 Cookie」按钮
 
 ### 2. 配置通知（可选）
 
@@ -65,7 +72,7 @@ export NODESEEK_COOKIE="cookie1
 cookie2"
 ```
 
-### 4. 运行脚本
+### 4. 运行签到脚本
 
 ```bash
 node nodeseek-checkin.js
@@ -109,11 +116,24 @@ crontab -e
 2. 环境变量中添加 `NODESEEK_COOKIE`
 3. 定时规则: `23 14 * * *`
 
+## 项目结构
+
+```
+nodeseek-checkin/
+├── nodeseek-checkin.js              # 主签到脚本
+├── nodeseek-cookie-extractor.user.js # 猴油脚本（Cookie 提取）
+├── sendNotify.js                    # 青龙通知模块
+├── package.json
+├── README.md
+├── .env.example
+└── .gitignore
+```
+
 ## 常见问题
 
 ### Q: 提示"Cookie 无效或已过期"
 
-A: Cookie 可能已过期，重新登录网站获取新的 Cookie。
+A: Cookie 可能已过期，使用猴油脚本重新获取 Cookie。
 
 ### Q: 如何同时签到多个账号？
 
@@ -126,6 +146,10 @@ A: 避免所有账号在同一时间签到，降低被检测的风险。
 ### Q: 如何启用通知？
 
 A: 将青龙面板的 `sendNotify.js` 放到脚本同目录下即可自动启用。
+
+### Q: 猴油脚本不显示？
+
+A: 确保已登录 NodeSeek，然后刷新页面。如果仍不显示，检查猴油脚本是否启用。
 
 ## 免责声明
 
