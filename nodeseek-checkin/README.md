@@ -1,156 +1,89 @@
 # NodeSeek 自动签到脚本
 
-自动签到 [NodeSeek](https://www.nodeseek.com/) 论坛，支持多账号、随机延迟、青龙面板通知推送。
+自动签到 [NodeSeek](https://www.nodeseek.com/) 论坛，使用 `curl_cffi` 模拟 Chrome TLS 指纹绕过 Cloudflare。
 
 ## 功能特性
 
 - ✅ 自动签到获取鸡腿
 - 📊 查询签到收益统计（近30天）
-- 🔀 随机延迟签到（避免被检测）
-- 📱 多账号支持
-- 🔔 集成青龙面板通知推送（sendNotify.js）
-- 🍪 配套猴油脚本，一键提取 Cookie
+- 🔀 随机/固定延迟签到
+- 🎲 随机鸡腿模式
+- 🌐 支持 HTTP/HTTPS 代理
+- 🔔 集成青龙面板通知推送
 
 ## 环境要求
 
-- Node.js >= 18.0.0
+- Python 3.8+
+- curl_cffi
 
-## 快速开始
-
-### 1. 安装猴油脚本（推荐）
-
-安装配套的猴油脚本 `nodeseek-cookie-extractor.user.js`，登录 NodeSeek 后会自动显示 Cookie 提取面板。
-
-**安装方式：**
-- 安装 [Tampermonkey](https://www.tampermonkey.net/) 或 [Violentmonkey](https://violentmonkey.github.io/)
-- 点击脚本文件安装，或手动创建新脚本并粘贴代码
-
-**使用方法：**
-1. 访问 https://www.nodeseek.com
-2. 登录你的账号
-3. 页面右上角会自动弹出 Cookie 提取面板
-4. 点击「📋 复制 Cookie」按钮
-
-### 2. 配置通知（可选）
-
-将青龙面板的 `sendNotify.js` 放到脚本同目录下，即可自动启用通知推送。
-
-支持的通知方式：
-- 微信 Server酱
-- Bark App
-- Telegram 机器人
-- 钉钉机器人
-- 企业微信机器人
-- iGot
-- pushplus
-
-### 3. 设置环境变量
-
-#### Windows (PowerShell)
-
-```powershell
-# 单个账号
-$env:NODESEEK_COOKIE="your_cookie_here"
-
-# 多个账号（用换行分隔）
-$env:NODESEEK_COOKIE="cookie1`ncookie2"
-```
-
-#### Windows (CMD)
-
-```cmd
-set NODESEEK_COOKIE=your_cookie_here
-```
-
-#### Linux/macOS
+## 安装依赖
 
 ```bash
-export NODESEEK_COOKIE="your_cookie_here"
-
-# 多个账号
-export NODESEEK_COOKIE="cookie1
-cookie2"
+pip install curl_cffi
 ```
 
-### 4. 运行签到脚本
+## 环境变量
 
 ```bash
-node nodeseek-checkin.js
+# 必填：NodeSeek Cookie
+export NODESEEK_COOKIE="colorscheme=light; session=xxx; cf_clearance=xxx; smac=xxx; fog=xxx; hmti_=xxx"
+
+# 可选：代理地址
+export NODESEEK_PROXY_URL="http://192.168.3.4:7890"
+
+# 可选：签到模式（true=随机鸡腿，false=固定5鸡腿）
+export NODESEEK_SIGN_RANDOM="true"
+
+# 可选：固定延迟（秒）
+export NODESEEK_FIXED_DELAY="0"
+
+# 可选：随机延迟范围（秒）
+export NODESEEK_RANDOM_DELAY_MIN="0"
+export NODESEEK_RANDOM_DELAY_MAX="0"
 ```
 
-## 环境变量说明
+| 变量 | 必填 | 说明 | 默认值 |
+|------|------|------|--------|
+| `NODESEEK_COOKIE` | ✅ | 完整 Cookie | - |
+| `NODESEEK_PROXY_URL` | ❌ | 代理地址 | - |
+| `NODESEEK_SIGN_RANDOM` | ❌ | 随机鸡腿 | `true` |
+| `NODESEEK_FIXED_DELAY` | ❌ | 固定延迟秒数 | `0` |
+| `NODESEEK_RANDOM_DELAY_MIN` | ❌ | 随机延迟最小值 | `0` |
+| `NODESEEK_RANDOM_DELAY_MAX` | ❌ | 随机延迟最大值 | `0` |
 
-| 变量名 | 必填 | 说明 | 默认值 |
-|--------|------|------|--------|
-| `NODESEEK_COOKIE` | ✅ | NodeSeek Cookie（多账号用换行分隔） | - |
-| `RANDOM_SIGNIN` | ❌ | 是否启用随机延迟签到 | `true` |
-| `MAX_RANDOM_DELAY` | ❌ | 最大随机延迟秒数 | `3600` |
+## 获取 Cookie
 
-通知相关的环境变量请参考 `sendNotify.js` 的配置。
+1. 登录 https://www.nodeseek.com
+2. 按 `F12` 打开开发者工具
+3. 切换到 `Network` 标签
+4. 刷新页面，点击任意请求
+5. 复制 `Request Headers` 中的完整 Cookie
 
-## 定时任务
+**Cookie 必须包含以下字段：**
+- `session`
+- `cf_clearance`
+- `smac`
+- `fog`
+- `hmti_`
 
-### Windows (任务计划程序)
+## 青龙面板部署
 
-1. 打开"任务计划程序"
-2. 创建基本任务
-3. 设置触发器（如每天 14:00）
-4. 操作选择"启动程序"
-5. 程序填写 `node`
-6. 参数填写 `D:\path\to\nodeseek-checkin.js`
-7. 起始于填写脚本所在目录
-
-### Linux (Crontab)
-
-```bash
-# 编辑 crontab
-crontab -e
-
-# 添加定时任务（每天 14:23 执行）
-23 14 * * * NODESEEK_COOKIE="your_cookie" /usr/bin/node /path/to/nodeseek-checkin.js
-```
-
-### 青龙面板
-
-1. 添加订阅或脚本
-2. 环境变量中添加 `NODESEEK_COOKIE`
-3. 定时规则: `23 14 * * *`
+1. 将 `nodeseek-checkin.py` 和 `notify.py` 放到青龙脚本目录
+2. 添加环境变量（见上方）
+3. 添加定时任务：`23 14 * * *`
 
 ## 项目结构
 
 ```
 nodeseek-checkin/
-├── nodeseek-checkin.js              # 主签到脚本
-├── nodeseek-cookie-extractor.user.js # 猴油脚本（Cookie 提取）
-├── sendNotify.js                    # 青龙通知模块
-├── package.json
-├── README.md
-├── .env.example
-└── .gitignore
+├── nodeseek-checkin.py              # 主签到脚本
+├── notify.py                        # 通知推送模块
+├── nodeseek-cookie-extractor.user.js # 猴油脚本（辅助获取 Cookie）
+├── .env.example                     # 环境变量示例
+├── .gitignore
+└── README.md
 ```
-
-## 常见问题
-
-### Q: 提示"Cookie 无效或已过期"
-
-A: Cookie 可能已过期，使用猴油脚本重新获取 Cookie。
-
-### Q: 如何同时签到多个账号？
-
-A: 在 `NODESEEK_COOKIE` 中用换行分隔多个 Cookie。
-
-### Q: 随机延迟有什么用？
-
-A: 避免所有账号在同一时间签到，降低被检测的风险。
-
-### Q: 如何启用通知？
-
-A: 将青龙面板的 `sendNotify.js` 放到脚本同目录下即可自动启用。
-
-### Q: 猴油脚本不显示？
-
-A: 确保已登录 NodeSeek，然后刷新页面。如果仍不显示，检查猴油脚本是否启用。
 
 ## 免责声明
 
-本脚本仅供学习交流使用，请遵守 NodeSeek 论坛规则。使用本脚本产生的一切后果由使用者自行承担。
+本脚本仅供学习交流使用，请遵守 NodeSeek 论坛规则。
