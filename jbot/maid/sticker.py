@@ -84,11 +84,13 @@ async def stickertopic(event):
                   message.media.document.attributes):
                 photo = BytesIO()
                 await client.download_file(message.media.document, "AnimatedSticker.tgs")
-                for _ in range(len(message.media.document.attributes)):
-                    try:
-                        break
-                    except:
-                        pass
+                custom_emoji = True
+                animated = True
+                photo = 1
+            elif "video" in message.media.document.mime_type.split('/'):
+                # 视频贴纸 (webm/mp4)
+                photo = BytesIO()
+                await client.download_file(message.media.document, "AnimatedSticker.webm")
                 custom_emoji = True
                 animated = True
                 photo = 1
@@ -121,7 +123,8 @@ async def stickertopic(event):
                     from lottie.parsers.tgs import parse_tgs
                     from lottie.exporters.gif import export_gif
                     await event.edit("正在转换动态贴纸...\n" + progress_bar(50))
-                    anim = parse_tgs("AnimatedSticker.tgs")
+                    tgs_file = "AnimatedSticker.tgs" if os.path.exists("AnimatedSticker.tgs") else "AnimatedSticker.webm"
+                    anim = parse_tgs(tgs_file)
                     filename = "sticker_" + str(random())[2:8] + ".gif"
                     export_gif(anim, filename)
                 except ImportError:
@@ -139,6 +142,7 @@ async def stickertopic(event):
                 await client.send_file(event.chat_id, filename, force_document=as_file)
                 safe_remove(filename)
                 safe_remove("AnimatedSticker.tgs")
+                safe_remove("AnimatedSticker.webm")
                 await event.delete()
                 return
             await event.edit("正在上传...\n" + progress_bar(99))
@@ -376,6 +380,21 @@ async def single_sticker(animated, event, custom_emoji, emoji, message, pic_roun
               message.media.document.attributes):
             photo = BytesIO()
             await client.download_file(message.media.document, "AnimatedSticker.tgs")
+            for index in range(len(message.media.document.attributes)):
+                try:
+                    emoji = message.media.document.attributes[index].alt
+                    break
+                except:
+                    pass
+            custom_emoji = True
+            if not emoji:
+                custom_emoji = False
+            animated = True
+            photo = 1
+        elif "video" in message.media.document.mime_type.split('/'):
+            # 视频贴纸 (webm/mp4)
+            photo = BytesIO()
+            await client.download_file(message.media.document, "AnimatedSticker.webm")
             for index in range(len(message.media.document.attributes)):
                 try:
                     emoji = message.media.document.attributes[index].alt
