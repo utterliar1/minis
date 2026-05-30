@@ -30,7 +30,7 @@ def safe_remove(path):
 def progress_bar(percent):
     """生成进度条"""
     filled = int(percent / 10)
-    return "█".repeat(filled) + "░".repeat(10 - filled) + f" {percent}%"
+    return "█" * filled + "░" * (10 - filled) + f" {percent}%"
 
 
 
