@@ -41,7 +41,7 @@ def parse_media(text):
         return None
 
     info = {}
-    m = re.search(r"[\u{1F4FA}\u{1F3AC}]\s*新入库\s+(\S+)\s+(.+?)(?:\s+[Ss]\d+|\s*$)", text)
+    m = re.search(r"[📺🎬]\s*新入库\s+(\S+)\s+(.+?)(?:\s+[Ss]\d+|\s*$)", text)
     if m:
         info["type"] = m.group(1)
         info["title"] = m.group(2).strip()
@@ -57,7 +57,7 @@ def parse_media(text):
     if m:
         info["rating"] = m.group(1)
 
-    m = re.search(r"[\u{1F4FA}\u{1F3AC}]\s*媒体类型[：:]\s*(\S+)", text)
+    m = re.search(r"[📺🎬]\s*媒体类型[：:]\s*(\S+)", text)
     if m:
         info["media_type"] = m.group(1)
 
