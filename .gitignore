@@ -1,0 +1,12 @@
+﻿# Config with secrets
+config.json
+*.session
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs
+*.log
