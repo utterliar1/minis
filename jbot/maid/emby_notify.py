@@ -1,10 +1,10 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 emby-notify - 新入库消息监控 & PushPlus 微信推送
 
 在 diybotset.json 中添加以下配置：
-  "monitor_chats": "@kmll_nanshare_bot",
+  "monitor_chats": "@your_bot_username",
   "pushplus_token": "你的token",
   "pushplus_topic": ""
 """
