@@ -32,11 +32,6 @@ PUSHPLUS_TOKEN = diybotset.get("pushplus_token", "")
 PUSHPLUS_TOPIC = diybotset.get("pushplus_topic", "")
 PUSHPLUS_URL = "https://www.pushplus.plus/send"
 
-# 企业微信配置
-WECOM_CORPID = diybotset.get("wecom_corpid", "")
-WECOM_SECRET = diybotset.get("wecom_secret", "")
-WECOM_AGENTID = diybotset.get("wecom_agentid", "")
-WECOM_TOUSER = diybotset.get("wecom_touser", "@all")
 
 logger.info(f"[emby-notify] 已加载, MONITOR_CHATS={MONITOR_CHATS}, TOKEN={'OK' if PUSHPLUS_TOKEN else '未设置'}")
 
@@ -143,42 +138,6 @@ def build_markdown(info):
     return "\n".join(lines)
 
 
-# ==================== 企业微信推送 ====================
-async def get_wecom_token():
-    url = f"https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid={WECOM_CORPID}&corpsecret={WECOM_SECRET}"
-    try:
-        async with httpx.AsyncClient(timeout=10) as session:
-            resp = await session.get(url)
-            data = resp.json()
-            if data.get("errcode") == 0:
-                return data["access_token"]
-            logger.error(f"[emby-notify] 获取wecom_token失败: {data}")
-    except Exception as e:
-        logger.error(f"[emby-notify] 获取wecom_token异常: {e}")
-    return None
-
-async def push_to_wecom(title, content):
-    token = await get_wecom_token()
-    if not token:
-        return
-    url = f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={token}"
-    payload = {
-        "touser": WECOM_TOUSER,
-        "msgtype": "markdown",
-        "agentid": int(WECOM_AGENTID),
-        "markdown": {"content": f"**{title}**\n\n{content}"}
-    }
-    try:
-        async with httpx.AsyncClient(timeout=15) as session:
-            resp = await session.post(url, json=payload)
-            result = resp.json()
-            if result.get("errcode") == 0:
-                logger.info(f"[emby-notify] 企业微信推送成功: {title}")
-            else:
-                logger.error(f"[emby-notify] 企业微信推送失败: {result}")
-    except Exception as e:
-        logger.error(f"[emby-notify] 企业微信推送异常: {e}")
-
 # ==================== PushPlus 推送 ====================
 async def push_to_wechat(title, content):
     if not PUSHPLUS_TOKEN:
@@ -218,9 +177,4 @@ async def on_new_media(event):
     md = build_markdown(info)
     logger.info(f"[emby-notify] 检测到新入库: {info['title']}")
     logger.info(f"[emby-notify] MD内容: {md[:200]}")
-    if WECOM_CORPID and WECOM_SECRET and WECOM_AGENTID:
-        await push_to_wecom("入库通知", md)
-    elif PUSHPLUS_TOKEN:
-        await push_to_wechat("入库通知", md)
-    else:
-        logger.warning("[emby-notify] 未配置推送方式")
+    await push_to_wechat("入库通知", md)
