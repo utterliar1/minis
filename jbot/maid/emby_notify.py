@@ -2,6 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 emby-notify - 新入库消息监控 & PushPlus 微信推送
+
+环境变量：
+  MONITOR_CHATS   - 接收入库消息的 bot 用户名或 chat_id，多个逗号分隔
+  PUSHPLUS_TOKEN  - PushPlus 推送 token (https://www.pushplus.plus)
+  PUSHPLUS_TOPIC  - PushPlus 群组编码（可选）
 """
 
 import os
@@ -12,9 +17,18 @@ from telethon import events
 
 from jbot import client, logger
 
-# ==================== 配置 ====================
-# 接收入库消息的 bot 用户名或 chat_id，多个用逗号分隔
-MONITOR_CHATS = ["your_emby_bot_username"]
+# ==================== 配置（全部从环境变量读取） ====================
+_raw = os.getenv("MONITOR_CHATS", "")
+MONITOR_CHATS = []
+for item in _raw.split(","):
+    item = item.strip()
+    if not item:
+        continue
+    try:
+        MONITOR_CHATS.append(int(item))
+    except ValueError:
+        MONITOR_CHATS.append(item)
+
 PUSHPLUS_TOKEN = os.getenv("PUSHPLUS_TOKEN", "")
 PUSHPLUS_TOPIC = os.getenv("PUSHPLUS_TOPIC", "")
 PUSHPLUS_URL = "http://www.pushplus.plus/send"
