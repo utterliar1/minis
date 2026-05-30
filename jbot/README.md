@@ -4,26 +4,35 @@
 
 ## emby-notify
 
-新入库消息监控 → PushPlus 微信推送。
+新入库消息监控 &amp;gt; PushPlus 微信推送。
 
-独立运行，不依赖 jbot 主程序，用自己的 Telethon 客户端监听指定 bot 的消息。
+监听指定 TG bot 收到的新入库消息，自动解析媒体信息，通过 PushPlus 推送到微信。
 
-### 环境变量
+### 配置
 
-| 变量 | 必填 | 说明 |
-|------|------|------|
-| `API_ID` | ✅ | Telegram API ID，去 https://my.telegram.org 获取 |
-| `API_HASH` | ✅ | Telegram API Hash |
-| `MONITOR_CHATS` | ✅ | 监听的 bot 用户名或 chat ID，多个逗号分隔 |
-| `PUSHPLUS_TOKEN` | ✅ | PushPlus token，去 https://www.pushplus.plus 获取 |
-| `PUSHPLUS_TOPIC` | ❌ | 群组编码，留空只推给自己 |
-| `SESSION_NAME` | ❌ | Telethon 会话文件名，默认 `emby_notify` |
+在 `diybotset.json` 中添加：
 
-### 运行
-
-```bash
-pip install telethon httpx
-python emby_notify.py
+```json
+"monitor_chats": "@your_bot_username",
+"pushplus_token": "你的pushplus_token",
+"pushplus_topic": ""
 ```
 
-首次运行会要求输入手机号和验证码创建 session，之后自动登录。
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `monitor_chats` | ✅ | 接收入库消息的 bot 用户名或 chat ID，多个逗号分隔 |
+| `pushplus_token` | ✅ | PushPlus 推送 token，去 https://www.pushplus.plus 获取 |
+| `pushplus_topic` | ❌ | 群组编码，留空只推给自己 |
+
+### 使用
+
+1. 将 `emby_notify.py` 放入 jbot 的 `maid/` 目录
+2. 在 `diybotset.json` 中添加上述配置
+3. 重启 jbot（`pm2 restart jbot`）
+
+### 依赖
+
+- `telethon`（jbot 已有）
+- `httpx`（jbot 已有）
+
+无需额外安装。
