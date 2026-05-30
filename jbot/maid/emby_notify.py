@@ -33,6 +33,8 @@ PUSHPLUS_TOKEN = os.getenv("PUSHPLUS_TOKEN", "")
 PUSHPLUS_TOPIC = os.getenv("PUSHPLUS_TOPIC", "")
 PUSHPLUS_URL = "http://www.pushplus.plus/send"
 
+logger.info(f"[emby-notify] 插件已加载, MONITOR_CHATS={MONITOR_CHATS}, PUSHPLUS_TOKEN={'已设置' if PUSHPLUS_TOKEN else '未设置'}")
+
 
 # ==================== 消息解析 ====================
 def parse_media(text):
@@ -163,6 +165,7 @@ async def push_to_wechat(title, html):
 @client.on(events.MessageEdited(chats=MONITOR_CHATS))
 async def on_new_media(event):
     text = event.message.text or event.message.message or ""
+    logger.info(f"[emby-notify] 收到消息: {text[:80]}...")
     info = parse_media(text)
     if not info:
         return
