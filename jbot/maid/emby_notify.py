@@ -2,22 +2,50 @@
 # -*- coding: utf-8 -*-
 """
 emby-notify - 新入库消息监控 & PushPlus 微信推送
-放入 \\192.168.123.109\ql\jbot\maid\ 运行
-环境变量：PUSHPLUS_TOKEN（必填）, PUSHPLUS_TOPIC（可选）
+独立运行，不依赖 jbot，用自己的 Telethon 客户端监听指定 bot 的消息。
+
+环境变量：
+  API_ID          - Telegram API ID (https://my.telegram.org)
+  API_HASH        - Telegram API Hash
+  MONITOR_CHATS   - 监听的 bot 用户名或 chat ID，多个用逗号分隔
+  PUSHPLUS_TOKEN  - PushPlus 推送 token (https://www.pushplus.plus)
+  PUSHPLUS_TOPIC  - PushPlus 群组编码（可选）
 """
 
+import asyncio
+import logging
 import os
 import re
 
 import httpx
-from telethon import events
+from telethon import TelegramClient, events
 
-from jbot import jdbot, logger
+# ==================== 日志 ====================
+logging.basicConfig(
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    level=logging.INFO,
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger("emby-notify")
 
 # ==================== 配置 ====================
+API_ID = int(os.getenv("API_ID", "0"))
+API_HASH = os.getenv("API_HASH", "")
+SESSION = os.getenv("SESSION_NAME", "emby_notify")
 PUSHPLUS_TOKEN = os.getenv("PUSHPLUS_TOKEN", "")
 PUSHPLUS_TOPIC = os.getenv("PUSHPLUS_TOPIC", "")
 PUSHPLUS_URL = "http://www.pushplus.plus/send"
+
+_raw = os.getenv("MONITOR_CHATS", "")
+MONITOR_CHATS = []
+for item in _raw.split(","):
+    item = item.strip()
+    if not item:
+        continue
+    try:
+        MONITOR_CHATS.append(int(item))
+    except ValueError:
+        MONITOR_CHATS.append(item)
 
 
 # ==================== 消息解析 ====================
@@ -128,7 +156,7 @@ def build_html(info):
 # ==================== PushPlus 推送 ====================
 async def push_to_wechat(title, html):
     if not PUSHPLUS_TOKEN:
-        logger.warning("[emby-notify] PUSHPLUS_TOKEN 未配置，跳过推送")
+        logger.warning("PUSHPLUS_TOKEN 未配置，跳过推送")
         return
     payload = {
         "token": PUSHPLUS_TOKEN,
@@ -143,26 +171,44 @@ async def push_to_wechat(title, html):
             resp = await session.post(PUSHPLUS_URL, json=payload)
             result = resp.json()
             if result.get("code") == 200:
-                logger.info(f"[emby-notify] 推送成功: {title}")
+                logger.info("推送成功: %s", title)
             else:
-                logger.error(f"[emby-notify] 推送失败: {result}")
+                logger.error("推送失败: %s", result)
     except Exception as e:
-        logger.error(f"[emby-notify] 请求异常: {e}")
+        logger.error("请求异常: %s", e)
 
 
-# ==================== 监听入口 ====================
-@jdbot.on(events.NewMessage(incoming=True))
-@jdbot.on(events.MessageEdited(incoming=True))
-async def on_new_media(event):
-    text = event.message.text or event.message.message or ""
-    info = parse_media(text)
-    if not info:
+# ==================== 主程序 ====================
+async def main():
+    if not API_ID or not API_HASH:
+        logger.error("请设置 API_ID 和 API_HASH 环境变量")
+        return
+    if not MONITOR_CHATS:
+        logger.error("请设置 MONITOR_CHATS 环境变量（bot 用户名或 chat ID）")
         return
 
-    push_title = f"📺 新入库：{info['title']}"
-    if info.get("season") or info.get("episode"):
-        push_title += f" {info.get('season', '')} {info.get('episode', '')}"
+    client = TelegramClient(SESSION, API_ID, API_HASH)
 
-    logger.info(f"[emby-notify] 检测到新入库: {push_title}")
-    html = build_html(info)
-    await push_to_wechat(push_title, html)
+    @client.on(events.NewMessage(chats=MONITOR_CHATS))
+    @client.on(events.MessageEdited(chats=MONITOR_CHATS))
+    async def on_new_media(event):
+        text = event.message.text or event.message.message or ""
+        info = parse_media(text)
+        if not info:
+            return
+
+        push_title = f"📺 新入库：{info['title']}"
+        if info.get("season") or info.get("episode"):
+            push_title += f" {info.get('season', '')} {info.get('episode', '')}"
+
+        logger.info("检测到新入库: %s", push_title)
+        html = build_html(info)
+        await push_to_wechat(push_title, html)
+
+    await client.start()
+    logger.info("emby-notify 已启动，监听: %s", MONITOR_CHATS)
+    await client.run_until_disconnected()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
