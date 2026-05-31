@@ -4,7 +4,30 @@
 
 ---
 
-## emby-notify
+## xmsport (diy/)
+
+小米运动刷步数，通过 TG 机器人选择步数执行。
+
+### 命令
+
+| 命令 | 说明 |
+|------|------|
+| `/xiaomi` | 弹出步数选择按钮，选择后自动执行刷步数 |
+
+### 使用
+
+1. 将 `diy/xmsport.py` 放入 jbot 的 `diy/` 目录
+2. 确保 `xmSport/xmsport.py` 和 `xmSport/data.txt` 已部署到青龙脚本目录
+3. 在青龙面板配置环境变量 `MI_USER` 和 `MI_PWD`
+4. 重启 jbot（`pm2 restart jbot`）
+
+### 依赖
+
+依赖 jbot 已有的 `telethon`、`press_event`、`execute` 等，无需额外安装。
+
+---
+
+## emby-notify (maid/)
 
 新入库消息监控 → PushPlus 微信推送。
 
@@ -41,7 +64,7 @@
 
 ---
 
-## sticker
+## sticker (maid/)
 
 贴纸管理工具，支持静态/动态贴纸转图片/GIF、添加到贴纸包、批量处理等。
 
