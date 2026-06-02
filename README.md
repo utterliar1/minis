@@ -4,7 +4,7 @@
 
 ## 目录结构
 
-`
+```
 minis/
 ├── BlockBrowser/           # CAD块浏览器插件
 │   ├── autoload.lsp        # 自动加载脚本
@@ -26,7 +26,7 @@ minis/
 └── xmSport/                # 小米运动刷步数
     ├── xmsport.py          # 刷步数脚本（青龙面板）
     └── data.txt            # 步数数据模板
-`
+```
 
 ## 快速使用
 
