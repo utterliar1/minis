@@ -47,7 +47,7 @@ namespace BlockBrowser
 
         private void InitializeComponent()
         {
-            Text = "块浏览器 v1.0 - " + BlockLibrary.PlatformName;
+            Text = "块浏览器 - " + BlockLibrary.PlatformName;
             Size = new Size(1000, 650);
             MinimumSize = new Size(700, 450);
             StartPosition = FormStartPosition.CenterScreen;
