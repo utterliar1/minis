@@ -713,10 +713,21 @@ newDb.SaveAs(outPath, DwgVersion.Current);
                 form.FormBorderStyle = FormBorderStyle.FixedDialog;
                 form.MaximizeBox = false; form.MinimizeBox = false;
 
-                var lbl1 = new Label { Text = "选择块:", Location = new Point(15, 15), AutoSize = true };
-                var lst = new ListBox { Location = new Point(15, 35), Size = new Size(360, 280) };
+                var lblSearch = new Label { Text = "搜索:", Location = new Point(15, 12), AutoSize = true };
+                var txtSearch = new TextBox { Location = new Point(55, 9), Width = 320 };
+                var lbl1 = new Label { Text = "选择块:", Location = new Point(15, 38), AutoSize = true };
+                var lst = new ListBox { Location = new Point(15, 55), Size = new Size(360, 260) };
                 foreach (var name in blockNames) lst.Items.Add(name);
                 if (lst.Items.Count > 0) lst.SelectedIndex = 0;
+                txtSearch.TextChanged += (s2, e2) =>
+                {
+                    string kw = txtSearch.Text.Trim().ToLowerInvariant();
+                    lst.Items.Clear();
+                    foreach (var name in blockNames)
+                        if (string.IsNullOrEmpty(kw) || name.ToLowerInvariant().Contains(kw))
+                            lst.Items.Add(name);
+                    if (lst.Items.Count > 0) lst.SelectedIndex = 0;
+                };
 
                 var lbl2 = new Label { Text = "分类:", Location = new Point(15, 325), AutoSize = true };
                 var cmb = new ComboBox { Location = new Point(15, 345), Width = 200, DropDownStyle = ComboBoxStyle.DropDown };
@@ -726,7 +737,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
 
                 var btnOk = new Button { Text = "导出", DialogResult = DialogResult.OK, Location = new Point(200, 380) };
                 var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(290, 380) };
-                form.Controls.AddRange(new Control[] { lbl1, lst, lbl2, cmb, btnOk, btnCancel });
+                form.Controls.AddRange(new Control[] { lblSearch, txtSearch, lbl1, lst, lbl2, cmb, btnOk, btnCancel });
                 form.AcceptButton = btnOk; form.CancelButton = btnCancel;
 
                 if (form.ShowDialog() == DialogResult.OK && lst.SelectedItem != null)

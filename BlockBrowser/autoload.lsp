@@ -3,43 +3,11 @@
 
 (vl-load-com)
 
-;; 读取同目录config.ini的值
-(defun _bb-config-val (key / cfg f line pos k val)
-  (setq val nil)
-  (setq cfg (strcat blockbrowser-dir "config.ini"))
-  (if (findfile cfg)
-    (progn
-      (setq f (open cfg "r"))
-      (while (setq line (read-line f))
-        (if (and (> (strlen line) 0)
-                 (not (wcmatch (substr line 1 1) ";"))
-                 (not (wcmatch (substr line 1 1) "#")))
-          (progn
-            (setq pos (vl-string-search "=" line))
-            (if pos
-              (progn
-                (setq k (substr line 1 pos))
-                (if (= (strcase k) (strcase key))
-                  (setq val (substr line (+ pos 2)))
-                )
-              )
-            )
-          )
-        )
-      )
-      (close f)
-    )
-  )
-  val
-)
-
 ;; 扫描常见位置找插件目录
 (defun _bb-find (/ dir)
   (cond
     ((vl-file-directory-p "C:\\BlockBrowser") "C:\\BlockBrowser\\")
     ((vl-file-directory-p "D:\\BlockBrowser") "D:\\BlockBrowser\\")
-    ((vl-file-directory-p "C:\\mini工具箱\\BlockBrowser") "C:\\mini工具箱\\BlockBrowser\\")
-    ((vl-file-directory-p "D:\\mini工具箱\\BlockBrowser") "D:\\mini工具箱\\BlockBrowser\\")
     (T nil)
   )
 )

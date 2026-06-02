@@ -35,7 +35,7 @@ namespace BlockBrowser
         private System.Windows.Forms.Timer _thumbTimer;
         private int _thumbIndex;
         private Dictionary<string, Image> _thumbCache = new Dictionary<string, Image>();
-        private static Dictionary<string, Image> _placeholderCache = new Dictionary<string, Image>();
+        
         private Dictionary<string, List<BlockThumbnailCard>> _categoryCards = new Dictionary<string, List<BlockThumbnailCard>>();
 
         public BlockBrowserForm()
@@ -365,8 +365,7 @@ namespace BlockBrowser
                 var card = _cards[i];
                 if (card.IsDisposed) continue;
                 bool match = showAll ||
-                    card.Block.Name.ToLowerInvariant().Contains(kw) ||
-                    card.Block.Category.ToLowerInvariant().Contains(kw);
+                    card.Block.Name.ToLowerInvariant().Contains(kw);
                 card.Visible = match;
             }
             _flowBlocks.ResumeLayout();
@@ -376,7 +375,7 @@ namespace BlockBrowser
 
         private bool _inserting;
 
-                                        private void DoInsert()
+        private void DoInsert()
         {
             if (_selectedBlock == null) { MessageBox.Show("请先选择一个块。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             using (var opts = new InsertOptionsForm(_selectedBlock.Name))
@@ -480,10 +479,18 @@ namespace BlockBrowser
                 if (form.ShowDialog(this) == DialogResult.OK)
                 {
                     string newPath = txt.Text.Trim();
-                    if (!string.IsNullOrEmpty(newPath) && newPath != BlockLibrary.LibraryPath)
+                    if (string.IsNullOrEmpty(newPath)) { MessageBox.Show("路径不能为空。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                    if (!Directory.Exists(newPath))
+                    {
+                        var dr = MessageBox.Show("目录不存在，是否创建？\n" + newPath, "提示", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                        if (dr == DialogResult.Yes) { try { Directory.CreateDirectory(newPath); } catch (Exception ex) { MessageBox.Show("创建失败: " + ex.Message); return; } }
+                        else return;
+                    }
+                    if (newPath != BlockLibrary.LibraryPath)
                     {
                         BlockLibrary.LibraryPath = newPath;
                         BlockLibrary.SaveConfig();
+                        _categoryCards.Clear();
                         LoadData();
                     }
                 }
