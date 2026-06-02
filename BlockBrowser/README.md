@@ -20,21 +20,21 @@
 
 ```
 BlockBrowser/
-+-- config.ini              配置文件
-+-- autoload.lsp            自动加载脚本
-+-- gcad/
-|   +-- BlockBrowser.dll    浩辰CAD
-+-- acad/
-|   +-- BlockBrowser.dll    AutoCAD
-+-- zwcad/
-|   +-- BlockBrowser.dll    中望CAD
-+-- 我的常用块/              默认块库
-    +-- 常用/
-    +-- 电气/
-    +-- 建筑/
-    +-- 机械/
-    +-- 标注/
-    +-- 其他/
+├── config.ini              配置文件
+├── autoload.lsp            自动加载脚本
+├── gcad/
+│   └── BlockBrowser.dll    浩辰CAD
+├── acad/
+│   └── BlockBrowser.dll    AutoCAD
+├── zwcad/
+│   └── BlockBrowser.dll    中望CAD
+└── 我的常用块/              默认块库
+    ├── 常用/
+    ├── 电气/
+    ├── 建筑/
+    ├── 机械/
+    ├── 标注/
+    └── 其他/
 ```
 
 ### 使用方式
