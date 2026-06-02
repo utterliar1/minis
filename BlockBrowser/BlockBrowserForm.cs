@@ -47,7 +47,7 @@ namespace BlockBrowser
 
         private void InitializeComponent()
         {
-            Text = "块浏览器 - " + BlockLibrary.PlatformName;
+            Text = "块浏览器 v1.0 - " + BlockLibrary.PlatformName;
             Size = new Size(1000, 650);
             MinimumSize = new Size(700, 450);
             StartPosition = FormStartPosition.CenterScreen;
@@ -139,7 +139,7 @@ namespace BlockBrowser
 
             // Status bar
             _statusBar = new StatusStrip();
-            var lblAuthor = new ToolStripLabel("制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
+            var lblAuthor = new ToolStripLabel("v1.0 | 制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
             _lblStatus = new ToolStripStatusLabel("就绪") { Spring = true, TextAlign = ContentAlignment.MiddleLeft };
             _lblCount = new ToolStripStatusLabel("0") { TextAlign = ContentAlignment.MiddleRight };
             _statusBar.Items.AddRange(new ToolStripItem[] { lblAuthor, _lblStatus, _lblCount });
