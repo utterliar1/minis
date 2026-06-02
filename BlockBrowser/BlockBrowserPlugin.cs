@@ -617,7 +617,6 @@ newDb.SaveAs(outPath, DwgVersion.Current);
 #endif
                 BlockLibrary.LoadConfig();
                 if (!Directory.Exists(BlockLibrary.LibraryPath)) Directory.CreateDirectory(BlockLibrary.LibraryPath);
-                if (!Directory.Exists(BlockLibrary.ThumbnailCachePath)) Directory.CreateDirectory(BlockLibrary.ThumbnailCachePath);
             }
             catch { }
         }
