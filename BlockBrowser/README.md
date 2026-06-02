@@ -18,35 +18,35 @@
 ### 目录结构
 
 `
-BlockBrowser\
-  ├── config.ini          ← 配置文件
-  ├── autoload.lsp        ← 自动加载脚本
-  ├── gcad\
-  │   └── BlockBrowser.dll
-  ├── acad\
-  │   └── BlockBrowser.dll
-  ├── zwcad\
-  │   └── BlockBrowser.dll
-  └── 我的常用块\          ← 默认块库
-      ├── 常用\
-      ├── 电气\
-      ├── 建筑\
-      ├── 机械\
-      ├── 标注\
-      └── 其他\
+BlockBrowser/
+├── config.ini              配置文件
+├── autoload.lsp            自动加载脚本
+├── gcad/
+│   └── BlockBrowser.dll
+├── acad/
+│   └── BlockBrowser.dll
+├── zwcad/
+│   └── BlockBrowser.dll
+└── 我的常用块/              默认块库
+    ├── 常用/
+    ├── 电气/
+    ├── 建筑/
+    ├── 机械/
+    ├── 标注/
+    └── 其他/
 `
 
 ### 使用方式
 
-1. 将整个 BlockBrowser 文件夹复制到任意位置（如 C:\BlockBrowser）
-2. 在 CAD 中执行 APPLOAD，加载 utoload.lsp
+1. 将整个 BlockBrowser 文件夹复制到任意位置（如 `C:\BlockBrowser`）
+2. 在 CAD 中执行 APPLOAD，加载 autoload.lsp
 3. 输入命令 BB 打开块浏览器
 
-utoload.lsp 会自动检测 CAD 平台和插件目录，首次运行后记住路径。
+autoload.lsp 会自动检测 CAD 平台和插件目录，首次运行后记住路径。
 
 ### 自动加载（可选）
 
-将 utoload.lsp 的加载语句添加到 caddoc.lsp 或 CAD 的启动脚本中，即可每次启动自动加载。
+将 autoload.lsp 的加载语句添加到 acaddoc.lsp 或 CAD 的启动脚本中，即可每次启动自动加载。
 
 ## 命令
 
@@ -82,7 +82,7 @@ LibraryPath=D:\我的块库
 
 ### CAD SDK 路径
 
-在 uild-all.bat 中修改各 CAD 的安装路径：
+在 build-all.bat 中修改各 CAD 的安装路径：
 
 `at
 set "GCAD_DIR=C:\Program Files\浩辰软件\浩辰CAD2022"
@@ -96,11 +96,11 @@ set "ZWCAD_DIR=C:\Program Files\ZWSOFT\ZWCAD 2022"
 build-all.bat
 `
 
-输出在 in\Release\{gcad,acad,zwcad}\BlockBrowser.dll。
+输出在 `bin\Release\{gcad,acad,zwcad}\BlockBrowser.dll`。
 
 ## 技术说明
 
-- **条件编译**：#if GSTARCAD / #if AUTOCAD / #if ZWCAD 区分平台 API 差异
+- **条件编译**：`#if GSTARCAD` / `#if AUTOCAD` / `#if ZWCAD` 区分平台 API 差异
 - **缩略图策略**：PreviewIcon → 几何渲染（递归展开 BlockReference）→ 文字占位图
 - **插入方式**：模态对话框选块 → 关闭后 CAD 原生提示插入点，无焦点闪烁
 - **配置读取**：DLL 加载时从 config.ini 读取，支持相对/绝对路径
