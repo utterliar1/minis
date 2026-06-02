@@ -411,10 +411,14 @@ namespace BlockBrowser
             {
                 string filePath = _selectedBlock.FilePath;
                 string name = _selectedBlock.Name;
+                if (!File.Exists(filePath)) { MessageBox.Show("文件不存在: " + filePath, "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                // Check file is not locked
+                try { using (FileStream fs = File.Open(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { } }
+                catch (IOException) { MessageBox.Show("文件被占用，请关闭CAD中打开的此文件后重试。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 // Delete thumbnail cache
                 BlockLibrary.RefreshThumbnail(_selectedBlock);
                 // Delete the DWG file
-                if (File.Exists(filePath)) File.Delete(filePath);
+                File.Delete(filePath);
                 // Remove from UI
                 BlockThumbnailCard cardToRemove = null;
                 foreach (var card in _cards)
@@ -450,34 +454,33 @@ namespace BlockBrowser
             string newName = ShowInputDialog("输入新名称:", oldName);
             if (string.IsNullOrEmpty(newName) || newName.Trim() == oldName) return;
             newName = newName.Trim();
+            // Validate filename chars
+            char[] invalid = Path.GetInvalidFileNameChars();
+            foreach (char c in newName) { foreach (char ic in invalid) { if (c == ic) { MessageBox.Show("名称包含非法字符: " + ic, "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; } } }
             string oldPath = _selectedBlock.FilePath;
             string dir = Path.GetDirectoryName(oldPath);
             string newPath = Path.Combine(dir, newName + ".dwg");
             if (File.Exists(newPath)) { MessageBox.Show("同名文件已存在: " + newName, "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
             try
             {
-                // Rename DWG file
-                File.Move(oldPath, newPath);
-                // Rename thumbnail cache
-                string oldCacheKey = BlockLibrary.GetCacheKey(_selectedBlock);
-                _selectedBlock.FilePath = newPath; // updates name internally
-                string newCacheKey = BlockLibrary.GetCacheKey(_selectedBlock);
-                string thumbDir = BlockLibrary.ThumbnailCachePath;
-                string oldCache = Path.Combine(thumbDir, oldCacheKey + ".png");
-                string newCache = Path.Combine(thumbDir, newCacheKey + ".png");
-                if (File.Exists(oldCache)) File.Move(oldCache, newCache);
-                // Update memory cache
+                // Rename via BlockLibrary (handles file move + cache rename)
+                if (!BlockLibrary.RenameBlock(_selectedBlock, newName))
+                {
+                    MessageBox.Show("重命名失败。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                // Update memory cache key (oldPath -> newPath)
                 if (_thumbCache.ContainsKey(oldPath))
                 {
                     _thumbCache[newPath] = _thumbCache[oldPath];
                     _thumbCache.Remove(oldPath);
                 }
-                // Update UI card label
+                // Update UI card label without full refresh
                 foreach (var card in _cards)
                 {
                     if (card.Block.FilePath == newPath)
                     {
-                        // FilePath was already updated via _selectedBlock reference
+                        card.UpdateLabel(newName);
                         break;
                     }
                 }

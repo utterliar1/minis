@@ -77,6 +77,12 @@ namespace BlockBrowser
             if (old != null) old.Dispose();
         }
 
+        public void UpdateLabel(string newName)
+        {
+            _lbl.Text = newName;
+            _tip.SetToolTip(this, newName + "\n" + Block.Category);
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);

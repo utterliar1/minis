@@ -1,7 +1,7 @@
 import os
 import time
 import random
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from curl_cffi import requests
 
 from notify import send
@@ -19,7 +19,6 @@ BASE_URL = f"https://{SITE_DOMAIN}"
 
 proxies = {"http": PROXY_URL, "https": PROXY_URL} if PROXY_URL else None
 
-# 完全对齐官方最新请求头
 HEADERS = {
     'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
     'sec-ch-ua': "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"",
@@ -39,7 +38,6 @@ HEADERS = {
 def sign_in():
     url = f"{BASE_URL}/api/attendance?random={'true' if SIGN_RANDOM else 'false'}"
     print(f"📡 请求: {url}")
-    print(f"🔑 Cookie 长度: {len(NS_COOKIE)}")
     
     resp = requests.post(url, headers=HEADERS, impersonate="chrome110", proxies=proxies, timeout=30)
     print(f"📥 状态码: {resp.status_code}")
@@ -59,7 +57,10 @@ def sign_in():
     return 'fail', msg
 
 def get_signin_stats(days=30):
+    """查询签到收益统计"""
     all_records = []
+    stop_time = datetime.now(timezone.utc) - timedelta(days=days)
+    
     for page in range(1, 11):
         try:
             resp = requests.get(
@@ -73,18 +74,33 @@ def get_signin_stats(days=30):
             if not records:
                 break
             all_records.extend(records)
+            
+            # 检查最后一条记录是否超出时间范围
             last_time = datetime.fromisoformat(records[-1][3].replace('Z', '+00:00'))
-            if last_time < datetime.now(last_time.tzinfo) - __import__('datetime').timedelta(days=days):
+            if last_time < stop_time:
                 break
             time.sleep(0.5)
         except:
             break
     
-    amounts = [r[0] for r in all_records if "签到收益" in r[2] and "鸡腿" in r[2]]
-    if not amounts:
+    # 严格按日期筛选签到收益记录
+    signin_records = []
+    for record in all_records:
+        amount, balance, description, timestamp = record
+        record_time = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        # 只统计指定天数内的签到收益
+        if record_time >= stop_time and "签到收益" in description and "鸡腿" in description:
+            signin_records.append(amount)
+    
+    if not signin_records:
         return None
-    total = sum(amounts)
-    return {'total': total, 'average': round(total / len(amounts), 2), 'days': len(amounts)}
+    
+    total = sum(signin_records)
+    return {
+        'total': total, 
+        'average': round(total / len(signin_records), 2), 
+        'days': len(signin_records)
+    }
 
 if __name__ == "__main__":
     notify_title = "NodeSeek签到通知"
@@ -115,7 +131,7 @@ if __name__ == "__main__":
             print(success_msg)
             stats = get_signin_stats(30)
             if stats:
-                stats_msg = f"📊 近30天{stats['days']}天，共{stats['total']}鸡腿，平均{stats['average']}/天"
+                stats_msg = f"📊 近30天签到{stats['days']}天，共{stats['total']}鸡腿，平均{stats['average']}/天"
                 print(stats_msg)
                 send(notify_title, f"{success_msg}\n{stats_msg}")
             else:

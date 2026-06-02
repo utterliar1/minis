@@ -455,7 +455,7 @@ namespace BlockBrowser
             catch { }
         }
 
-        public static string GetCacheKey(BlockInfo block)
+        private static string GetCacheKey(BlockInfo block)
         {
             string key = block.FilePath ?? "";
             using (var md5 = System.Security.Cryptography.MD5.Create())
@@ -469,6 +469,33 @@ namespace BlockBrowser
         {
             string cp = Path.Combine(ThumbnailCachePath, GetCacheKey(block) + ".png");
             if (File.Exists(cp)) File.Delete(cp);
+        }
+
+        public static bool RenameBlock(BlockInfo block, string newName)
+        {
+            if (block == null || string.IsNullOrEmpty(newName)) return false;
+            string oldPath = block.FilePath;
+            string dir = Path.GetDirectoryName(oldPath);
+            if (string.IsNullOrEmpty(dir)) return false;
+            string newPath = Path.Combine(dir, newName + ".dwg");
+            if (File.Exists(newPath)) return false;
+            // Validate filename chars
+            char[] invalid = Path.GetInvalidFileNameChars();
+            foreach (char c in newName) { foreach (char ic in invalid) { if (c == ic) return false; } }
+            // Rename DWG file
+            File.Move(oldPath, newPath);
+            // Rename thumbnail cache
+            string oldCacheKey = GetCacheKey(block);
+            block.FilePath = newPath;
+            string newCacheKey = GetCacheKey(block);
+            string thumbDir = ThumbnailCachePath;
+            string oldCache = Path.Combine(thumbDir, oldCacheKey + ".png");
+            string newCache = Path.Combine(thumbDir, newCacheKey + ".png");
+            if (File.Exists(oldCache))
+            {
+                try { File.Move(oldCache, newCache); } catch { }
+            }
+            return true;
         }
 
                 public static void InsertBlock(BlockInfo block, double scale, double rotation)
@@ -808,7 +835,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
             try
             {
-                ed.WriteMessage("\n=== 块浏览器 v1.211 (" + BlockLibrary.PlatformName + ") ===");
+                ed.WriteMessage("\n=== 块浏览器 v1.21 (" + BlockLibrary.PlatformName + ") ===");
                 ed.WriteMessage("\n库: " + BlockLibrary.LibraryPath);
                 ed.WriteMessage("\n命令: BB KLLQ BBADD BBEXPORT BBTHUMB");
             }
