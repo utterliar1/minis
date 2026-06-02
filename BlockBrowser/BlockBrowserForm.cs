@@ -26,14 +26,16 @@ namespace BlockBrowser
         private ToolStripStatusLabel _lblCount;
 
         private BlockInfo _selectedBlock;
-        private List<BlockInfo> _allBlocks = new List<BlockInfo>();
+        // _allBlocks removed
         private List<BlockThumbnailCard> _cards = new List<BlockThumbnailCard>();
         private string _currentCategory = "全部";
-        private int _thumbSize = 128;
+        private static int _savedThumbSize = 128;
+        private int _thumbSize = _savedThumbSize;
         private System.Windows.Forms.Timer _searchTimer;
         private System.Windows.Forms.Timer _thumbTimer;
         private int _thumbIndex;
         private Dictionary<string, Image> _thumbCache = new Dictionary<string, Image>();
+        private static Dictionary<string, Image> _placeholderCache = new Dictionary<string, Image>();
         private Dictionary<string, List<BlockThumbnailCard>> _categoryCards = new Dictionary<string, List<BlockThumbnailCard>>();
 
         public BlockBrowserForm()
@@ -51,6 +53,8 @@ namespace BlockBrowser
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.FromArgb(245, 245, 248);
             Font = new Font("Microsoft YaHei", 9f);
+            KeyPreview = true;
+            KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) this.Close(); };
 
             // Timers
             _searchTimer = new System.Windows.Forms.Timer { Interval = 300 };
@@ -94,11 +98,13 @@ namespace BlockBrowser
             var lblSize = new ToolStripLabel("大小:");
             var cmbThumbSize = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 65 };
             cmbThumbSize.Items.AddRange(new object[] { "小", "中", "大", "特大" });
-            cmbThumbSize.SelectedIndex = 1;
+            int[] sizes = { 80, 128, 180, 256 };
+            int savedIdx = Array.IndexOf(sizes, _savedThumbSize);
+            cmbThumbSize.SelectedIndex = savedIdx >= 0 ? savedIdx : 1;
             cmbThumbSize.SelectedIndexChanged += (s, e) =>
             {
-                int[] sizes = { 80, 128, 180, 256 };
                 _thumbSize = sizes[cmbThumbSize.SelectedIndex];
+                _savedThumbSize = _thumbSize;
                 RefreshCards();
             };
             var cmbHost = new ToolStripControlHost(cmbThumbSize);
@@ -133,9 +139,10 @@ namespace BlockBrowser
 
             // Status bar
             _statusBar = new StatusStrip();
+            var lblAuthor = new ToolStripLabel("制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
             _lblStatus = new ToolStripStatusLabel("就绪") { Spring = true, TextAlign = ContentAlignment.MiddleLeft };
             _lblCount = new ToolStripStatusLabel("0") { TextAlign = ContentAlignment.MiddleRight };
-            _statusBar.Items.AddRange(new ToolStripItem[] { _lblStatus, _lblCount });
+            _statusBar.Items.AddRange(new ToolStripItem[] { lblAuthor, _lblStatus, _lblCount });
 
             // Context menu
             var ctx = new ContextMenuStrip();
@@ -337,11 +344,15 @@ namespace BlockBrowser
         private void RefreshCards()
         {
             _thumbTimer.Stop();
-            foreach (var card in _cards)
-            {
-                if (!card.IsDisposed) card.SetPlaceholder(_thumbSize);
-            }
-            if (_cards.Count > 0) { _thumbIndex = 0; _thumbTimer.Start(); }
+            // 清除内存缓存，因为尺寸变了
+            foreach (var kv in _thumbCache) { try { kv.Value.Dispose(); } catch { } }
+            _thumbCache.Clear();
+            // 清除分类卡片缓存，重建卡片
+            foreach (var kv in _categoryCards) { foreach (var c in kv.Value) { try { c.Dispose(); } catch { } } }
+            _categoryCards.Clear();
+            _cards.Clear();
+            _flowBlocks.Controls.Clear();
+            ShowBlocks(BlockLibrary.GetBlocks(_currentCategory));
         }
 
         private void DoFilter()

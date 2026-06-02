@@ -163,10 +163,13 @@ namespace BlockBrowser
             {
                 try
                 {
-                    Image c = Image.FromFile(cachePath);
-                    Image r = new Bitmap(c, size, size);
-                    c.Dispose();
-                    return r;
+                    byte[] bytes = File.ReadAllBytes(cachePath);
+                    using (var ms = new MemoryStream(bytes))
+                    {
+                        Image c = Image.FromStream(ms);
+                        Image r = new Bitmap(c, size, size);
+                        return r;
+                    }
                 }
                 catch { }
             }
@@ -384,8 +387,15 @@ namespace BlockBrowser
             catch { }
         }
 
+        private static Dictionary<string, Image> _placeholderCache = new Dictionary<string, Image>();
+
         public static Image GeneratePlaceholder(string name, int size)
         {
+            string cacheKey = (name ?? "?") + "_" + size;
+            if (_placeholderCache.ContainsKey(cacheKey) && _placeholderCache[cacheKey] != null)
+            {
+                try { return new Bitmap(_placeholderCache[cacheKey]); } catch { _placeholderCache.Remove(cacheKey); }
+            }
             try
             {
                 var bmp = new Bitmap(size, size);
@@ -415,6 +425,7 @@ namespace BlockBrowser
                             new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter });
                     }
                 }
+                _placeholderCache[cacheKey] = new Bitmap(bmp);
                 return bmp;
             }
             catch
@@ -456,14 +467,13 @@ namespace BlockBrowser
             if (File.Exists(cp)) File.Delete(cp);
         }
 
-        public static void InsertBlock(BlockInfo block, double scale, double rotation)
+                public static void InsertBlock(BlockInfo block, double scale, double rotation)
         {
-            if (block == null) return;
+            if (block == null || !File.Exists(block.FilePath)) return;
             Document doc = CadApp.DocumentManager.MdiActiveDocument;
             if (doc == null) return;
             Database db = doc.Database;
             Editor ed = doc.Editor;
-            string tempCopy = null;
             try
             {
                 PromptPointResult pr = ed.GetPoint("\n指定插入点: ");
@@ -472,21 +482,21 @@ namespace BlockBrowser
                 string bname = block.Name;
                 using (DocumentLock dl = doc.LockDocument())
                 {
+                    // 导入块定义
                     using (Transaction tr = db.TransactionManager.StartTransaction())
                     {
                         BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForWrite);
                         if (!bt.Has(bname))
                         {
-                            tempCopy = Path.Combine(Path.GetTempPath(), "_bb_" + Guid.NewGuid().ToString("N") + ".dwg");
-                            File.Copy(block.FilePath, tempCopy, true);
                             using (Database extDb = new Database(false, true))
                             {
-                                extDb.ReadDwgFile(tempCopy, FileOpenMode.OpenForReadAndAllShare, true, "");
-                                db.Insert(bname, extDb, false);
+                                extDb.ReadDwgFile(block.FilePath, FileOpenMode.OpenForReadAndAllShare, true, "");
+                                db.Insert(bname, extDb, true);
                             }
                         }
                         tr.Commit();
                     }
+                    // 创建块参照
                     using (Transaction tr = db.TransactionManager.StartTransaction())
                     {
                         BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
@@ -511,60 +521,9 @@ namespace BlockBrowser
             {
                 ed.WriteMessage("\n插入失败: " + ex.Message);
             }
-            finally
-            {
-                try { if (tempCopy != null && File.Exists(tempCopy)) File.Delete(tempCopy); } catch { }
-            }
         }
 
-        public static bool SaveSelectionAsBlock(string blockName, string category)
-        {
-            Document doc = CadApp.DocumentManager.MdiActiveDocument;
-            if (doc == null) return false;
-            Editor ed = doc.Editor;
-            PromptSelectionResult sr = ed.GetSelection();
-            if (sr.Status != PromptStatus.OK) { ed.WriteMessage("\n未选择对象。"); return false; }
-            string catDir = Path.Combine(LibraryPath, category);
-            if (!Directory.Exists(catDir)) Directory.CreateDirectory(catDir);
-            string outPath = Path.Combine(catDir, blockName + ".dwg");
-            try
-            {
-                using (DocumentLock dl = doc.LockDocument())
-                {
-                    Database db = doc.Database;
-                    using (Transaction tr = db.TransactionManager.StartTransaction())
-                    {
-                        BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForWrite);
-                        BlockTableRecord tempBtr = new BlockTableRecord();
-                        tempBtr.Name = blockName;
-                        ObjectId tempId = bt.Add(tempBtr);
-                        tr.AddNewlyCreatedDBObject(tempBtr, true);
-                        foreach (ObjectId soId in sr.Value.GetObjectIds())
-                        {
-                            Entity ent = (Entity)tr.GetObject(soId, OpenMode.ForWrite);
-                            Entity clone = ent.Clone() as Entity;
-                            tempBtr.AppendEntity(clone);
-                            tr.AddNewlyCreatedDBObject(clone, true);
-                        }
-                        tr.Commit();
-                        using (Database newDb = db.Wblock(tempId))
-#if ZWCAD
-                            newDb.DxfOut(outPath, 0, DwgVersion.Current, true);
-#else
-                            newDb.DxfOut(outPath, 0, DwgVersion.Current);
-#endif
-                    }
-                    RefreshThumbnail(new BlockInfo { FilePath = outPath, Category = category });
-                    ed.WriteMessage(string.Format("\n块 {0} 已保存到 [{1}]", blockName, category));
-                    return true;
-                }
-            }
-            catch (System.Exception ex)
-            {
-                ed.WriteMessage(string.Format("\n保存失败: {0}", ex.Message));
-                return false;
-            }
-        }
+        
 
         public static bool SaveSelectionAsBlockWithSelection(PromptSelectionResult sr, string blockName, string category, Point3d basePt)
         {
@@ -583,11 +542,7 @@ namespace BlockBrowser
                     ObjectIdCollection ids = new ObjectIdCollection(sr.Value.GetObjectIds());
                     using (Database newDb = db.Wblock(ids, basePt))
                     {
-#if ZWCAD
-                        newDb.DxfOut(outPath, 0, DwgVersion.Current, true);
-#else
-                        newDb.DxfOut(outPath, 0, DwgVersion.Current);
-#endif
+newDb.SaveAs(outPath, DwgVersion.Current);
                     }
                 }
                 RefreshThumbnail(new BlockInfo { FilePath = outPath, Category = category });
@@ -628,11 +583,7 @@ namespace BlockBrowser
                         tr.Commit();
                     }
                     using (Database newDb = db.Wblock(blockId))
-#if ZWCAD
-                        newDb.DxfOut(outPath, 0, DwgVersion.Current, true);
-#else
-                        newDb.DxfOut(outPath, 0, DwgVersion.Current);
-#endif
+                        newDb.SaveAs(outPath, DwgVersion.Current);
                 }
                 RefreshThumbnail(new BlockInfo { FilePath = outPath, Category = category });
                 ed.WriteMessage(string.Format("\n块 {0} 已导出到 [{1}]", blockName, category));
@@ -710,13 +661,16 @@ namespace BlockBrowser
         private void DoAddToLibrary(string category, string blockName)
         {
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
-            // 1. 选基点
-            var pr = ed.GetPoint("\n指定块基点: ");
-            Point3d basePt = (pr.Status == PromptStatus.OK) ? pr.Value : new Point3d(0, 0, 0);
-            // 2. 选对象
+            var pr = ed.GetPoint("\n指定块基点（回车用原点）: ");
+            Point3d basePt;
+            if (pr.Status == PromptStatus.OK)
+                basePt = pr.Value;
+            else if (pr.Status == PromptStatus.None)
+                basePt = new Point3d(0, 0, 0);
+            else
+                { ed.WriteMessage("\n取消。"); return; }
             var sr = ed.GetSelection();
             if (sr.Status != PromptStatus.OK) { ed.WriteMessage("\n未选择对象，取消。"); return; }
-            // 3. 保存
             BlockLibrary.SaveSelectionAsBlockWithSelection(sr, blockName, category, basePt);
         }
 
@@ -797,7 +751,14 @@ namespace BlockBrowser
             if (cr.Status == PromptStatus.OK && !string.IsNullOrEmpty(cr.StringResult)) cat = cr.StringResult.Trim();
             var nr = ed.GetString("\n块名称: ");
             if (nr.Status != PromptStatus.OK || string.IsNullOrEmpty(nr.StringResult)) { ed.WriteMessage("\n取消。"); return; }
-            BlockLibrary.SaveSelectionAsBlock(nr.StringResult.Trim(), cat);
+            var pr = ed.GetPoint("\n指定块基点（回车用原点）: ");
+            Point3d basePt;
+            if (pr.Status == PromptStatus.OK) basePt = pr.Value;
+            else if (pr.Status == PromptStatus.None) basePt = new Point3d(0, 0, 0);
+            else { ed.WriteMessage("\n取消。"); return; }
+            var sr = ed.GetSelection();
+            if (sr.Status != PromptStatus.OK) { ed.WriteMessage("\n未选择对象，取消。"); return; }
+            BlockLibrary.SaveSelectionAsBlockWithSelection(sr, nr.StringResult.Trim(), cat, basePt);
         }
         [CommandMethod("BBEXPORT", CommandFlags.Session)]
         public void ExportBlockToLibrary()
@@ -825,7 +786,7 @@ namespace BlockBrowser
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
             ed.WriteMessage("\n=== 块浏览器 v1.0 (" + BlockLibrary.PlatformName + ") ===");
             ed.WriteMessage("\n库: " + BlockLibrary.LibraryPath);
-            ed.WriteMessage("\n命令: BB KLLQ BBINSERT BBADD BBEXPORT BBTHUMB");
+            ed.WriteMessage("\n命令: BB KLLQ BBADD BBEXPORT BBTHUMB");
         }
     }
 }
