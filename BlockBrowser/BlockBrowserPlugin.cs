@@ -656,6 +656,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
         private void DoAddToLibrary(string category, string blockName)
         {
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
+            try {
             var pr = ed.GetPoint("\n指定块基点（回车用原点）: ");
             Point3d basePt;
             if (pr.Status == PromptStatus.OK)
@@ -667,6 +668,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
             var sr = ed.GetSelection();
             if (sr.Status != PromptStatus.OK) { ed.WriteMessage("\n未选择对象，取消。"); return; }
             BlockLibrary.SaveSelectionAsBlockWithSelection(sr, blockName, category, basePt);
+            } catch (System.Exception ex) { ed.WriteMessage("\n添加失败: " + ex.Message); }
         }
 
         private void DoExportBlock()
@@ -674,6 +676,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
             Document doc = CadApp.DocumentManager.MdiActiveDocument;
             if (doc == null) return;
             Editor ed = doc.Editor;
+            try {
 
             // 读取当前图纸的所有用户块
             var blockNames = new List<string>();
@@ -744,6 +747,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
 
             if (string.IsNullOrEmpty(selBlock) || string.IsNullOrEmpty(selCategory)) { ed.WriteMessage("\n取消。"); return; }
             BlockLibrary.ExportBlockFromCurrentDrawing(selBlock, selCategory);
+            } catch (System.Exception ex) { ed.WriteMessage("\n导出失败: " + ex.Message); }
         }
         [CommandMethod("KLLQ", CommandFlags.Session)]
         public void OpenBlockBrowserAlias() { OpenBlockBrowser(); }
@@ -751,6 +755,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
         public void AddToLibrary()
         {
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
+            try {
             ed.WriteMessage("\n块库: " + BlockLibrary.LibraryPath);
             var cr = ed.GetString("\n分类 [常用]: ");
             string cat = "常用";
@@ -765,11 +770,13 @@ newDb.SaveAs(outPath, DwgVersion.Current);
             var sr = ed.GetSelection();
             if (sr.Status != PromptStatus.OK) { ed.WriteMessage("\n未选择对象，取消。"); return; }
             BlockLibrary.SaveSelectionAsBlockWithSelection(sr, nr.StringResult.Trim(), cat, basePt);
+            } catch (System.Exception ex) { ed.WriteMessage("\n添加失败: " + ex.Message); }
         }
         [CommandMethod("BBEXPORT", CommandFlags.Session)]
         public void ExportBlockToLibrary()
         {
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
+            try {
             ed.WriteMessage("\n块库: " + BlockLibrary.LibraryPath);
             var cr = ed.GetString("\n分类 [常用]: ");
             string cat = "常用";
@@ -777,22 +784,31 @@ newDb.SaveAs(outPath, DwgVersion.Current);
             var nr = ed.GetString("\n块名称: ");
             if (nr.Status != PromptStatus.OK || string.IsNullOrEmpty(nr.StringResult)) { ed.WriteMessage("\n取消。"); return; }
             BlockLibrary.ExportBlockFromCurrentDrawing(nr.StringResult.Trim(), cat);
+            } catch (System.Exception ex) { ed.WriteMessage("\n导出失败: " + ex.Message); }
         }
         [CommandMethod("BBTHUMB", CommandFlags.Session)]
         public void RefreshThumbnails()
         {
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
-            string cp = BlockLibrary.ThumbnailCachePath;
-            if (Directory.Exists(cp)) { Directory.Delete(cp, true); ed.WriteMessage("\n缓存已清除: " + cp); }
-            else ed.WriteMessage("\n缓存不存在。");
+            try
+            {
+                string cp = BlockLibrary.ThumbnailCachePath;
+                if (Directory.Exists(cp)) { Directory.Delete(cp, true); ed.WriteMessage("\n缓存已清除: " + cp); }
+                else ed.WriteMessage("\n缓存不存在。");
+            }
+            catch (System.Exception ex) { ed.WriteMessage("\n清除失败: " + ex.Message); }
         }
         [CommandMethod("BBINFO", CommandFlags.Session)]
         public void ShowInfo()
         {
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
-            ed.WriteMessage("\n=== 块浏览器 v1.0 (" + BlockLibrary.PlatformName + ") ===");
-            ed.WriteMessage("\n库: " + BlockLibrary.LibraryPath);
-            ed.WriteMessage("\n命令: BB KLLQ BBADD BBEXPORT BBTHUMB");
+            try
+            {
+                ed.WriteMessage("\n=== 块浏览器 v1.0 (" + BlockLibrary.PlatformName + ") ===");
+                ed.WriteMessage("\n库: " + BlockLibrary.LibraryPath);
+                ed.WriteMessage("\n命令: BB KLLQ BBADD BBEXPORT BBTHUMB");
+            }
+            catch (System.Exception ex) { ed.WriteMessage("\n错误: " + ex.Message); }
         }
     }
 }

@@ -88,7 +88,7 @@ namespace BlockBrowser
             btnSettings.Click += (s, e) => ShowSettingsDialog();
 
             // Search box - wide, with explicit MinimumSize
-            _txtSearch = new TextBox { Width = 220, BorderStyle = BorderStyle.FixedSingle };
+            _txtSearch = new TextBox { Width = 110, BorderStyle = BorderStyle.FixedSingle };
             _txtSearch.TextChanged += (s, e) => { _searchTimer.Stop(); _searchTimer.Start(); };
             _txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) { _txtSearch.Text = ""; } };
             var txtSearchHost = new ToolStripControlHost(_txtSearch) { AutoSize = false };
@@ -294,6 +294,7 @@ namespace BlockBrowser
             var needLoad = _cards.Where(c => !HasThumbnail(c)).ToList();
             if (needLoad.Count > 0)
             {
+                _failCount = 0;
                 _pendingThumbCards = needLoad;
                 _thumbIndex = 0;
                 _thumbTimer.Start();
@@ -301,6 +302,7 @@ namespace BlockBrowser
         }
 
         private List<BlockThumbnailCard> _pendingThumbCards = new List<BlockThumbnailCard>();
+        private int _failCount;
 
         private bool HasThumbnail(BlockThumbnailCard card)
         {
@@ -335,10 +337,12 @@ namespace BlockBrowser
                             _thumbCache[ck] = new Bitmap(img);
                     }
                 }
-                catch { }
+                catch { _failCount++; }
             }
             if (_thumbIndex < _pendingThumbCards.Count)
                 _lblStatus.Text = string.Format("加载中... {0}/{1}", _thumbIndex, _pendingThumbCards.Count);
+            else if (_failCount > 0)
+                _lblStatus.Text = string.Format("就绪（{0}个加载失败）", _failCount);
         }
 
         private void RefreshCards()
