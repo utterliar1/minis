@@ -53,12 +53,14 @@ namespace BlockBrowser
     {
         public static string LibraryPath { get; set; }
         public static string PlatformName { get; set; }
+        public static int ThumbSize { get; set; }
 
         static BlockLibrary()
         {
             string dllDir = Path.GetDirectoryName(typeof(BlockLibrary).Assembly.Location) ?? "";
             string pluginRoot = Path.GetFullPath(Path.Combine(dllDir, ".."));
             LibraryPath = Path.Combine(pluginRoot, "我的常用块");
+            ThumbSize = 128;
             LoadConfig();
         }
 
@@ -88,7 +90,7 @@ namespace BlockBrowser
                     if (eq <= 0) continue;
                     string key = trimmed.Substring(0, eq).Trim();
                     string val = trimmed.Substring(eq + 1).Trim();
-                    if (key.Equals("LibraryPath", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val))
+                    if (key.Equals("ThumbSize", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { int ts; if (int.TryParse(val, out ts) && ts >= 40 && ts <= 512) ThumbSize = ts; } else if (key.Equals("LibraryPath", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val))
                     {
                         if (Path.IsPathRooted(val))
                             LibraryPath = val;
@@ -114,6 +116,7 @@ namespace BlockBrowser
                 var lines = new List<string>();
                 lines.Add("# 块浏览器配置文件");
                 lines.Add("LibraryPath=" + LibraryPath);
+                lines.Add("ThumbSize=" + ThumbSize);
                 File.WriteAllLines(cfgPath, lines);
             }
             catch { }
@@ -387,7 +390,8 @@ namespace BlockBrowser
             catch { }
         }
 
-        private static Dictionary<string, Image> _placeholderCache = new Dictionary<string, Image>();
+        
+                                private static Dictionary<string, Image> _placeholderCache = new Dictionary<string, Image>();
 
         public static Image GeneratePlaceholder(string name, int size)
         {
@@ -546,7 +550,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
                     }
                 }
                 RefreshThumbnail(new BlockInfo { FilePath = outPath, Category = category });
-                ed.WriteMessage(string.Format("\n块 {0} 已保存到 [{1}]，基点: ({1:F2},{2:F2})", blockName, category, basePt.X, basePt.Y));
+                ed.WriteMessage(string.Format("\n块 {0} 已保存到 [{1}]，基点: ({2:F2},{3:F2})", blockName, category, basePt.X, basePt.Y));
                 return true;
             }
             catch (System.Exception ex)
@@ -804,7 +808,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
             try
             {
-                ed.WriteMessage("\n=== 块浏览器 v1.0 (" + BlockLibrary.PlatformName + ") ===");
+                ed.WriteMessage("\n=== 块浏览器 v1.2 (" + BlockLibrary.PlatformName + ") ===");
                 ed.WriteMessage("\n库: " + BlockLibrary.LibraryPath);
                 ed.WriteMessage("\n命令: BB KLLQ BBADD BBEXPORT BBTHUMB");
             }

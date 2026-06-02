@@ -29,7 +29,7 @@ namespace BlockBrowser
         // _allBlocks removed
         private List<BlockThumbnailCard> _cards = new List<BlockThumbnailCard>();
         private string _currentCategory = "全部";
-        private static int _savedThumbSize = 128;
+        private static int _savedThumbSize = BlockLibrary.ThumbSize;
         private int _thumbSize = _savedThumbSize;
         private System.Windows.Forms.Timer _searchTimer;
         private System.Windows.Forms.Timer _thumbTimer;
@@ -88,7 +88,7 @@ namespace BlockBrowser
             btnSettings.Click += (s, e) => ShowSettingsDialog();
 
             // Search box - wide, with explicit MinimumSize
-            _txtSearch = new TextBox { Width = 110, BorderStyle = BorderStyle.FixedSingle };
+            _txtSearch = new TextBox { Width = 100, BorderStyle = BorderStyle.FixedSingle };
             _txtSearch.TextChanged += (s, e) => { _searchTimer.Stop(); _searchTimer.Start(); };
             _txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) { _txtSearch.Text = ""; } };
             var txtSearchHost = new ToolStripControlHost(_txtSearch) { AutoSize = false };
@@ -104,7 +104,7 @@ namespace BlockBrowser
             cmbThumbSize.SelectedIndexChanged += (s, e) =>
             {
                 _thumbSize = sizes[cmbThumbSize.SelectedIndex];
-                _savedThumbSize = _thumbSize;
+                _savedThumbSize = _thumbSize; BlockLibrary.ThumbSize = _thumbSize; BlockLibrary.SaveConfig();
                 RefreshCards();
             };
             var cmbHost = new ToolStripControlHost(cmbThumbSize);
@@ -139,7 +139,7 @@ namespace BlockBrowser
 
             // Status bar
             _statusBar = new StatusStrip();
-            var lblAuthor = new ToolStripLabel("v1.0 | 制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
+            var lblAuthor = new ToolStripLabel("v1.2 | 制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
             _lblStatus = new ToolStripStatusLabel("就绪") { Spring = true, TextAlign = ContentAlignment.MiddleLeft };
             _lblCount = new ToolStripStatusLabel("0") { TextAlign = ContentAlignment.MiddleRight };
             _statusBar.Items.AddRange(new ToolStripItem[] { lblAuthor, _lblStatus, _lblCount });
@@ -161,7 +161,7 @@ namespace BlockBrowser
             try
             {
                 _lblStatus.Text = "加载中...";
-                Application.DoEvents();
+                this.Refresh();
 
                 // Load categories
                 var categories = BlockLibrary.GetCategories();
@@ -363,6 +363,7 @@ namespace BlockBrowser
         {
             string kw = _txtSearch.Text.Trim().ToLowerInvariant();
             bool showAll = string.IsNullOrEmpty(kw);
+            int visible = 0;
             _flowBlocks.SuspendLayout();
             for (int i = 0; i < _cards.Count; i++)
             {
@@ -371,9 +372,9 @@ namespace BlockBrowser
                 bool match = showAll ||
                     card.Block.Name.ToLowerInvariant().Contains(kw);
                 card.Visible = match;
+                if (match) visible++;
             }
             _flowBlocks.ResumeLayout();
-            int visible = _cards.Count(c => !c.IsDisposed && c.Visible);
             _lblCount.Text = visible + " 个";
         }
 

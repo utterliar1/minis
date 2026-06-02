@@ -13,20 +13,26 @@
 )
 
 (setq blockbrowser-dir (_bb-find))
+(setq blockbrowser-loaded nil)
 
 (defun c:BB (/ plat dll)
   (if (null blockbrowser-dir)
     (princ "\n[块浏览器] 未找到插件目录。")
     (progn
-      (setq plat
-        (cond
-          ((wcmatch (strcase (getvar "PROGRAM")) "*ACAD*") "acad")
-          ((wcmatch (strcase (getvar "PROGRAM")) "*ZWCAD*") "zwcad")
-          (T "gcad")
+      (if (not blockbrowser-loaded)
+        (progn
+          (setq plat
+            (cond
+              ((wcmatch (strcase (getvar "PROGRAM")) "*ACAD*") "acad")
+              ((wcmatch (strcase (getvar "PROGRAM")) "*ZWCAD*") "zwcad")
+              (T "gcad")
+            )
+          )
+          (setq dll (strcat blockbrowser-dir plat "\\BlockBrowser.dll"))
+          (vl-cmdf "NETLOAD" dll)
+          (setq blockbrowser-loaded T)
         )
       )
-      (setq dll (strcat blockbrowser-dir plat "\\BlockBrowser.dll"))
-      (vl-cmdf "NETLOAD" dll)
       (command "BB")
     )
   )
@@ -35,5 +41,5 @@
 
 (defun c:KLLQ () (c:BB))
 
-(princ "\n块浏览器已就绪，输入 BB 启动。")
+(princ "\n块浏览器 v1.2 已就绪，输入 BB 启动。")
 (princ)
