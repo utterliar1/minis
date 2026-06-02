@@ -68,6 +68,9 @@ namespace BlockBrowser
             var btnInsert = new ToolStripButton("插入");
             btnInsert.Click += (s, e) => DoInsert();
 
+            var btnDelete = new ToolStripButton("删除");
+            btnDelete.Click += (s, e) => DoDelete();
+
             var btnRefresh = new ToolStripButton("刷新");
             btnRefresh.Click += (s, e) => LoadData();
 
@@ -111,7 +114,7 @@ namespace BlockBrowser
 
             _toolbar.Items.AddRange(new ToolStripItem[]
             {
-                btnInsert, new ToolStripSeparator(),
+                btnInsert, btnDelete, new ToolStripSeparator(),
                 btnAddToLib, btnExportBlock, new ToolStripSeparator(),
                 btnRefresh, btnOpenFolder, btnSettings, new ToolStripSeparator(),
                 lblSearch, txtSearchHost, new ToolStripSeparator(),
@@ -139,7 +142,7 @@ namespace BlockBrowser
 
             // Status bar
             _statusBar = new StatusStrip();
-            var lblAuthor = new ToolStripLabel("v1.2 | 制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
+            var lblAuthor = new ToolStripLabel("v1.21 | 制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
             _lblStatus = new ToolStripStatusLabel("就绪") { Spring = true, TextAlign = ContentAlignment.MiddleLeft };
             _lblCount = new ToolStripStatusLabel("0") { TextAlign = ContentAlignment.MiddleRight };
             _statusBar.Items.AddRange(new ToolStripItem[] { lblAuthor, _lblStatus, _lblCount });
@@ -148,6 +151,7 @@ namespace BlockBrowser
             var ctx = new ContextMenuStrip();
             ctx.Items.Add("插入", null, (s, e) => DoInsert());
             ctx.Items.Add("复制名称", null, (s, e) => { if (_selectedBlock != null) Clipboard.SetText(_selectedBlock.Name); });
+            ctx.Items.Add("删除", null, (s, e) => DoDelete());
             _flowBlocks.ContextMenuStrip = ctx;
 
             Controls.Add(_flowBlocks);
@@ -394,6 +398,47 @@ namespace BlockBrowser
             this.Close();
         }
 
+        private void DoDelete()
+        {
+            if (_selectedBlock == null) { MessageBox.Show("请先选择一个块。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            var dr = MessageBox.Show("确定删除此块文件？\n" + _selectedBlock.Name + "\n\n文件: " + _selectedBlock.FilePath, "确认删除", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (dr != DialogResult.Yes) return;
+            try
+            {
+                string filePath = _selectedBlock.FilePath;
+                string name = _selectedBlock.Name;
+                // Delete thumbnail cache
+                BlockLibrary.RefreshThumbnail(_selectedBlock);
+                // Delete the DWG file
+                if (File.Exists(filePath)) File.Delete(filePath);
+                // Remove from UI
+                BlockThumbnailCard cardToRemove = null;
+                foreach (var card in _cards)
+                {
+                    if (card.Block.FilePath == filePath) { cardToRemove = card; break; }
+                }
+                if (cardToRemove != null)
+                {
+                    _flowBlocks.Controls.Remove(cardToRemove);
+                    _cards.Remove(cardToRemove);
+                    cardToRemove.Dispose();
+                }
+                // Remove from category cache
+                foreach (var kv in _categoryCards)
+                {
+                    BlockThumbnailCard cached = null;
+                    foreach (var c in kv.Value) { if (c.Block.FilePath == filePath) { cached = c; break; } }
+                    if (cached != null) { kv.Value.Remove(cached); cached.Dispose(); break; }
+                }
+                // Remove from memory cache
+                if (_thumbCache.ContainsKey(filePath)) { _thumbCache[filePath].Dispose(); _thumbCache.Remove(filePath); }
+                _selectedBlock = null;
+                _lblStatus.Text = "已删除: " + name;
+                int visible = _cards.Count(c => !c.IsDisposed && c.Visible);
+                _lblCount.Text = visible + " 个";
+            }
+            catch (System.Exception ex) { MessageBox.Show("删除失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        }
         internal string PendingCategory;
         internal string PendingBlockName;
 

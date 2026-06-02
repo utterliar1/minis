@@ -808,7 +808,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
             try
             {
-                ed.WriteMessage("\n=== 块浏览器 v1.2 (" + BlockLibrary.PlatformName + ") ===");
+                ed.WriteMessage("\n=== 块浏览器 v1.211 (" + BlockLibrary.PlatformName + ") ===");
                 ed.WriteMessage("\n库: " + BlockLibrary.LibraryPath);
                 ed.WriteMessage("\n命令: BB KLLQ BBADD BBEXPORT BBTHUMB");
             }
