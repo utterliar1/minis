@@ -10,10 +10,13 @@ namespace BlockBrowser
     public class BlockBrowserForm : Form
     {
         // 模态模式：用户点了插入后返回OK
+        private static string _lastCategory = "全部";
+
         public BlockInfo SelectedInsertBlock { get; private set; }
         public double InsertScale { get; private set; }
         public double InsertRotation { get; private set; }
 
+        internal string _pendingCommand;
         private FlowLayoutPanel _flowBlocks;
         private FlowLayoutPanel _catBar;
         private TextBox _txtSearch;
@@ -30,9 +33,12 @@ namespace BlockBrowser
         private System.Windows.Forms.Timer _searchTimer;
         private System.Windows.Forms.Timer _thumbTimer;
         private int _thumbIndex;
+        private Dictionary<string, Image> _thumbCache = new Dictionary<string, Image>();
+        private Dictionary<string, List<BlockThumbnailCard>> _categoryCards = new Dictionary<string, List<BlockThumbnailCard>>();
 
         public BlockBrowserForm()
         {
+            _currentCategory = _lastCategory;
             InitializeComponent();
             Load += (s, e) => LoadData();
         }
@@ -109,8 +115,8 @@ namespace BlockBrowser
             // Category bar - compact top panel
             _catBar = new FlowLayoutPanel
             {
-                Dock = DockStyle.Top, Height = 36,
-                Padding = new Padding(8, 4, 8, 4),
+                Dock = DockStyle.Top, Height = 56,
+                Padding = new Padding(8, 6, 8, 10),
                 BackColor = Color.FromArgb(235, 238, 242),
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false, AutoScroll = true
@@ -159,7 +165,7 @@ namespace BlockBrowser
                     var btn = new Button
                     {
                         Text = cat, FlatStyle = FlatStyle.Flat, AutoSize = true,
-                        MinimumSize = new Size(0, 26), Padding = new Padding(10, 2, 10, 2),
+                        MinimumSize = new Size(0, 24), Padding = new Padding(8, 1, 8, 1),
                         Margin = new Padding(2, 0, 2, 0), Font = new Font("Microsoft YaHei", 9f),
                         Tag = cat, Cursor = Cursors.Hand
                     };
@@ -168,6 +174,7 @@ namespace BlockBrowser
                     btn.Click += (s, e) =>
                     {
                         _currentCategory = (string)((Button)s).Tag;
+                        _lastCategory = _currentCategory;
                         LoadBlocks();
                         UpdateCatHighlight();
                     };
@@ -210,83 +217,121 @@ namespace BlockBrowser
 
         private void LoadBlocks()
         {
-            _allBlocks = BlockLibrary.GetBlocks(_currentCategory);
             _txtSearch.Text = "";
-            ShowBlocks(_allBlocks);
+            ShowBlocks(BlockLibrary.GetBlocks(_currentCategory));
+        }
+
+        private void CreateCard(BlockInfo block)
+        {
+            var card = new BlockThumbnailCard(block, _thumbSize);
+            card.BlockClicked += (s, b) =>
+            {
+                _selectedBlock = b;
+                foreach (var c2 in _cards) c2.IsSelected = (c2 == s);
+                _flowBlocks.Invalidate(true);
+            };
+            card.BlockDoubleClicked += (s, b) => { _selectedBlock = b; DoInsert(); };
+            // 内存缓存命中则直接显示
+            string ck = block.FilePath ?? "";
+            if (_thumbCache.ContainsKey(ck) && _thumbCache[ck] != null)
+            {
+                try { card.LoadThumbnail(new Bitmap(_thumbCache[ck], _thumbSize, _thumbSize)); }
+                catch { _thumbCache.Remove(ck); }
+            }
         }
 
         private void ShowBlocks(List<BlockInfo> blocks)
         {
             _thumbTimer.Stop();
-            _thumbFailCount = 0;
             _selectedBlock = null;
-            foreach (var card in _cards) { try { card.Dispose(); } catch { } }
-            _cards.Clear();
             _flowBlocks.SuspendLayout();
             _flowBlocks.Controls.Clear();
+            _cards.Clear();
 
-            foreach (var block in blocks)
+            string catKey = _currentCategory ?? "全部";
+            if (!_categoryCards.ContainsKey(catKey))
             {
-                var card = new BlockThumbnailCard(block, _thumbSize);
-                card.BlockClicked += (s, b) =>
+                // 首次访问该分类：创建卡片并缓存
+                var newCards = new List<BlockThumbnailCard>();
+                foreach (var block in blocks)
                 {
-                    _selectedBlock = b;
-                    foreach (var c2 in _cards) c2.IsSelected = (c2 == s);
-                    _flowBlocks.Invalidate(true);
-                };
-                card.BlockDoubleClicked += (s, b) => { _selectedBlock = b; DoInsert(); };
-                _cards.Add(card);
-                _flowBlocks.Controls.Add(card);
+                    var card = new BlockThumbnailCard(block, _thumbSize);
+                    card.BlockClicked += (s, b) =>
+                    {
+                        _selectedBlock = b;
+                        foreach (var c2 in _cards) c2.IsSelected = (c2 == s);
+                        _flowBlocks.Invalidate(true);
+                    };
+                    card.BlockDoubleClicked += (s, b) => { _selectedBlock = b; DoInsert(); };
+                    string ck = block.FilePath ?? "";
+                    if (_thumbCache.ContainsKey(ck) && _thumbCache[ck] != null)
+                    {
+                        try { card.LoadThumbnail(new Bitmap(_thumbCache[ck], _thumbSize, _thumbSize)); }
+                        catch { _thumbCache.Remove(ck); }
+                    }
+                    newCards.Add(card);
+                }
+                _categoryCards[catKey] = newCards;
             }
+
+            // 从缓存取出卡片显示
+            var cached = _categoryCards[catKey];
+            _cards.AddRange(cached);
+            foreach (var card in _cards) { card.IsSelected = false; _flowBlocks.Controls.Add(card); }
             _flowBlocks.ResumeLayout();
-            _lblCount.Text = blocks.Count + " 个";
+
+            _lblCount.Text = _cards.Count + " 个";
             _lblStatus.Text = "就绪";
 
-            // Start progressive thumbnail loading on UI thread
-            if (_cards.Count > 0)
+            // 只加载还没有缩略图的卡片
+            var needLoad = _cards.Where(c => !HasThumbnail(c)).ToList();
+            if (needLoad.Count > 0)
             {
+                _pendingThumbCards = needLoad;
                 _thumbIndex = 0;
                 _thumbTimer.Start();
             }
         }
 
+        private List<BlockThumbnailCard> _pendingThumbCards = new List<BlockThumbnailCard>();
+
+        private bool HasThumbnail(BlockThumbnailCard card)
+        {
+            string ck = card.Block.FilePath ?? "";
+            return _thumbCache.ContainsKey(ck) && _thumbCache[ck] != null;
+        }
+
         // Load thumbnails one by one on UI thread (safe for GstarCAD API)
         private int _thumbFailCount;
 
-        private void ThumbTimerTick(object sender, EventArgs e)
+                        private void ThumbTimerTick(object sender, EventArgs e)
         {
-            // Process 3 thumbnails per tick for faster loading
-            for (int batch = 0; batch < 3; batch++)
+            for (int i = 0; i < 5; i++)
             {
-                if (_thumbIndex >= _cards.Count)
+                if (_thumbIndex >= _pendingThumbCards.Count)
                 {
                     _thumbTimer.Stop();
                     _lblStatus.Text = "就绪";
                     return;
                 }
-
-                while (_thumbIndex < _cards.Count && _cards[_thumbIndex].IsDisposed)
-                    _thumbIndex++;
-                if (_thumbIndex >= _cards.Count) return;
-
-                var card = _cards[_thumbIndex];
+                var card = _pendingThumbCards[_thumbIndex];
+                _thumbIndex++;
                 try
                 {
-                    Image thumb = BlockLibrary.GetThumbnail(card.Block, _thumbSize);
-                    if (thumb != null && !card.IsDisposed)
-                        card.LoadThumbnail(thumb);
+                    if (card.IsDisposed) continue;
+                    var img = BlockLibrary.GetThumbnail(card.Block, _thumbSize);
+                    if (img != null)
+                    {
+                        card.LoadThumbnail(img);
+                        string ck = card.Block.FilePath ?? "";
+                        if (!_thumbCache.ContainsKey(ck))
+                            _thumbCache[ck] = new Bitmap(img);
+                    }
                 }
-                catch { _thumbFailCount++; }
-
-                _thumbIndex++;
-                if (_thumbFailCount > 10)
-                {
-                    _thumbTimer.Stop();
-                    _lblStatus.Text = "缩略图加载失败";
-                    return;
-                }
+                catch { }
             }
-            _lblStatus.Text = string.Format("加载 {0}/{1}", _thumbIndex, _cards.Count);
+            if (_thumbIndex < _pendingThumbCards.Count)
+                _lblStatus.Text = string.Format("加载中... {0}/{1}", _thumbIndex, _pendingThumbCards.Count);
         }
 
         private void RefreshCards()
@@ -334,6 +379,9 @@ namespace BlockBrowser
             this.Close();
         }
 
+        internal string PendingCategory;
+        internal string PendingBlockName;
+
         private void BtnAddToLib_Click(object sender, EventArgs e)
         {
             var categories = BlockLibrary.GetCategories().Where(c => c != "全部").ToList();
@@ -341,25 +389,18 @@ namespace BlockBrowser
             if (category == null) return;
             string name = ShowInputDialog("输入块名称:");
             if (string.IsNullOrEmpty(name)) return;
-            this.Hide();
-            BlockLibrary.SaveSelectionAsBlock(name.Trim(), category);
-            this.Show();
-            this.BringToFront();
-            LoadData();
+            PendingCategory = category;
+            PendingBlockName = name.Trim();
+            _pendingCommand = "BBADD";
+            this.DialogResult = DialogResult.Abort;
+            this.Close();
         }
 
         private void BtnExportBlock_Click(object sender, EventArgs e)
         {
-            var categories = BlockLibrary.GetCategories().Where(c => c != "全部").ToList();
-            string category = ShowCategoryDialog("选择分类", categories);
-            if (category == null) return;
-            string name = ShowInputDialog("输入要导出的块名称:");
-            if (string.IsNullOrEmpty(name)) return;
-            this.Hide();
-            BlockLibrary.ExportBlockFromCurrentDrawing(name.Trim(), category);
-            this.Show();
-            this.BringToFront();
-            LoadData();
+            _pendingCommand = "BBEXPORT";
+            this.DialogResult = DialogResult.Abort;
+            this.Close();
         }
 
         private string ShowInputDialog(string prompt)
@@ -444,6 +485,10 @@ namespace BlockBrowser
             {
                 if (_searchTimer != null) _searchTimer.Dispose();
                 if (_thumbTimer != null) _thumbTimer.Dispose();
+                foreach (var kv in _categoryCards) { foreach (var c in kv.Value) { try { c.Dispose(); } catch { } } }
+                _categoryCards.Clear();
+                foreach (var kv in _thumbCache) { try { kv.Value.Dispose(); } catch { } }
+                _thumbCache.Clear();
                 foreach (var card in _cards) { try { card.Dispose(); } catch { } }
             }
             base.Dispose(disposing);

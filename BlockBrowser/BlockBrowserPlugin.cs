@@ -566,6 +566,41 @@ namespace BlockBrowser
             }
         }
 
+        public static bool SaveSelectionAsBlockWithSelection(PromptSelectionResult sr, string blockName, string category, Point3d basePt)
+        {
+            Document doc = CadApp.DocumentManager.MdiActiveDocument;
+            if (doc == null) return false;
+            Editor ed = doc.Editor;
+            string catDir = Path.Combine(LibraryPath, category);
+            if (!Directory.Exists(catDir)) Directory.CreateDirectory(catDir);
+            string outPath = Path.Combine(catDir, blockName + ".dwg");
+            try
+            {
+                using (DocumentLock dl = doc.LockDocument())
+                {
+                    Database db = doc.Database;
+                    // 将选中的对象复制到新数据库，以basePt为基点
+                    ObjectIdCollection ids = new ObjectIdCollection(sr.Value.GetObjectIds());
+                    using (Database newDb = db.Wblock(ids, basePt))
+                    {
+#if ZWCAD
+                        newDb.DxfOut(outPath, 0, DwgVersion.Current, true);
+#else
+                        newDb.DxfOut(outPath, 0, DwgVersion.Current);
+#endif
+                    }
+                }
+                RefreshThumbnail(new BlockInfo { FilePath = outPath, Category = category });
+                ed.WriteMessage(string.Format("\n块 {0} 已保存到 [{1}]，基点: ({1:F2},{2:F2})", blockName, category, basePt.X, basePt.Y));
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage(string.Format("\n保存失败: {0}", ex.Message));
+                return false;
+            }
+        }
+
         public static bool ExportBlockFromCurrentDrawing(string blockName, string category)
         {
             Document doc = CadApp.DocumentManager.MdiActiveDocument;
@@ -645,17 +680,110 @@ namespace BlockBrowser
         {
             try
             {
+                string pendingCmd = null, pendingCategory = null, pendingBlockName = null;
                 using (var form = new BlockBrowserForm())
                 {
                     CadApp.ShowModalDialog(form);
-                    // 如果用户点了插入
                     if (form.DialogResult == DialogResult.OK && form.SelectedInsertBlock != null)
                     {
                         BlockLibrary.InsertBlock(form.SelectedInsertBlock, form.InsertScale, form.InsertRotation);
                     }
+                    else if (form.DialogResult == DialogResult.Abort && !string.IsNullOrEmpty(form._pendingCommand))
+                    {
+                        pendingCmd = form._pendingCommand;
+                        pendingCategory = form.PendingCategory;
+                        pendingBlockName = form.PendingBlockName;
+                    }
                 }
+                // 窗口关闭后，CAD原生接管焦点，直接执行操作
+                if (pendingCmd == "BBADD" && !string.IsNullOrEmpty(pendingCategory))
+                    DoAddToLibrary(pendingCategory, pendingBlockName);
+                else if (pendingCmd == "BBEXPORT")
+                    DoExportBlock();
             }
             catch (System.Exception ex) { MessageBox.Show("打开失败:\n" + ex.Message, "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        }
+
+        private string _pendingCategory;
+        private string _pendingBlockName;
+
+        private void DoAddToLibrary(string category, string blockName)
+        {
+            var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
+            // 1. 选基点
+            var pr = ed.GetPoint("\n指定块基点: ");
+            Point3d basePt = (pr.Status == PromptStatus.OK) ? pr.Value : new Point3d(0, 0, 0);
+            // 2. 选对象
+            var sr = ed.GetSelection();
+            if (sr.Status != PromptStatus.OK) { ed.WriteMessage("\n未选择对象，取消。"); return; }
+            // 3. 保存
+            BlockLibrary.SaveSelectionAsBlockWithSelection(sr, blockName, category, basePt);
+        }
+
+        private void DoExportBlock()
+        {
+            Document doc = CadApp.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+            Editor ed = doc.Editor;
+
+            // 读取当前图纸的所有用户块
+            var blockNames = new List<string>();
+            using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
+            {
+                BlockTable bt = (BlockTable)tr.GetObject(doc.Database.BlockTableId, OpenMode.ForRead);
+                foreach (ObjectId btrId in bt)
+                {
+                    BlockTableRecord btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
+                    if (!btr.IsLayout && !btr.Name.StartsWith("*"))
+                        blockNames.Add(btr.Name);
+                }
+                tr.Commit();
+            }
+
+            if (blockNames.Count == 0)
+            {
+                ed.WriteMessage("\n当前图纸没有块定义。");
+                return;
+            }
+
+            blockNames.Sort();
+
+            // 弹窗选择块和分类
+            string selBlock = null;
+            string selCategory = null;
+            using (var form = new Form())
+            {
+                form.Text = "导出块到库";
+                form.Size = new Size(400, 450);
+                form.StartPosition = FormStartPosition.CenterScreen;
+                form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.MaximizeBox = false; form.MinimizeBox = false;
+
+                var lbl1 = new Label { Text = "选择块:", Location = new Point(15, 15), AutoSize = true };
+                var lst = new ListBox { Location = new Point(15, 35), Size = new Size(360, 280) };
+                foreach (var name in blockNames) lst.Items.Add(name);
+                if (lst.Items.Count > 0) lst.SelectedIndex = 0;
+
+                var lbl2 = new Label { Text = "分类:", Location = new Point(15, 325), AutoSize = true };
+                var cmb = new ComboBox { Location = new Point(15, 345), Width = 200, DropDownStyle = ComboBoxStyle.DropDown };
+                var categories = BlockLibrary.GetCategories().Where(c => c != "全部").ToList();
+                cmb.Items.AddRange(categories.ToArray());
+                if (cmb.Items.Count > 0) cmb.SelectedIndex = 0;
+
+                var btnOk = new Button { Text = "导出", DialogResult = DialogResult.OK, Location = new Point(200, 380) };
+                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(290, 380) };
+                form.Controls.AddRange(new Control[] { lbl1, lst, lbl2, cmb, btnOk, btnCancel });
+                form.AcceptButton = btnOk; form.CancelButton = btnCancel;
+
+                if (form.ShowDialog() == DialogResult.OK && lst.SelectedItem != null)
+                {
+                    selBlock = lst.SelectedItem.ToString();
+                    selCategory = cmb.Text.Trim();
+                }
+            }
+
+            if (string.IsNullOrEmpty(selBlock) || string.IsNullOrEmpty(selCategory)) { ed.WriteMessage("\n取消。"); return; }
+            BlockLibrary.ExportBlockFromCurrentDrawing(selBlock, selCategory);
         }
         [CommandMethod("KLLQ", CommandFlags.Session)]
         public void OpenBlockBrowserAlias() { OpenBlockBrowser(); }
