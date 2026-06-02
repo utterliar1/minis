@@ -455,7 +455,7 @@ namespace BlockBrowser
             catch { }
         }
 
-        private static string GetCacheKey(BlockInfo block)
+        public static string GetCacheKey(BlockInfo block)
         {
             string key = block.FilePath ?? "";
             using (var md5 = System.Security.Cryptography.MD5.Create())

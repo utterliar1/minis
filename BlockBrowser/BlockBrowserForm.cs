@@ -71,6 +71,9 @@ namespace BlockBrowser
             var btnDelete = new ToolStripButton("删除");
             btnDelete.Click += (s, e) => DoDelete();
 
+            var btnRename = new ToolStripButton("重命名");
+            btnRename.Click += (s, e) => DoRename();
+
             var btnRefresh = new ToolStripButton("刷新");
             btnRefresh.Click += (s, e) => LoadData();
 
@@ -114,7 +117,7 @@ namespace BlockBrowser
 
             _toolbar.Items.AddRange(new ToolStripItem[]
             {
-                btnInsert, btnDelete, new ToolStripSeparator(),
+                btnInsert, btnDelete, btnRename, new ToolStripSeparator(),
                 btnAddToLib, btnExportBlock, new ToolStripSeparator(),
                 btnRefresh, btnOpenFolder, btnSettings, new ToolStripSeparator(),
                 lblSearch, txtSearchHost, new ToolStripSeparator(),
@@ -152,6 +155,7 @@ namespace BlockBrowser
             ctx.Items.Add("插入", null, (s, e) => DoInsert());
             ctx.Items.Add("复制名称", null, (s, e) => { if (_selectedBlock != null) Clipboard.SetText(_selectedBlock.Name); });
             ctx.Items.Add("删除", null, (s, e) => DoDelete());
+            ctx.Items.Add("重命名", null, (s, e) => DoRename());
             _flowBlocks.ContextMenuStrip = ctx;
 
             Controls.Add(_flowBlocks);
@@ -439,6 +443,58 @@ namespace BlockBrowser
             }
             catch (System.Exception ex) { MessageBox.Show("删除失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
+        private void DoRename()
+        {
+            if (_selectedBlock == null) { MessageBox.Show("请先选择一个块。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            string oldName = _selectedBlock.Name;
+            string newName = ShowInputDialog("输入新名称:", oldName);
+            if (string.IsNullOrEmpty(newName) || newName.Trim() == oldName) return;
+            newName = newName.Trim();
+            string oldPath = _selectedBlock.FilePath;
+            string dir = Path.GetDirectoryName(oldPath);
+            string newPath = Path.Combine(dir, newName + ".dwg");
+            if (File.Exists(newPath)) { MessageBox.Show("同名文件已存在: " + newName, "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            try
+            {
+                // Rename DWG file
+                File.Move(oldPath, newPath);
+                // Rename thumbnail cache
+                string oldCacheKey = BlockLibrary.GetCacheKey(_selectedBlock);
+                _selectedBlock.FilePath = newPath; // updates name internally
+                string newCacheKey = BlockLibrary.GetCacheKey(_selectedBlock);
+                string thumbDir = BlockLibrary.ThumbnailCachePath;
+                string oldCache = Path.Combine(thumbDir, oldCacheKey + ".png");
+                string newCache = Path.Combine(thumbDir, newCacheKey + ".png");
+                if (File.Exists(oldCache)) File.Move(oldCache, newCache);
+                // Update memory cache
+                if (_thumbCache.ContainsKey(oldPath))
+                {
+                    _thumbCache[newPath] = _thumbCache[oldPath];
+                    _thumbCache.Remove(oldPath);
+                }
+                // Update UI card label
+                foreach (var card in _cards)
+                {
+                    if (card.Block.FilePath == newPath)
+                    {
+                        // FilePath was already updated via _selectedBlock reference
+                        break;
+                    }
+                }
+                // Update category cache references
+                foreach (var kv in _categoryCards)
+                {
+                    foreach (var c in kv.Value)
+                    {
+                        if (c.Block == _selectedBlock) { /* already updated via reference */ break; }
+                    }
+                }
+                _lblStatus.Text = "已重命名: " + oldName + " -> " + newName;
+                // Refresh display to show updated name
+                RefreshCards();
+            }
+            catch (System.Exception ex) { MessageBox.Show("重命名失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        }
         internal string PendingCategory;
         internal string PendingBlockName;
 
@@ -473,6 +529,25 @@ namespace BlockBrowser
                 form.FormBorderStyle = FormBorderStyle.FixedDialog;
                 form.MaximizeBox = false; form.MinimizeBox = false;
                 var txt = new TextBox { Location = new Point(15, 20), Width = 300 };
+                var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, Location = new Point(160, 70) };
+                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(250, 70) };
+                form.Controls.AddRange(new Control[] { txt, btnOk, btnCancel });
+                form.AcceptButton = btnOk; form.CancelButton = btnCancel;
+                return form.ShowDialog(this) == DialogResult.OK ? txt.Text : null;
+            }
+        }
+
+        private string ShowInputDialog(string prompt, string defaultValue)
+        {
+            using (var form = new Form())
+            {
+                form.Text = prompt;
+                form.Size = new Size(350, 150);
+                form.StartPosition = FormStartPosition.CenterParent;
+                form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.MaximizeBox = false; form.MinimizeBox = false;
+                var txt = new TextBox { Text = defaultValue, Location = new Point(15, 20), Width = 300 };
+                txt.SelectAll();
                 var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, Location = new Point(160, 70) };
                 var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(250, 70) };
                 form.Controls.AddRange(new Control[] { txt, btnOk, btnCancel });
