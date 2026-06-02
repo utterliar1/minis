@@ -19,27 +19,27 @@
 
 ```
 BlockBrowser/
-  config.ini              配置文件
-  autoload.lsp            自动加载脚本
-  build-all.bat           一键编译
-  gcad/
-    BlockBrowser.dll      浩辰CAD
-  acad/
-    BlockBrowser.dll      AutoCAD
-  zwcad/
-    BlockBrowser.dll      中望CAD
-  我的常用块/              默认块库
-    常用/
-    电气/
-    建筑/
-    机械/
-    标注/
-    其他/
+|-- config.ini              配置文件
+|-- autoload.lsp            自动加载脚本
+|-- build-all.bat           一键编译
+|-- gcad/
+|   +-- BlockBrowser.dll    浩辰CAD
+|-- acad/
+|   +-- BlockBrowser.dll    AutoCAD
+|-- zwcad/
+|   +-- BlockBrowser.dll    中望CAD
++-- 我的常用块/              默认块库
+    |-- 常用/
+    |-- 电气/
+    |-- 建筑/
+    |-- 机械/
+    |-- 标注/
+    +-- 其他/
 ```
 
 ### 使用方式
 
-1. 将整个 BlockBrowser 文件夹复制到任意位置 (如 C:\BlockBrowser)
+1. 将整个 BlockBrowser 文件夹复制到任意位置 (如 `C:\BlockBrowser`)
 2. 在 CAD 中执行 APPLOAD, 加载 autoload.lsp
 3. 输入命令 BB 打开块浏览器
 
@@ -97,11 +97,11 @@ set "ZWCAD_DIR=C:\Program Files\ZWSOFT\ZWCAD 2022"
 build-all.bat
 ```
 
-输出在 bin\Release\{gcad,acad,zwcad}\BlockBrowser.dll。
+输出在 `bin\Release\{gcad,acad,zwcad}\BlockBrowser.dll`。
 
 ## 技术说明
 
-- **条件编译**: #if GSTARCAD / #if AUTOCAD / #if ZWCAD 区分平台 API 差异
+- **条件编译**: `#if GSTARCAD` / `#if AUTOCAD` / `#if ZWCAD` 区分平台 API 差异
 - **缩略图策略**: PreviewIcon -> 几何渲染 (递归展开 BlockReference) -> 文字占位图
 - **插入方式**: 模态对话框选块 -> 关闭后 CAD 原生提示插入点, 无焦点闪烁
 - **配置读取**: DLL 加载时从 config.ini 读取, 支持相对/绝对路径
