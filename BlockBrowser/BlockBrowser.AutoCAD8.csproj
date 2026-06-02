@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <PlatformTarget>x64</PlatformTarget>
+    <DefineConstants>AUTOCAD</DefineConstants>
+    <OutputPath>bin\AutoCAD\</OutputPath>
+    <AssemblyName>BlockBrowser</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="acdbmgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2026\acdbmgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="acmgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2026\acmgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="accoremgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2026\accoremgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="BlockBrowserPlugin.cs" />
+    <Compile Include="BlockBrowserForm.cs" />
+    <Compile Include="BlockThumbnailCard.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+</Project>
