@@ -613,11 +613,6 @@ newDb.SaveAs(outPath, DwgVersion.Current);
 #endif
                 BlockLibrary.LoadConfig();
                 if (!Directory.Exists(BlockLibrary.LibraryPath)) Directory.CreateDirectory(BlockLibrary.LibraryPath);
-                foreach (var cat in new[] { "常用", "电气", "建筑", "机械", "标注", "其他" })
-                {
-                    string p = Path.Combine(BlockLibrary.LibraryPath, cat);
-                    if (!Directory.Exists(p)) Directory.CreateDirectory(p);
-                }
             }
             catch { }
         }
