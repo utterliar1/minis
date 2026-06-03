@@ -1,4 +1,4 @@
-name: Release BlockBrowser
+name: Build & Release BlockBrowser
 
 on:
   push:
@@ -9,46 +9,147 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Package BlockBrowser
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $CSC = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          $SRC = "${{ github.workspace }}\BlockBrowser"
+          $STUBS = "${{ github.workspace }}\.github\stubs"
+          $OUT = "${{ github.workspace }}\build"
+          New-Item -ItemType Directory -Path $OUT -Force | Out-Null
+          
+          $csFiles = @(
+            "$SRC\BlockBrowserPlugin.cs",
+            "$SRC\BlockBrowserForm.cs",
+            "$SRC\BlockThumbnailCard.cs",
+            "$SRC\Properties\AssemblyInfo.cs"
+          ) -join '" "'
+          
+          Write-Host "========================================"
+          Write-Host "  BlockBrowser - Multi-CAD CI Build"
+          Write-Host "========================================"
+          
+          # --- 1. GstarCAD (浩辰CAD) ---
+          Write-Host "`n[1/3] Building for GstarCAD..."
+          $gmdbStub = "$OUT\gmdb.dll"
+          & $CSC /target:library /out:$gmdbStub /nologo "$STUBS\GstarCAD.cs" /reference:"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Windows.Forms.dll"
+          
+          New-Item -ItemType Directory -Path "$OUT\gcad" -Force | Out-Null
+          $gcadArgs = @(
+            "/target:library", "/out:$OUT\gcad\BlockBrowser.dll",
+            "/nologo", "/optimize+", "/define:GSTARCAD",
+            "/reference:$gmdbStub",
+            "/reference:C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Windows.Forms.dll",
+            "/reference:C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Drawing.dll"
+          ) + $csFiles.Split('" "') | Where-Object { $_ }
+          & $CSC @gcadArgs
+          if ($LASTEXITCODE -eq 0) { Write-Host "  OK: gcad\BlockBrowser.dll" } else { Write-Host "  FAILED" }
+          
+          # --- 2. AutoCAD ---
+          Write-Host "`n[2/3] Building for AutoCAD..."
+          $acadStubProj = "$OUT\acad-stub"
+          New-Item -ItemType Directory -Path $acadStubProj -Force | Out-Null
+          Set-Content "$acadStubProj\AutoCAD.csproj" '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0-windows</TargetFramework><UseWindowsForms>true</UseWindowsForms><AssemblyName>AcMgd</AssemblyName></PropertyGroup></Project>'
+          Copy-Item "$STUBS\AutoCAD.cs" "$acadStubProj\AutoCAD.cs"
+          dotnet build "$acadStubProj\AutoCAD.csproj" -c Release -o "$OUT\acad-stub-dll" --nologo -v quiet
+          
+          New-Item -ItemType Directory -Path "$OUT\acad" -Force | Out-Null
+          $acadProj = "$OUT\acad-build"
+          New-Item -ItemType Directory -Path $acadProj -Force | Out-Null
+          # 创建 net8.0 csproj
+          $acadCsproj = @"
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <TargetFramework>net8.0-windows</TargetFramework>
+              <UseWindowsForms>true</UseWindowsForms>
+              <AssemblyName>BlockBrowser</AssemblyName>
+              <DefineConstants>AUTOCAD</DefineConstants>
+              <Optimize>true</Optimize>
+            </PropertyGroup>
+            <ItemGroup>
+              <Reference Include="AcMgd">
+                <HintPath>$OUT\acad-stub-dll\AcMgd.dll</HintPath>
+                <Private>False</Private>
+              </Reference>
+            </ItemGroup>
+          </Project>
+          "@
+          Set-Content "$acadProj\BlockBrowser.csproj" $acadCsproj
+          Copy-Item "$SRC\BlockBrowserPlugin.cs" "$acadProj/"
+          Copy-Item "$SRC\BlockBrowserForm.cs" "$acadProj/"
+          Copy-Item "$SRC\BlockThumbnailCard.cs" "$acadProj/"
+          Copy-Item "$SRC\Properties\AssemblyInfo.cs" "$acadProj/"
+          dotnet build "$acadProj\BlockBrowser.csproj" -c Release -o "$OUT\acad" --nologo -v quiet
+          if ($LASTEXITCODE -eq 0) { Write-Host "  OK: acad\BlockBrowser.dll" } else { Write-Host "  FAILED" }
+          
+          # --- 3. ZWCAD (中望CAD) ---
+          Write-Host "`n[3/3] Building for ZWCAD..."
+          $zwcadStub = "$OUT\ZwDatabaseMgd.dll"
+          & $CSC /target:library /out:$zwcadStub /nologo "$STUBS\ZWCAD.cs" /reference:"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Windows.Forms.dll"
+          
+          New-Item -ItemType Directory -Path "$OUT\zwcad" -Force | Out-Null
+          $zwcadArgs = @(
+            "/target:library", "/out:$OUT\zwcad\BlockBrowser.dll",
+            "/nologo", "/optimize+", "/define:ZWCAD",
+            "/reference:$zwcadStub",
+            "/reference:C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Windows.Forms.dll",
+            "/reference:C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Drawing.dll"
+          ) + $csFiles.Split('" "') | Where-Object { $_ }
+          & $CSC @zwcadArgs
+          if ($LASTEXITCODE -eq 0) { Write-Host "  OK: zwcad\BlockBrowser.dll" } else { Write-Host "  FAILED" }
+          
+          Write-Host "`n========================================"
+          Write-Host "  Build Complete"
+          Write-Host "========================================"
+
+      - name: Package
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
           $ver = $tag -replace '^bb-v',''
+          $OUT = "${{ github.workspace }}\build"
+          $releaseDir = "release/BlockBrowser-$ver"
           
-          $releaseDir = "release/BlockBrowser"
           New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
           
-          # 源码
-          Copy-Item "BlockBrowser/BlockBrowserPlugin.cs"       $releaseDir/
-          Copy-Item "BlockBrowser/BlockBrowserForm.cs"         $releaseDir/
-          Copy-Item "BlockBrowser/BlockThumbnailCard.cs"       $releaseDir/
-          Copy-Item "BlockBrowser/BlockBrowser.csproj"         $releaseDir/
-          Copy-Item "BlockBrowser/BlockBrowser.AutoCAD8.csproj" $releaseDir/
-          Copy-Item "BlockBrowser/BlockBrowser.ZWCAD.csproj"   $releaseDir/
-          Copy-Item "BlockBrowser/Properties"                  $releaseDir/Properties -Recurse
-          Copy-Item "BlockBrowser/autoload.lsp"                $releaseDir/
-          Copy-Item "BlockBrowser/build-all.bat"               $releaseDir/
-          Copy-Item "BlockBrowser/config.ini"                  $releaseDir/
-          Copy-Item "BlockBrowser/README.md"                   $releaseDir/
+          # 复制编译好的 DLL
+          if (Test-Path "$OUT\gcad\BlockBrowser.dll") {
+            New-Item -ItemType Directory -Path "$releaseDir\gcad" -Force | Out-Null
+            Copy-Item "$OUT\gcad\BlockBrowser.dll" "$releaseDir\gcad/"
+          }
+          if (Test-Path "$OUT\acad\BlockBrowser.dll") {
+            New-Item -ItemType Directory -Path "$releaseDir\acad" -Force | Out-Null
+            Copy-Item "$OUT\acad\BlockBrowser.dll" "$releaseDir\acad/"
+          }
+          if (Test-Path "$OUT\zwcad\BlockBrowser.dll") {
+            New-Item -ItemType Directory -Path "$releaseDir\zwcad" -Force | Out-Null
+            Copy-Item "$OUT\zwcad\BlockBrowser.dll" "$releaseDir\zwcad/"
+          }
           
-          $manual = Get-ChildItem "BlockBrowser/使用手册*" -ErrorAction SilentlyContinue
+          # 复制运行时需要的文件
+          Copy-Item "${{ github.workspace }}\BlockBrowser\autoload.lsp" $releaseDir/
+          Copy-Item "${{ github.workspace }}\BlockBrowser\config.ini"    $releaseDir/
+          Copy-Item "${{ github.workspace }}\BlockBrowser\README.md"     $releaseDir/
+          
+          $manual = Get-ChildItem "${{ github.workspace }}\BlockBrowser\使用手册*" -ErrorAction SilentlyContinue
           if ($manual) { Copy-Item $manual.FullName $releaseDir/ }
           
           # 默认块库目录
           $libDir = "$releaseDir/我的常用块"
-          New-Item -ItemType Directory -Path "$libDir/常用" -Force | Out-Null
-          New-Item -ItemType Directory -Path "$libDir/电气" -Force | Out-Null
-          New-Item -ItemType Directory -Path "$libDir/建筑" -Force | Out-Null
-          New-Item -ItemType Directory -Path "$libDir/机械" -Force | Out-Null
-          New-Item -ItemType Directory -Path "$libDir/标注" -Force | Out-Null
-          New-Item -ItemType Directory -Path "$libDir/其他" -Force | Out-Null
+          @("常用","电气","建筑","机械","标注","其他") | ForEach-Object {
+            New-Item -ItemType Directory -Path "$libDir\$_" -Force | Out-Null
+          }
           
-          Compress-Archive -Path "release/BlockBrowser" -DestinationPath "release/BlockBrowser-$ver.zip"
+          Compress-Archive -Path $releaseDir -DestinationPath "release/BlockBrowser-$ver.zip"
           Write-Host "Packed: BlockBrowser-$ver.zip"
 
       - name: Create Release
@@ -63,15 +164,17 @@ jobs:
             
             多 CAD 平台块浏览器插件，支持浩辰CAD、AutoCAD、中望CAD。
             
-            ### 安装
-            1. 解压 zip 到任意目录（如 `C:\BlockBrowser`）
-            2. 在 CAD 中执行 `APPLOAD`，加载 `autoload.lsp`
-            3. 输入 `BB` 打开块浏览器
+            ### 下载解压后
             
-            ### 从源码构建
-            需要 .NET Framework 4.8 SDK + .NET 8 SDK + 对应 CAD 软件
+            将整个文件夹复制到任意位置，修改 `build-all.bat` 中的 CAD 路径后可自行重新编译。
             
-            ```bat
-            :: 修改 build-all.bat 中的 CAD 安装路径
-            build-all.bat
-            ```
+            ### 安装使用
+            1. 打开 CAD → `APPLOAD` → 加载 `autoload.lsp`
+            2. 输入 `BB` 打开块浏览器
+            
+            ### 包含
+            | 目标 | 文件 |
+            |------|------|
+            | 浩辰CAD | `gcad\BlockBrowser.dll` |
+            | AutoCAD 2026 | `acad\BlockBrowser.dll` |
+            | 中望CAD | `zwcad\BlockBrowser.dll` |
