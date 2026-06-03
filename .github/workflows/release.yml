@@ -1,9 +1,9 @@
-name: Release
+name: Release BlockBrowser
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'bb-v*'
 
 permissions:
   contents: write
@@ -14,34 +14,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Package source
+      - name: Package BlockBrowser
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          $ver = $tag -replace '^v',''
+          $ver = $tag -replace '^bb-v',''
           
-          # 收集发布文件
           $releaseDir = "release/BlockBrowser"
           New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
           
-          # 复制核心文件
-          Copy-Item "BlockBrowser/BlockBrowserPlugin.cs"   $releaseDir/
-          Copy-Item "BlockBrowser/BlockBrowserForm.cs"     $releaseDir/
-          Copy-Item "BlockBrowser/BlockThumbnailCard.cs"   $releaseDir/
-          Copy-Item "BlockBrowser/BlockBrowser.csproj"     $releaseDir/
+          # 源码
+          Copy-Item "BlockBrowser/BlockBrowserPlugin.cs"       $releaseDir/
+          Copy-Item "BlockBrowser/BlockBrowserForm.cs"         $releaseDir/
+          Copy-Item "BlockBrowser/BlockThumbnailCard.cs"       $releaseDir/
+          Copy-Item "BlockBrowser/BlockBrowser.csproj"         $releaseDir/
           Copy-Item "BlockBrowser/BlockBrowser.AutoCAD8.csproj" $releaseDir/
           Copy-Item "BlockBrowser/BlockBrowser.ZWCAD.csproj"   $releaseDir/
-          Copy-Item "BlockBrowser/Properties"              $releaseDir/Properties -Recurse
-          Copy-Item "BlockBrowser/autoload.lsp"            $releaseDir/
-          Copy-Item "BlockBrowser/build-all.bat"           $releaseDir/
-          Copy-Item "BlockBrowser/config.ini"              $releaseDir/
-          Copy-Item "BlockBrowser/README.md"               $releaseDir/
+          Copy-Item "BlockBrowser/Properties"                  $releaseDir/Properties -Recurse
+          Copy-Item "BlockBrowser/autoload.lsp"                $releaseDir/
+          Copy-Item "BlockBrowser/build-all.bat"               $releaseDir/
+          Copy-Item "BlockBrowser/config.ini"                  $releaseDir/
+          Copy-Item "BlockBrowser/README.md"                   $releaseDir/
           
-          # 复制使用手册
           $manual = Get-ChildItem "BlockBrowser/使用手册*" -ErrorAction SilentlyContinue
           if ($manual) { Copy-Item $manual.FullName $releaseDir/ }
           
-          # 创建默认块库目录结构
+          # 默认块库目录
           $libDir = "$releaseDir/我的常用块"
           New-Item -ItemType Directory -Path "$libDir/常用" -Force | Out-Null
           New-Item -ItemType Directory -Path "$libDir/电气" -Force | Out-Null
@@ -50,14 +48,15 @@ jobs:
           New-Item -ItemType Directory -Path "$libDir/标注" -Force | Out-Null
           New-Item -ItemType Directory -Path "$libDir/其他" -Force | Out-Null
           
-          # 打包 zip
           Compress-Archive -Path "release/BlockBrowser" -DestinationPath "release/BlockBrowser-$ver.zip"
           Write-Host "Packed: BlockBrowser-$ver.zip"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          tag_name: ${{ github.ref_name }}
+          name: "BlockBrowser ${{ github.ref_name }}"
+          generate_release_notes: false
           files: release/BlockBrowser-${{ github.ref_name }}.zip
           body: |
             ## BlockBrowser ${{ github.ref_name }}
@@ -76,5 +75,3 @@ jobs:
             :: 修改 build-all.bat 中的 CAD 安装路径
             build-all.bat
             ```
-            
-            详细说明见 `README.md`
