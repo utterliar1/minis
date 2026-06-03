@@ -96,7 +96,7 @@ namespace BlockBrowser
             // Search box - wide, with explicit MinimumSize
             _txtSearch = new TextBox { Width = 100, BorderStyle = BorderStyle.FixedSingle };
             _txtSearch.TextChanged += (s, e) => { _searchTimer.Stop(); _searchTimer.Start(); };
-            _txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) { _txtSearch.Text = ""; } };
+            _txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) { _txtSearch.Text = ""; e.SuppressKeyPress = true; } };
             var txtSearchHost = new ToolStripControlHost(_txtSearch) { AutoSize = false };
 
             var lblSearch = new ToolStripLabel("搜索:");
@@ -145,7 +145,7 @@ namespace BlockBrowser
 
             // Status bar
             _statusBar = new StatusStrip();
-            var lblAuthor = new ToolStripLabel("v1.22 | 制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
+            var lblAuthor = new ToolStripLabel("v1.23 | 制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
             _lblStatus = new ToolStripStatusLabel("就绪") { Spring = true, TextAlign = ContentAlignment.MiddleLeft };
             _lblCount = new ToolStripStatusLabel("0") { TextAlign = ContentAlignment.MiddleRight };
             _statusBar.Items.AddRange(new ToolStripItem[] { lblAuthor, _lblStatus, _lblCount });
@@ -374,13 +374,9 @@ namespace BlockBrowser
         private void DoInsert()
         {
             if (_selectedBlock == null) { MessageBox.Show("请先选择一个块。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
-            using (var opts = new InsertOptionsForm(_selectedBlock.Name))
-            {
-                if (opts.ShowDialog(this) != DialogResult.OK) return;
-                SelectedInsertBlock = _selectedBlock;
-                InsertScale = opts.InsertScale;
-                InsertRotation = opts.Rotation;
-            }
+            SelectedInsertBlock = _selectedBlock;
+            InsertScale = BlockLibrary.InsertScale;
+            InsertRotation = BlockLibrary.InsertRotation;
             this.DialogResult = DialogResult.OK;
             this.Close();
         }
@@ -569,7 +565,7 @@ namespace BlockBrowser
             using (var form = new Form())
             {
                 form.Text = "块浏览器设置";
-                form.Size = new Size(450, 180);
+                form.Size = new Size(450, 260);
                 form.StartPosition = FormStartPosition.CenterParent;
                 form.FormBorderStyle = FormBorderStyle.FixedDialog;
                 form.MaximizeBox = false; form.MinimizeBox = false;
@@ -585,9 +581,22 @@ namespace BlockBrowser
                         if (dlg.ShowDialog() == DialogResult.OK) txt.Text = dlg.SelectedPath;
                     }
                 };
-                var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, Location = new Point(240, 100) };
-                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(330, 100) };
-                form.Controls.AddRange(new Control[] { lbl, txt, btnBrowse, btnOk, btnCancel });
+
+                var lblScale = new Label { Text = "插入比例:", Location = new Point(15, 85), AutoSize = true };
+                decimal scaleVal = (decimal)BlockLibrary.InsertScale;
+                if (scaleVal < 0.001m) scaleVal = 1m;
+                if (scaleVal > 10000m) scaleVal = 10000m;
+                var numScale = new NumericUpDown { Location = new Point(100, 82), Width = 120, Minimum = 0.001m, Maximum = 10000, DecimalPlaces = 3, Value = scaleVal, Increment = 0.1m };
+
+                var lblRot = new Label { Text = "旋转角度:", Location = new Point(240, 85), AutoSize = true };
+                decimal rotDeg = (decimal)(BlockLibrary.InsertRotation * 180.0 / Math.PI);
+                if (rotDeg < -360m) rotDeg = 0m;
+                if (rotDeg > 360m) rotDeg = 360m;
+                var numRot = new NumericUpDown { Location = new Point(340, 82), Width = 80, Minimum = -360, Maximum = 360, DecimalPlaces = 1, Value = rotDeg, Increment = 5 };
+
+                var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, Location = new Point(240, 180) };
+                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(330, 180) };
+                form.Controls.AddRange(new Control[] { lbl, txt, btnBrowse, lblScale, numScale, lblRot, numRot, btnOk, btnCancel });
                 form.AcceptButton = btnOk; form.CancelButton = btnCancel;
 
                 if (form.ShowDialog(this) == DialogResult.OK)
@@ -600,13 +609,16 @@ namespace BlockBrowser
                         if (dr == DialogResult.Yes) { try { Directory.CreateDirectory(newPath); } catch (Exception ex) { MessageBox.Show("创建失败: " + ex.Message); return; } }
                         else return;
                     }
+                    BlockLibrary.InsertScale = (double)numScale.Value;
+                    BlockLibrary.InsertRotation = (double)numRot.Value * Math.PI / 180.0;
                     if (newPath != BlockLibrary.LibraryPath)
                     {
                         BlockLibrary.LibraryPath = newPath;
-                        BlockLibrary.SaveConfig();
+                        foreach (var kv in _categoryCards) { foreach (var c in kv.Value) { try { c.Dispose(); } catch { } } }
                         _categoryCards.Clear();
                         LoadData();
                     }
+                    BlockLibrary.SaveConfig();
                 }
             }
         }
@@ -627,31 +639,14 @@ namespace BlockBrowser
         }
     }
 
-    public class InsertOptionsForm : Form
-    {
-        public double InsertScale { get; private set; }
-        public double Rotation { get; private set; }
-
-        public InsertOptionsForm(string blockName)
-        {
-            Text = string.Format("插入 - {0}", blockName);
-            Size = new Size(320, 200);
-            StartPosition = FormStartPosition.CenterParent;
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = false; MinimizeBox = false;
-
-            var lblScale = new Label { Text = "比例:", Location = new Point(20, 25), AutoSize = true };
-            var numScale = new NumericUpDown { Location = new Point(100, 22), Width = 170, Minimum = 0.001m, Maximum = 10000, DecimalPlaces = 3, Value = 1.0m, Increment = 0.1m };
-            var lblRot = new Label { Text = "角度(度):", Location = new Point(20, 60), AutoSize = true };
-            var numRot = new NumericUpDown { Location = new Point(100, 57), Width = 170, Minimum = -360, Maximum = 360, DecimalPlaces = 1, Value = 0, Increment = 5 };
-            var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, Location = new Point(120, 110) };
-            var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(210, 110) };
-            btnOk.Click += (s, e) => { InsertScale = (double)numScale.Value; Rotation = (double)numRot.Value * Math.PI / 180.0; };
-            Controls.AddRange(new Control[] { lblScale, numScale, lblRot, numRot, btnOk, btnCancel });
-            AcceptButton = btnOk; CancelButton = btnCancel;
-        }
-    }
 }
+
+
+
+
+
+
+
 
 
 
