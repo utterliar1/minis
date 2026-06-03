@@ -77,13 +77,14 @@ jobs:
           dotnet build "$src\BlockBrowser.AutoCAD8.csproj" -c Release -o "$src\bin\Release\acad\" --nologo --no-incremental
 
       - name: Package
+        id: package
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
           $ver = $tag -replace '^bb-v',''
           $SRC = "${{ github.workspace }}\BlockBrowser"
           $out = "${{ github.workspace }}\release"
-          $pkg = "$out\BlockBrowser-$ver"
+          $pkg = "$out\BlockBrowser"
           New-Item -ItemType Directory -Path $pkg -Force | Out-Null
 
           foreach ($plat in @("gcad","acad","zwcad")) {
@@ -100,17 +101,19 @@ jobs:
           Copy-Item "$SRC\autoload.lsp" "$pkg\" -ErrorAction SilentlyContinue
           Copy-Item "$SRC\config.ini" "$pkg\" -ErrorAction SilentlyContinue
 
-          $zip = "$out\BlockBrowser-$ver.zip"
+          $zip = "$out\BlockBrowser-v$ver.zip"
           Compress-Archive -Path "$pkg\*" -DestinationPath $zip -Force
           Write-Host "Packed: $zip ($([math]::Round((Get-Item $zip).Length/1024, 1)) KB)"
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+          "version=$ver" >> $env:GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: "BlockBrowser ${{ github.ref_name }}"
+          name: "BlockBrowser v${{ steps.package.outputs.version }}"
           generate_release_notes: false
-          files: ${{ github.workspace }}/release/BlockBrowser-${{ github.ref_name }}.zip
+          files: ${{ steps.package.outputs.zip }}
           body: |
             ## BlockBrowser ${{ github.ref_name }}
 
@@ -136,3 +139,4 @@ jobs:
             | `BBEXPORT` | 导出当前图纸块到库 |
             | `BBTHUMB` | 清除缩略图缓存 |
             | `BBINFO` | 显示版本信息 |
+
