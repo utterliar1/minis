@@ -1,4 +1,4 @@
-// GstarCAD API stubs for CI compilation
+﻿// GstarCAD API stubs for CI compilation
 // 这些只是类型定义，运行时由真正的 CAD SDK 替代
 using System;
 using System.Collections;
@@ -10,6 +10,10 @@ namespace GrxCAD.Runtime
     [Flags] public enum CommandFlags { Session = 1 }
     public interface IExtensionApplication { void Initialize(); void Terminate(); }
 }
+using GrxCAD.DatabaseServices;
+using GrxCAD.EditorInput;
+using GrxCAD.Geometry;
+
 namespace GrxCAD.ApplicationServices
 {
     public static class Application

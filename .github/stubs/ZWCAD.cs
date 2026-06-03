@@ -1,4 +1,4 @@
-// ZWCAD API stubs for CI compilation
+﻿// ZWCAD API stubs for CI compilation
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -9,6 +9,10 @@ namespace ZwSoft.ZwCAD.Runtime
     [Flags] public enum CommandFlags { Session = 1 }
     public interface IExtensionApplication { void Initialize(); void Terminate(); }
 }
+using ZwSoft.ZwCAD.DatabaseServices;
+using ZwSoft.ZwCAD.EditorInput;
+using ZwSoft.ZwCAD.Geometry;
+
 namespace ZwSoft.ZwCAD.ApplicationServices
 {
     public static class Application
