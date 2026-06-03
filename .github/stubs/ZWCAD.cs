@@ -2,6 +2,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using ZwSoft.ZwCAD.DatabaseServices;
+using ZwSoft.ZwCAD.EditorInput;
+using ZwSoft.ZwCAD.Geometry;
 
 namespace ZwSoft.ZwCAD.Runtime
 {
@@ -9,10 +12,6 @@ namespace ZwSoft.ZwCAD.Runtime
     [Flags] public enum CommandFlags { Session = 1 }
     public interface IExtensionApplication { void Initialize(); void Terminate(); }
 }
-using ZwSoft.ZwCAD.DatabaseServices;
-using ZwSoft.ZwCAD.EditorInput;
-using ZwSoft.ZwCAD.Geometry;
-
 namespace ZwSoft.ZwCAD.ApplicationServices
 {
     public static class Application

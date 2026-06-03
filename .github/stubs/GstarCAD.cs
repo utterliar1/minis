@@ -3,6 +3,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using GrxCAD.DatabaseServices;
+using GrxCAD.EditorInput;
+using GrxCAD.Geometry;
 
 namespace GrxCAD.Runtime
 {
@@ -10,9 +13,6 @@ namespace GrxCAD.Runtime
     [Flags] public enum CommandFlags { Session = 1 }
     public interface IExtensionApplication { void Initialize(); void Terminate(); }
 }
-using GrxCAD.DatabaseServices;
-using GrxCAD.EditorInput;
-using GrxCAD.Geometry;
 
 namespace GrxCAD.ApplicationServices
 {
