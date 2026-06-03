@@ -55,16 +55,11 @@ export NODESEEK_RANDOM_DELAY_MAX="0"
 
 1. 登录 https://www.nodeseek.com
 2. 按 `F12` 打开开发者工具
-3. 切换到 `Network` 标签
+3. 切换到「**网络**」标签
 4. 刷新页面，点击任意请求
-5. 复制 `Request Headers` 中的完整 Cookie
+5. 复制「**请求标头**」中的完整 Cookie
 
-**Cookie 必须包含以下字段：**
-- `session`
-- `cf_clearance`
-- `smac`
-- `fog`
-- `hmti_`
+**Cookie 必须包含：** `session`, `cf_clearance`, `smac`, `fog`, `hmti_`
 
 ## 青龙面板部署
 
@@ -76,10 +71,9 @@ export NODESEEK_RANDOM_DELAY_MAX="0"
 
 ```
 nodeseek-checkin/
-├── nodeseek-checkin.py              # 主签到脚本
-├── notify.py                        # 通知推送模块
-├── nodeseek-cookie-extractor.user.js # 猴油脚本（辅助获取 Cookie）
-├── .env.example                     # 环境变量示例
+├── nodeseek-checkin.py   # 主签到脚本
+├── notify.py             # 通知推送模块
+├── .env.example          # 环境变量示例
 ├── .gitignore
 └── README.md
 ```
