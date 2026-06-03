@@ -1,0 +1,10 @@
+D:\temp\stubs-test\gmdb.dll
+D:\temp\stubs-test\gmdb.pdb
+D:\Documents\GitHub\minis\.github\stubs\obj\Release\net48\GstarCAD.csproj.AssemblyReference.cache
+D:\Documents\GitHub\minis\.github\stubs\obj\Release\net48\GstarCAD.GeneratedMSBuildEditorConfig.editorconfig
+D:\Documents\GitHub\minis\.github\stubs\obj\Release\net48\GstarCAD.csproj.CoreCompileInputs.cache
+D:\Documents\GitHub\minis\.github\stubs\obj\Release\net48\GstarCAD.sourcelink.json
+D:\Documents\GitHub\minis\.github\stubs\obj\Release\net48\gmdb.dll
+D:\Documents\GitHub\minis\.github\stubs\obj\Release\net48\gmdb.pdb
+D:\temp\stubs-test\gcad\gmdb.dll
+D:\temp\stubs-test\gcad\gmdb.pdb

@@ -1,4 +1,4 @@
-// AutoCAD API stubs for CI compilation (.NET 8)
+﻿// AutoCAD API stubs for CI compilation (.NET 8)
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -6,6 +6,8 @@ using System.Collections.Generic;
 namespace Autodesk.AutoCAD.Runtime
 {
     [AttributeUsage(AttributeTargets.Method)] public class CommandMethodAttribute : Attribute { public CommandMethodAttribute(string name) {} public CommandMethodAttribute(string name, CommandFlags flags) {} }
+    [AttributeUsage(AttributeTargets.Assembly)] public class CommandClassAttribute : Attribute { public CommandClassAttribute(Type t) {} }
+    [AttributeUsage(AttributeTargets.Assembly)] public class ExtensionApplicationAttribute : Attribute { public ExtensionApplicationAttribute(Type t) {} }
     [Flags] public enum CommandFlags { Session = 1 }
     public interface IExtensionApplication { void Initialize(); void Terminate(); }
 }
@@ -118,9 +120,12 @@ namespace Autodesk.AutoCAD.EditorInput
         public PromptPointResult GetPoint(string msg) { return new PromptPointResult(); }
         public PromptSelectionResult GetSelection() { return new PromptSelectionResult(); }
         public void WriteMessage(string msg) {}
+        public PromptStringResult GetString(string msg) { return new PromptStringResult(); }
+        public PromptStringResult GetString(string msg, string def) { return new PromptStringResult(); }
     }
     public enum PromptStatus { OK, Cancel, None, Error }
     public class PromptPointResult { public PromptStatus Status { get; set; } public Geometry.Point3d Value { get; set; } }
+    public class PromptStringResult { public PromptStatus Status { get; set; } public string StringResult { get; set; } }
     public class PromptSelectionResult { public PromptStatus Status { get; set; } public SelectionSet Value { get; set; } }
     public class SelectionSet { public DatabaseServices.ObjectId[] GetObjectIds() { return new DatabaseServices.ObjectId[0]; } }
 }
@@ -132,3 +137,5 @@ namespace Autodesk.AutoCAD.Geometry
     public struct Scale3d { public Scale3d(double x, double y, double z) {} }
     public struct Extents3d { public Point3d MinPoint { get; set; } public Point3d MaxPoint { get; set; } }
 }
+
+

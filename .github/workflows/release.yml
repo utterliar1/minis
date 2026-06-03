@@ -72,10 +72,7 @@ jobs:
           $src = "${{ github.workspace }}\BlockBrowser"
           $acadDir = "${{ github.workspace }}\stubs\acad"
           $csproj = Get-Content "$src\BlockBrowser.AutoCAD8.csproj" -Raw
-          $csproj = $csproj.Replace(
-            'C:\Program Files\Autodesk\AutoCAD 2026',
-            ($acadDir -replace '\\','\\')
-          )
+          $csproj = $csproj.Replace('C:\Program Files\Autodesk\AutoCAD 2026', $acadDir)
           Set-Content "$src\BlockBrowser.AutoCAD8.csproj" -Value $csproj -Encoding UTF8
           dotnet build "$src\BlockBrowser.AutoCAD8.csproj" -c Release -o "$src\bin\Release\acad\" --nologo --no-incremental
 

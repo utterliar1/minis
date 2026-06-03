@@ -1,0 +1,10 @@
+D:\temp\stubs-test\acad\acdbmgd.deps.json
+D:\temp\stubs-test\acad\acdbmgd.dll
+D:\temp\stubs-test\acad\acdbmgd.pdb
+D:\Documents\GitHub\minis\.github\stubs\obj\Release\net8.0-windows\AutoCAD.GeneratedMSBuildEditorConfig.editorconfig
+D:\Documents\GitHub\minis\.github\stubs\obj\Release\net8.0-windows\AutoCAD.csproj.CoreCompileInputs.cache
+D:\Documents\GitHub\minis\.github\stubs\obj\Release\net8.0-windows\AutoCAD.sourcelink.json
+D:\Documents\GitHub\minis\.github\stubs\obj\Release\net8.0-windows\acdbmgd.dll
+D:\Documents\GitHub\minis\.github\stubs\obj\Release\net8.0-windows\refint\acdbmgd.dll
+D:\Documents\GitHub\minis\.github\stubs\obj\Release\net8.0-windows\acdbmgd.pdb
+D:\Documents\GitHub\minis\.github\stubs\obj\Release\net8.0-windows\ref\acdbmgd.dll
