@@ -22,37 +22,30 @@ jobs:
         shell: pwsh
         run: |
           $stubs = "${{ github.workspace }}\.github\stubs"
-          $csc = Get-ChildItem "C:\Windows\Microsoft.NET\Framework64\*\csc.exe" |
-                 Sort-Object { $_.Directory.Name } -Descending |
-                 Select-Object -First 1 -ExpandProperty FullName
-          Write-Host "Using csc: $csc"
 
-          # GstarCAD stubs -> gmdb.dll + gmap.dll
-          $gcadDir = "${{ github.workspace }}\stubs\gcad"
+          # GstarCAD stubs
+          dotnet build "$stubs\GstarCAD.csproj" -c Release --nologo -v quiet
+          $gcadDir = "$stubs\..\..\stubs\gcad"
           New-Item -ItemType Directory -Path $gcadDir -Force | Out-Null
-          & $csc /target:library /out:"$gcadDir\gmdb.dll" /nologo /platform:x64 "$stubs\GstarCAD.cs" `
-            /reference:"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Windows.Forms.dll" `
-            /reference:"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Drawing.dll"
-          Copy-Item "$gcadDir\gmdb.dll" "$gcadDir\gmap.dll"
+          Copy-Item "$stubs\bin\netstandard2.0\gmdb.dll" "$gcadDir\gmdb.dll"
+          Copy-Item "$stubs\bin\netstandard2.0\gmdb.dll" "$gcadDir\gmap.dll"
           Write-Host "GstarCAD stubs OK"
 
-          # ZWCAD stubs -> ZwDatabaseMgd.dll + ZwManaged.dll
-          $zwcadDir = "${{ github.workspace }}\stubs\zwcad"
+          # ZWCAD stubs
+          dotnet build "$stubs\ZWCAD.csproj" -c Release --nologo -v quiet
+          $zwcadDir = "$stubs\..\..\stubs\zwcad"
           New-Item -ItemType Directory -Path $zwcadDir -Force | Out-Null
-          & $csc /target:library /out:"$zwcadDir\ZwDatabaseMgd.dll" /nologo /platform:x64 "$stubs\ZWCAD.cs" `
-            /reference:"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Windows.Forms.dll" `
-            /reference:"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Drawing.dll"
-          Copy-Item "$zwcadDir\ZwDatabaseMgd.dll" "$zwcadDir\ZwManaged.dll"
+          Copy-Item "$stubs\bin\netstandard2.0\ZwDatabaseMgd.dll" "$zwcadDir\ZwDatabaseMgd.dll"
+          Copy-Item "$stubs\bin\netstandard2.0\ZwDatabaseMgd.dll" "$zwcadDir\ZwManaged.dll"
           Write-Host "ZWCAD stubs OK"
 
-          # AutoCAD stubs -> acdbmgd.dll + acmgd.dll + accoremgd.dll
-          $acadDir = "${{ github.workspace }}\stubs\acad"
+          # AutoCAD stubs
+          dotnet build "$stubs\AutoCAD.csproj" -c Release --nologo -v quiet
+          $acadDir = "$stubs\..\..\stubs\acad"
           New-Item -ItemType Directory -Path $acadDir -Force | Out-Null
-          & $csc /target:library /out:"$acadDir\acdbmgd.dll" /nologo /platform:x64 "$stubs\AutoCAD.cs" `
-            /reference:"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Windows.Forms.dll" `
-            /reference:"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Drawing.dll"
-          Copy-Item "$acadDir\acdbmgd.dll" "$acadDir\acmgd.dll"
-          Copy-Item "$acadDir\acdbmgd.dll" "$acadDir\accoremgd.dll"
+          Copy-Item "$stubs\bin\netstandard2.0\acdbmgd.dll" "$acadDir\acdbmgd.dll"
+          Copy-Item "$stubs\bin\netstandard2.0\acdbmgd.dll" "$acadDir\acmgd.dll"
+          Copy-Item "$stubs\bin\netstandard2.0\acdbmgd.dll" "$acadDir\accoremgd.dll"
           Write-Host "AutoCAD stubs OK"
 
       - name: Build GstarCAD
@@ -84,10 +77,10 @@ jobs:
         run: |
           $src = "${{ github.workspace }}\BlockBrowser"
           $acadDir = "${{ github.workspace }}\stubs\acad"
-          # AutoCAD csproj has hardcoded HintPath, override via csproj patch
+          # Patch csproj HintPath to use stub DLLs
           $csproj = Get-Content "$src\BlockBrowser.AutoCAD8.csproj" -Raw
-          $csproj = $csproj -replace 'C:\\Program Files\\Autodesk\\AutoCAD 2026', $acadDir
-          $csproj | Set-Content "$src\BlockBrowser.AutoCAD8.csproj" -Encoding UTF8
+          $csproj = $csproj -replace 'C:\\Program Files\\Autodesk\\AutoCAD 2026', ($acadDir -replace '\\','/')
+          Set-Content "$src\BlockBrowser.AutoCAD8.csproj" -Value $csproj -Encoding UTF8
           dotnet build "$src\BlockBrowser.AutoCAD8.csproj" -c Release -o "$src\bin\Release\acad\" --nologo --no-incremental
 
       - name: Package
@@ -100,7 +93,6 @@ jobs:
           $pkg = "$out\BlockBrowser-$ver"
           New-Item -ItemType Directory -Path $pkg -Force | Out-Null
 
-          # DLLs
           foreach ($plat in @("gcad","acad","zwcad")) {
             $dll = "$SRC\bin\Release\$plat\BlockBrowser.dll"
             if (Test-Path $dll) {
@@ -112,15 +104,10 @@ jobs:
             }
           }
 
-          # autoload.lsp + config.ini
           Copy-Item "$SRC\autoload.lsp" "$pkg\" -ErrorAction SilentlyContinue
           Copy-Item "$SRC\config.ini" "$pkg\" -ErrorAction SilentlyContinue
+          if (Test-Path "$SRC\README.md") { Copy-Item "$SRC\README.md" "$pkg\" }
 
-          # README
-          $readme = "${{ github.workspace }}\BlockBrowser\README.md"
-          if (Test-Path $readme) { Copy-Item $readme "$pkg\" }
-
-          # Zip
           $zip = "$out\BlockBrowser-$ver.zip"
           Compress-Archive -Path "$pkg\*" -DestinationPath $zip -Force
           Write-Host "Packed: $zip ($([math]::Round((Get-Item $zip).Length/1024, 1)) KB)"
@@ -145,9 +132,9 @@ jobs:
             ### 包含
             | 平台 | 文件 |
             |------|------|
-            | 浩辰CAD | `gcad\BlockBrowser.dll` |
-            | AutoCAD | `acad\BlockBrowser.dll` |
-            | 中望CAD | `zwcad\BlockBrowser.dll` |
+            | 浩辰CAD | `gcad/BlockBrowser.dll` |
+            | AutoCAD | `acad/BlockBrowser.dll` |
+            | 中望CAD | `zwcad/BlockBrowser.dll` |
 
             ### 命令
             | 命令 | 功能 |
