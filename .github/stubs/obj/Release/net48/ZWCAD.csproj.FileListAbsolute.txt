@@ -1,8 +1,0 @@
-D:\temp\stubs-test\zwcad\ZwDatabaseMgd.dll
-D:\temp\stubs-test\zwcad\ZwDatabaseMgd.pdb
-D:\Documents\GitHub\minis\.github\stubs\obj\Release\net48\ZWCAD.csproj.AssemblyReference.cache
-D:\Documents\GitHub\minis\.github\stubs\obj\Release\net48\ZWCAD.GeneratedMSBuildEditorConfig.editorconfig
-D:\Documents\GitHub\minis\.github\stubs\obj\Release\net48\ZWCAD.csproj.CoreCompileInputs.cache
-D:\Documents\GitHub\minis\.github\stubs\obj\Release\net48\ZWCAD.sourcelink.json
-D:\Documents\GitHub\minis\.github\stubs\obj\Release\net48\ZwDatabaseMgd.dll
-D:\Documents\GitHub\minis\.github\stubs\obj\Release\net48\ZwDatabaseMgd.pdb
