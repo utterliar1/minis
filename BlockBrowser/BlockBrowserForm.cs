@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -145,7 +145,7 @@ namespace BlockBrowser
 
             // Status bar
             _statusBar = new StatusStrip();
-            var lblAuthor = new ToolStripLabel("v1.21 | 制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
+            var lblAuthor = new ToolStripLabel("v1.22 | 制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
             _lblStatus = new ToolStripStatusLabel("就绪") { Spring = true, TextAlign = ContentAlignment.MiddleLeft };
             _lblCount = new ToolStripStatusLabel("0") { TextAlign = ContentAlignment.MiddleRight };
             _statusBar.Items.AddRange(new ToolStripItem[] { lblAuthor, _lblStatus, _lblCount });
@@ -236,25 +236,6 @@ namespace BlockBrowser
             ShowBlocks(BlockLibrary.GetBlocks(_currentCategory));
         }
 
-        private void CreateCard(BlockInfo block)
-        {
-            var card = new BlockThumbnailCard(block, _thumbSize);
-            card.BlockClicked += (s, b) =>
-            {
-                _selectedBlock = b;
-                foreach (var c2 in _cards) c2.IsSelected = (c2 == s);
-                _flowBlocks.Invalidate(true);
-            };
-            card.BlockDoubleClicked += (s, b) => { _selectedBlock = b; DoInsert(); };
-            // 内存缓存命中则直接显示
-            string ck = block.FilePath ?? "";
-            if (_thumbCache.ContainsKey(ck) && _thumbCache[ck] != null)
-            {
-                try { card.LoadThumbnail(new Bitmap(_thumbCache[ck], _thumbSize, _thumbSize)); }
-                catch { _thumbCache.Remove(ck); }
-            }
-        }
-
         private void ShowBlocks(List<BlockInfo> blocks)
         {
             _thumbTimer.Stop();
@@ -278,7 +259,7 @@ namespace BlockBrowser
                         _flowBlocks.Invalidate(true);
                     };
                     card.BlockDoubleClicked += (s, b) => { _selectedBlock = b; DoInsert(); };
-                    string ck = block.FilePath ?? "";
+                    string ck = (block.FilePath ?? "") + "_" + _thumbSize;
                     if (_thumbCache.ContainsKey(ck) && _thumbCache[ck] != null)
                     {
                         try { card.LoadThumbnail(new Bitmap(_thumbCache[ck], _thumbSize, _thumbSize)); }
@@ -312,14 +293,18 @@ namespace BlockBrowser
         private List<BlockThumbnailCard> _pendingThumbCards = new List<BlockThumbnailCard>();
         private int _failCount;
 
+        private string GetMemCacheKey(BlockThumbnailCard card)
+        {
+            return (card.Block.FilePath ?? "") + "_" + _thumbSize;
+        }
+
         private bool HasThumbnail(BlockThumbnailCard card)
         {
-            string ck = card.Block.FilePath ?? "";
+            string ck = GetMemCacheKey(card);
             return _thumbCache.ContainsKey(ck) && _thumbCache[ck] != null;
         }
 
         // Load thumbnails one by one on UI thread (safe for GstarCAD API)
-        private int _thumbFailCount;
 
                         private void ThumbTimerTick(object sender, EventArgs e)
         {
@@ -340,7 +325,7 @@ namespace BlockBrowser
                     if (img != null)
                     {
                         card.LoadThumbnail(img);
-                        string ck = card.Block.FilePath ?? "";
+                        string ck = (card.Block.FilePath ?? "") + "_" + _thumbSize;
                         if (!_thumbCache.ContainsKey(ck))
                             _thumbCache[ck] = new Bitmap(img);
                     }
@@ -438,8 +423,9 @@ namespace BlockBrowser
                     foreach (var c in kv.Value) { if (c.Block.FilePath == filePath) { cached = c; break; } }
                     if (cached != null) { kv.Value.Remove(cached); cached.Dispose(); break; }
                 }
-                // Remove from memory cache
-                if (_thumbCache.ContainsKey(filePath)) { _thumbCache[filePath].Dispose(); _thumbCache.Remove(filePath); }
+                // Remove from memory cache (remove all size variants)
+                var keysToRemove = _thumbCache.Keys.Where(k => k.StartsWith(filePath + "_")).ToList();
+                foreach (var k in keysToRemove) { try { _thumbCache[k].Dispose(); } catch { } _thumbCache.Remove(k); }
                 _selectedBlock = null;
                 _lblStatus.Text = "已删除: " + name;
                 int visible = _cards.Count(c => !c.IsDisposed && c.Visible);
@@ -469,11 +455,13 @@ namespace BlockBrowser
                     MessageBox.Show("重命名失败。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
-                // Update memory cache key (oldPath -> newPath)
-                if (_thumbCache.ContainsKey(oldPath))
+                // Update memory cache key (oldPath_size -> newPath_size)
+                var renameKeys = _thumbCache.Keys.Where(k => k.StartsWith(oldPath + "_")).ToList();
+                foreach (var k in renameKeys)
                 {
-                    _thumbCache[newPath] = _thumbCache[oldPath];
-                    _thumbCache.Remove(oldPath);
+                    string suffix = k.Substring(oldPath.Length); // "_128"
+                    _thumbCache[newPath + suffix] = _thumbCache[k];
+                    _thumbCache.Remove(k);
                 }
                 // Update UI card label without full refresh
                 foreach (var card in _cards)

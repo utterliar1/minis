@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -174,7 +174,7 @@ namespace BlockBrowser
                         return r;
                     }
                 }
-                catch { }
+                catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine("[BlockBrowser] 缓存读取失败: " + ex.Message); }
             }
             if (!File.Exists(block.FilePath)) return GeneratePlaceholder(block.Name, size);
             try
@@ -190,16 +190,22 @@ namespace BlockBrowser
                             var btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
                             if (!btr.IsLayout && !btr.Name.StartsWith("*") && btr.HasPreviewIcon)
                             {
-                                Bitmap icon = btr.PreviewIcon;
-                                if (icon != null)
+                                try
                                 {
-                                    Bitmap scaled = new Bitmap(icon, size, size);
-                                    icon.Dispose();
-                                    SaveThumbnailCache(cachePath, scaled);
-                                    return scaled;
+                                    using (Bitmap icon = btr.PreviewIcon)
+                                    {
+                                        if (icon != null)
+                                        {
+                                            Bitmap scaled = new Bitmap(icon, size, size);
+                                            SaveThumbnailCache(cachePath, scaled);
+                                            return scaled;
+                                        }
+                                    }
                                 }
+                                catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine("[BlockBrowser] PreviewIcon 失败: " + ex.Message); }
                             }
                         }
+                        // 无 PreviewIcon，用几何渲染
                         if (bt.Has("*Model_Space"))
                         {
                             var ms = (BlockTableRecord)tr.GetObject(bt["*Model_Space"], OpenMode.ForRead);
@@ -216,7 +222,7 @@ namespace BlockBrowser
                     }
                 }
             }
-            catch { }
+            catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine("[BlockBrowser] GetThumbnail: " + ex.Message); }
             return GeneratePlaceholder(block.Name, size);
         }
 
@@ -225,19 +231,24 @@ namespace BlockBrowser
             double minX = double.MaxValue, minY = double.MaxValue;
             double maxX = double.MinValue, maxY = double.MinValue;
             int cnt = 0;
-            CollectExt(tr, btr, Matrix3d.Identity, ref minX, ref minY, ref maxX, ref maxY, ref cnt);
+            var visited = new HashSet<ObjectId>();
+            CollectExt(tr, btr, Matrix3d.Identity, ref minX, ref minY, ref maxX, ref maxY, ref cnt, visited);
             if (cnt == 0 || minX >= maxX || minY >= maxY) return;
             double gw = maxX - minX, gh = maxY - minY;
             int m = 8, dw = size - m * 2, dh = size - m * 2;
             double sc = Math.Min(dw / gw, dh / gh);
             double ox = m + (dw - gw * sc) / 2.0, oy = m + (dh - gh * sc) / 2.0;
             using (var pen = new Pen(Color.FromArgb(30, 60, 120), 1.0f))
-                DrawBtr(g, tr, btr, pen, minX, minY, sc, ox, oy, size, Matrix3d.Identity);
+            {
+                var drawVisited = new HashSet<ObjectId>();
+                DrawBtr(g, tr, btr, pen, minX, minY, sc, ox, oy, size, Matrix3d.Identity, drawVisited);
+            }
         }
 
         private static void CollectExt(Transaction tr, BlockTableRecord btr, Matrix3d xf,
-            ref double minX, ref double minY, ref double maxX, ref double maxY, ref int cnt)
+            ref double minX, ref double minY, ref double maxX, ref double maxY, ref int cnt, HashSet<ObjectId> visited)
         {
+            if (!visited.Add(btr.ObjectId)) return; // 循环引用保护
             foreach (ObjectId eid in btr)
             {
                 Entity ent = tr.GetObject(eid, OpenMode.ForRead) as Entity;
@@ -248,9 +259,9 @@ namespace BlockBrowser
                     try
                     {
                         BlockTableRecord def = (BlockTableRecord)tr.GetObject(br.BlockTableRecord, OpenMode.ForRead);
-                        CollectExt(tr, def, xf * br.BlockTransform, ref minX, ref minY, ref maxX, ref maxY, ref cnt);
+                        CollectExt(tr, def, xf * br.BlockTransform, ref minX, ref minY, ref maxX, ref maxY, ref cnt, visited);
                     }
-                    catch { }
+                    catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine("[BlockBrowser] CollectExt: " + ex.Message); }
                 }
                 else
                 {
@@ -277,8 +288,9 @@ namespace BlockBrowser
         }
 
         private static void DrawBtr(Graphics g, Transaction tr, BlockTableRecord btr,
-            Pen pen, double minX, double minY, double sc, double ox, double oy, int sz, Matrix3d xf)
+            Pen pen, double minX, double minY, double sc, double ox, double oy, int sz, Matrix3d xf, HashSet<ObjectId> visited)
         {
+            if (!visited.Add(btr.ObjectId)) return; // 循环引用保护
             foreach (ObjectId eid in btr)
             {
                 Entity ent = tr.GetObject(eid, OpenMode.ForRead) as Entity;
@@ -289,9 +301,9 @@ namespace BlockBrowser
                     try
                     {
                         BlockTableRecord def = (BlockTableRecord)tr.GetObject(br.BlockTableRecord, OpenMode.ForRead);
-                        DrawBtr(g, tr, def, pen, minX, minY, sc, ox, oy, sz, xf * br.BlockTransform);
+                        DrawBtr(g, tr, def, pen, minX, minY, sc, ox, oy, sz, xf * br.BlockTransform, visited);
                     }
-                    catch { }
+                    catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine("[BlockBrowser] DrawBtr: " + ex.Message); }
                 }
                 else
                 {
@@ -391,14 +403,23 @@ namespace BlockBrowser
         }
 
         
-                                private static Dictionary<string, Image> _placeholderCache = new Dictionary<string, Image>();
+        private static Dictionary<string, Image> _placeholderCache = new Dictionary<string, Image>();
+        private static Dictionary<int, DrawingFont> _fontCache = new Dictionary<int, DrawingFont>();
+        private const int PLACEHOLDER_CACHE_MAX = 200;
+
+        public static void ClearPlaceholderCache()
+        {
+            foreach (var kv in _placeholderCache) { try { kv.Value.Dispose(); } catch { } }
+            _placeholderCache.Clear();
+        }
 
         public static Image GeneratePlaceholder(string name, int size)
         {
             string cacheKey = (name ?? "?") + "_" + size;
             if (_placeholderCache.ContainsKey(cacheKey) && _placeholderCache[cacheKey] != null)
             {
-                try { return new Bitmap(_placeholderCache[cacheKey]); } catch { _placeholderCache.Remove(cacheKey); }
+                try { return new Bitmap(_placeholderCache[cacheKey]); }
+                catch { _placeholderCache.Remove(cacheKey); }
             }
             try
             {
@@ -421,13 +442,22 @@ namespace BlockBrowser
                     }
                     string dn = name ?? "?";
                     if (dn.Length > 10) dn = dn.Substring(0, 9) + "..";
-                    float fontSize = Math.Max(7f, size / 14f);
-                    using (var f = new DrawingFont("Microsoft YaHei", fontSize, FontStyle.Regular))
+                    int fontSize = Math.Max(7, size / 14);
+                    DrawingFont font;
+                    if (!_fontCache.TryGetValue(fontSize, out font))
                     {
-                        var textRect = new RectangleF(2, size * 0.68f, size - 4, size * 0.30f);
-                        g.DrawString(dn, f, Brushes.DimGray, textRect,
-                            new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter });
+                        font = new DrawingFont("Microsoft YaHei", fontSize, FontStyle.Regular);
+                        _fontCache[fontSize] = font;
                     }
+                    var textRect = new RectangleF(2, size * 0.68f, size - 4, size * 0.30f);
+                    g.DrawString(dn, font, Brushes.DimGray, textRect,
+                        new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter });
+                }
+                // 缓存超限时清理
+                if (_placeholderCache.Count >= PLACEHOLDER_CACHE_MAX)
+                {
+                    foreach (var kv in _placeholderCache) { try { kv.Value.Dispose(); } catch { } }
+                    _placeholderCache.Clear();
                 }
                 _placeholderCache[cacheKey] = new Bitmap(bmp);
                 return bmp;
