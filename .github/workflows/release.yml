@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package source
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag -replace '^v',''
+          
+          # 收集发布文件
+          $releaseDir = "release/BlockBrowser"
+          New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+          
+          # 复制核心文件
+          Copy-Item "BlockBrowser/BlockBrowserPlugin.cs"   $releaseDir/
+          Copy-Item "BlockBrowser/BlockBrowserForm.cs"     $releaseDir/
+          Copy-Item "BlockBrowser/BlockThumbnailCard.cs"   $releaseDir/
+          Copy-Item "BlockBrowser/BlockBrowser.csproj"     $releaseDir/
+          Copy-Item "BlockBrowser/BlockBrowser.AutoCAD8.csproj" $releaseDir/
+          Copy-Item "BlockBrowser/BlockBrowser.ZWCAD.csproj"   $releaseDir/
+          Copy-Item "BlockBrowser/Properties"              $releaseDir/Properties -Recurse
+          Copy-Item "BlockBrowser/autoload.lsp"            $releaseDir/
+          Copy-Item "BlockBrowser/build-all.bat"           $releaseDir/
+          Copy-Item "BlockBrowser/config.ini"              $releaseDir/
+          Copy-Item "BlockBrowser/README.md"               $releaseDir/
+          
+          # 复制使用手册
+          $manual = Get-ChildItem "BlockBrowser/使用手册*" -ErrorAction SilentlyContinue
+          if ($manual) { Copy-Item $manual.FullName $releaseDir/ }
+          
+          # 创建默认块库目录结构
+          $libDir = "$releaseDir/我的常用块"
+          New-Item -ItemType Directory -Path "$libDir/常用" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$libDir/电气" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$libDir/建筑" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$libDir/机械" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$libDir/标注" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$libDir/其他" -Force | Out-Null
+          
+          # 打包 zip
+          Compress-Archive -Path "release/BlockBrowser" -DestinationPath "release/BlockBrowser-$ver.zip"
+          Write-Host "Packed: BlockBrowser-$ver.zip"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: release/BlockBrowser-${{ github.ref_name }}.zip
+          body: |
+            ## BlockBrowser ${{ github.ref_name }}
+            
+            多 CAD 平台块浏览器插件，支持浩辰CAD、AutoCAD、中望CAD。
+            
+            ### 安装
+            1. 解压 zip 到任意目录（如 `C:\BlockBrowser`）
+            2. 在 CAD 中执行 `APPLOAD`，加载 `autoload.lsp`
+            3. 输入 `BB` 打开块浏览器
+            
+            ### 从源码构建
+            需要 .NET Framework 4.8 SDK + .NET 8 SDK + 对应 CAD 软件
+            
+            ```bat
+            :: 修改 build-all.bat 中的 CAD 安装路径
+            build-all.bat
+            ```
+            
+            详细说明见 `README.md`
