@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -16,7 +16,7 @@ namespace BlockBrowser
         public double InsertScale { get; private set; }
         public double InsertRotation { get; private set; }
 
-        internal string _pendingCommand;
+        internal string PendingCommand { get; set; }
         private FlowLayoutPanel _flowBlocks;
         private FlowLayoutPanel _catBar;
         private TextBox _txtSearch;
@@ -371,8 +371,6 @@ namespace BlockBrowser
             _lblCount.Text = visible + " 个";
         }
 
-        private bool _inserting;
-
         private void DoInsert()
         {
             if (_selectedBlock == null) { MessageBox.Show("请先选择一个块。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
@@ -498,14 +496,14 @@ namespace BlockBrowser
             if (string.IsNullOrEmpty(name)) return;
             PendingCategory = category;
             PendingBlockName = name.Trim();
-            _pendingCommand = "BBADD";
+            PendingCommand = "BBADD";
             this.DialogResult = DialogResult.Abort;
             this.Close();
         }
 
         private void BtnExportBlock_Click(object sender, EventArgs e)
         {
-            _pendingCommand = "BBEXPORT";
+            PendingCommand = "BBEXPORT";
             this.DialogResult = DialogResult.Abort;
             this.Close();
         }
@@ -654,3 +652,9 @@ namespace BlockBrowser
         }
     }
 }
+
+
+
+
+
+

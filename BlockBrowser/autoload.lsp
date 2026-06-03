@@ -3,22 +3,61 @@
 
 (vl-load-com)
 
-;; 搜索常见位置找插件目录
-(defun _bb-find (/ dir)
-  (cond
-    ;; 优先：相对当前脚本目录
-    ((vl-file-directory-p
-       (strcat (getvar "DWGPREFIX") "BlockBrowser"))
-     (strcat (getvar "DWGPREFIX") "BlockBrowser\\"))
-    ;; 常见固定路径
-    ((vl-file-directory-p "C:\\BlockBrowser") "C:\\BlockBrowser\\")
-    ((vl-file-directory-p "D:\\BlockBrowser") "D:\\BlockBrowser\\")
-    ;; 桌面
-    ((vl-file-directory-p
-       (strcat (getvar "LOCALROOTPREFIX") "Desktop\\BlockBrowser"))
-     (strcat (getvar "LOCALROOTPREFIX") "Desktop\\BlockBrowser\\"))
-    (T nil)
+;; 从 config.ini 读取插件目录
+(defun _bb-read-dir-from-ini (iniPath / fp line eq pos val)
+  (if (findfile iniPath)
+    (progn
+      (setq val nil)
+      (setq fp (open iniPath "r"))
+      (while (setq line (read-line fp))
+        (setq line (vl-string-trim " " line))
+        (if
+          (and
+            (not (wcmatch line "#*"))
+            (not (wcmatch line ";*"))
+            (setq eq (vl-string-search "=" line))
+          )
+          (progn
+            (setq pos (vl-string-trim " " (substr line 1 eq)))
+            (setq val (vl-string-trim " " (substr line (+ eq 2))))
+            (if (= (strcase pos) "LIBRARYPATH") (setq val val))
+          )
+        )
+      )
+      (close fp)
+      val
+    )
+    nil
   )
+)
+
+;; 搜索常见位置找插件目录
+(defun _bb-find (/ dir candidates)
+  (setq candidates
+    (list
+      ;; 相对当前脚本目录
+      (strcat (getvar "DWGPREFIX") "BlockBrowser")
+      ;; config.ini 中指定的目录
+      (if (findfile (strcat (getvar "DWGPREFIX") "BlockBrowser\\config.ini"))
+        (_bb-read-dir-from-ini (strcat (getvar "DWGPREFIX") "BlockBrowser\\config.ini"))
+        nil
+      )
+      ;; 常见固定路径
+      "C:\\BlockBrowser"
+      "D:\\BlockBrowser"
+      "C:\\mini工具箱\\BlockBrowser"
+      "D:\\mini工具箱\\BlockBrowser"
+      ;; 桌面
+      (strcat (getvar "LOCALROOTPREFIX") "Desktop\\BlockBrowser")
+    )
+  )
+  (setq dir nil)
+  (foreach c candidates
+    (if (and c (not dir) (vl-file-directory-p c))
+      (setq dir c)
+    )
+  )
+  dir
 )
 
 (setq blockbrowser-dir (_bb-find))
@@ -37,7 +76,7 @@
               (T "gcad")
             )
           )
-          (setq dll (strcat blockbrowser-dir plat "\\BlockBrowser.dll"))
+          (setq dll (strcat blockbrowser-dir "\\" plat "\\BlockBrowser.dll"))
           (if (vl-file-systime dll)
             (progn
               (vl-cmdf "NETLOAD" dll)

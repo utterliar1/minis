@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -695,9 +695,9 @@ newDb.SaveAs(outPath, DwgVersion.Current);
                     {
                         BlockLibrary.InsertBlock(form.SelectedInsertBlock, form.InsertScale, form.InsertRotation);
                     }
-                    else if (form.DialogResult == DialogResult.Abort && !string.IsNullOrEmpty(form._pendingCommand))
+                    else if (form.DialogResult == DialogResult.Abort && !string.IsNullOrEmpty(form.PendingCommand))
                     {
-                        pendingCmd = form._pendingCommand;
+                        pendingCmd = form.PendingCommand;
                         pendingCategory = form.PendingCategory;
                         pendingBlockName = form.PendingBlockName;
                     }
@@ -710,9 +710,6 @@ newDb.SaveAs(outPath, DwgVersion.Current);
             }
             catch (System.Exception ex) { MessageBox.Show("打开失败:\n" + ex.Message, "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
-
-        private string _pendingCategory;
-        private string _pendingBlockName;
 
         private void DoAddToLibrary(string category, string blockName)
         {
@@ -865,7 +862,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
             try
             {
-                ed.WriteMessage("\n=== 块浏览器 v1.21 (" + BlockLibrary.PlatformName + ") ===");
+                ed.WriteMessage("\n=== 块浏览器 v1.22 (" + BlockLibrary.PlatformName + ") ===");
                 ed.WriteMessage("\n库: " + BlockLibrary.LibraryPath);
                 ed.WriteMessage("\n命令: BB KLLQ BBADD BBEXPORT BBTHUMB");
             }
@@ -873,3 +870,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
         }
     }
 }
+
+
+
+
