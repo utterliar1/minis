@@ -21,31 +21,25 @@ jobs:
       - name: Compile CAD API stubs
         shell: pwsh
         run: |
-          $stubs = "${{ github.workspace }}\.github\stubs"
+          $ws = "${{ github.workspace }}"
+          $stubs = "$ws\.github\stubs"
+          $outDir = "$ws\stubs"
+          New-Item -ItemType Directory -Path "$outDir\gcad","$outDir\zwcad","$outDir\acad" -Force | Out-Null
 
-          # GstarCAD stubs
-          dotnet build "$stubs\GstarCAD.csproj" -c Release --nologo -v quiet
-          $gcadDir = "$stubs\..\..\stubs\gcad"
-          New-Item -ItemType Directory -Path $gcadDir -Force | Out-Null
-          Copy-Item "$stubs\bin\netstandard2.0\gmdb.dll" "$gcadDir\gmdb.dll"
-          Copy-Item "$stubs\bin\netstandard2.0\gmdb.dll" "$gcadDir\gmap.dll"
+          # GstarCAD
+          dotnet build "$stubs\GstarCAD.csproj" -c Release --nologo -v quiet -o "$outDir\gcad"
+          Copy-Item "$outDir\gcad\gmdb.dll" "$outDir\gcad\gmap.dll" -Force
           Write-Host "GstarCAD stubs OK"
 
-          # ZWCAD stubs
-          dotnet build "$stubs\ZWCAD.csproj" -c Release --nologo -v quiet
-          $zwcadDir = "$stubs\..\..\stubs\zwcad"
-          New-Item -ItemType Directory -Path $zwcadDir -Force | Out-Null
-          Copy-Item "$stubs\bin\netstandard2.0\ZwDatabaseMgd.dll" "$zwcadDir\ZwDatabaseMgd.dll"
-          Copy-Item "$stubs\bin\netstandard2.0\ZwDatabaseMgd.dll" "$zwcadDir\ZwManaged.dll"
+          # ZWCAD
+          dotnet build "$stubs\ZWCAD.csproj" -c Release --nologo -v quiet -o "$outDir\zwcad"
+          Copy-Item "$outDir\zwcad\ZwDatabaseMgd.dll" "$outDir\zwcad\ZwManaged.dll" -Force
           Write-Host "ZWCAD stubs OK"
 
-          # AutoCAD stubs
-          dotnet build "$stubs\AutoCAD.csproj" -c Release --nologo -v quiet
-          $acadDir = "$stubs\..\..\stubs\acad"
-          New-Item -ItemType Directory -Path $acadDir -Force | Out-Null
-          Copy-Item "$stubs\bin\netstandard2.0\acdbmgd.dll" "$acadDir\acdbmgd.dll"
-          Copy-Item "$stubs\bin\netstandard2.0\acdbmgd.dll" "$acadDir\acmgd.dll"
-          Copy-Item "$stubs\bin\netstandard2.0\acdbmgd.dll" "$acadDir\accoremgd.dll"
+          # AutoCAD
+          dotnet build "$stubs\AutoCAD.csproj" -c Release --nologo -v quiet -o "$outDir\acad"
+          Copy-Item "$outDir\acad\acdbmgd.dll" "$outDir\acad\acmgd.dll" -Force
+          Copy-Item "$outDir\acad\acdbmgd.dll" "$outDir\acad\accoremgd.dll" -Force
           Write-Host "AutoCAD stubs OK"
 
       - name: Build GstarCAD
@@ -77,9 +71,11 @@ jobs:
         run: |
           $src = "${{ github.workspace }}\BlockBrowser"
           $acadDir = "${{ github.workspace }}\stubs\acad"
-          # Patch csproj HintPath to use stub DLLs
           $csproj = Get-Content "$src\BlockBrowser.AutoCAD8.csproj" -Raw
-          $csproj = $csproj -replace 'C:\\Program Files\\Autodesk\\AutoCAD 2026', ($acadDir -replace '\\','/')
+          $csproj = $csproj.Replace(
+            'C:\Program Files\Autodesk\AutoCAD 2026',
+            ($acadDir -replace '\\','\\')
+          )
           Set-Content "$src\BlockBrowser.AutoCAD8.csproj" -Value $csproj -Encoding UTF8
           dotnet build "$src\BlockBrowser.AutoCAD8.csproj" -c Release -o "$src\bin\Release\acad\" --nologo --no-incremental
 
@@ -106,7 +102,6 @@ jobs:
 
           Copy-Item "$SRC\autoload.lsp" "$pkg\" -ErrorAction SilentlyContinue
           Copy-Item "$SRC\config.ini" "$pkg\" -ErrorAction SilentlyContinue
-          if (Test-Path "$SRC\README.md") { Copy-Item "$SRC\README.md" "$pkg\" }
 
           $zip = "$out\BlockBrowser-$ver.zip"
           Compress-Archive -Path "$pkg\*" -DestinationPath $zip -Force
