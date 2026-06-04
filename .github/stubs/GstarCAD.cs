@@ -22,6 +22,7 @@ namespace GrxCAD.ApplicationServices
     {
         public DatabaseServices.Database Database { get; set; }
         public EditorInput.Editor Editor { get; set; }
+        public void SendStringToExecute(string cmd, bool b1, bool b2, bool b3) {}
     }
 }
 namespace GrxCAD.DatabaseServices
@@ -44,7 +45,7 @@ namespace GrxCAD.DatabaseServices
         public void Dispose() {}
     }
     public enum OpenMode { ForRead, ForWrite }
-    public class DBObject { public ObjectId ObjectId { get; set; } }
+    public class DBObject { public ObjectId ObjectId { get; set; } public ObjectId Id { get { return ObjectId; } } public void Erase() {} public void UpgradeOpen() {} }
     public class ObjectId
     {
         public override bool Equals(object obj) { return obj is ObjectId; }
@@ -64,6 +65,7 @@ namespace GrxCAD.DatabaseServices
     public class IdMapping {}
     public class BlockTable : DBObject, IEnumerable<ObjectId>
     {
+        public void Add(BlockTableRecord btr) {}
         public bool Has(string name) { return false; }
         public ObjectId this[string name] => new ObjectId();
         public IEnumerator<ObjectId> GetEnumerator() { yield break; }
@@ -117,6 +119,7 @@ namespace GrxCAD.DatabaseServices
     }
     public class LayerTable : DBObject, IEnumerable<ObjectId>
     {
+        public void Add(LayerTableRecord ltr) {}
         public bool Has(string name) { return false; }
         public IEnumerator<ObjectId> GetEnumerator() { yield break; }
         IEnumerator IEnumerable.GetEnumerator() { yield break; }
