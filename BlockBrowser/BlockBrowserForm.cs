@@ -47,7 +47,7 @@ namespace BlockBrowser
 
         private void InitializeComponent()
         {
-            Text = "块浏览器 - " + BlockLibrary.PlatformName;
+            Text = "块浏览器 v" + BlockLibrary.AppVersion + " - " + BlockLibrary.PlatformName;
             Size = new Size(1000, 650);
             MinimumSize = new Size(700, 450);
             StartPosition = FormStartPosition.CenterScreen;
@@ -94,7 +94,7 @@ namespace BlockBrowser
             btnSettings.Click += (s, e) => ShowSettingsDialog();
 
             // Search box - wide, with explicit MinimumSize
-            _txtSearch = new TextBox { Width = 100, BorderStyle = BorderStyle.FixedSingle };
+            _txtSearch = new TextBox { Width = 140, BorderStyle = BorderStyle.FixedSingle };
             _txtSearch.TextChanged += (s, e) => { _searchTimer.Stop(); _searchTimer.Start(); };
             _txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) { _txtSearch.Text = ""; e.SuppressKeyPress = true; } };
             var txtSearchHost = new ToolStripControlHost(_txtSearch) { AutoSize = false };
@@ -127,8 +127,8 @@ namespace BlockBrowser
             // Category bar - compact top panel
             _catBar = new FlowLayoutPanel
             {
-                Dock = DockStyle.Top, Height = 56,
-                Padding = new Padding(8, 6, 8, 10),
+                Dock = DockStyle.Top, Height = 44,
+                Padding = new Padding(10, 6, 10, 6),
                 BackColor = Color.FromArgb(235, 238, 242),
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false, AutoScroll = true
@@ -145,7 +145,7 @@ namespace BlockBrowser
 
             // Status bar
             _statusBar = new StatusStrip();
-            var lblAuthor = new ToolStripLabel("v1.23 | 制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
+            var lblAuthor = new ToolStripLabel(BlockLibrary.AppVersion + " | 制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
             _lblStatus = new ToolStripStatusLabel("就绪") { Spring = true, TextAlign = ContentAlignment.MiddleLeft };
             _lblCount = new ToolStripStatusLabel("0") { TextAlign = ContentAlignment.MiddleRight };
             _statusBar.Items.AddRange(new ToolStripItem[] { lblAuthor, _lblStatus, _lblCount });
@@ -262,7 +262,7 @@ namespace BlockBrowser
                     string ck = (block.FilePath ?? "") + "_" + _thumbSize;
                     if (_thumbCache.ContainsKey(ck) && _thumbCache[ck] != null)
                     {
-                        try { card.LoadThumbnail(new Bitmap(_thumbCache[ck], _thumbSize, _thumbSize)); }
+                        try { card.LoadThumbnail(BlockLibrary.ScaleToSquare(_thumbCache[ck], _thumbSize)); }
                         catch { _thumbCache.Remove(ck); }
                     }
                     newCards.Add(card);

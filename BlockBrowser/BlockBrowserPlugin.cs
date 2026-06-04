@@ -52,6 +52,7 @@ namespace BlockBrowser
     public static class BlockLibrary
     {
         public static string LibraryPath { get; set; }
+        public const string AppVersion = "1.23";
         public static string PlatformName { get; set; }
         public static int ThumbSize { get; set; }
         public static double InsertScale { get; set; }
@@ -171,21 +172,40 @@ namespace BlockBrowser
         {
             if (block == null) return GeneratePlaceholder("?", size);
             string cachePath = Path.Combine(ThumbnailCachePath, GetCacheKey(block) + ".png");
+            bool hasSrc = File.Exists(block.FilePath);
+            // Check cache with file modification time validation
             if (File.Exists(cachePath))
             {
-                try
+                bool cacheValid = false;
+                if (hasSrc)
                 {
-                    byte[] bytes = File.ReadAllBytes(cachePath);
-                    using (var ms = new MemoryStream(bytes))
+                    try
                     {
-                        Image c = Image.FromStream(ms);
-                        Image r = new Bitmap(c, size, size);
-                        return r;
+                        DateTime srcTime = File.GetLastWriteTime(block.FilePath);
+                        DateTime cacheTime = File.GetLastWriteTime(cachePath);
+                        cacheValid = cacheTime >= srcTime;
                     }
+                    catch { }
                 }
-                catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine("[BlockBrowser] 缓存读取失败: " + ex.Message); }
+                else
+                {
+                    cacheValid = true;
+                }
+                if (cacheValid)
+                {
+                    try
+                    {
+                        byte[] bytes = File.ReadAllBytes(cachePath);
+                        using (var ms = new MemoryStream(bytes))
+                        using (var c = Image.FromStream(ms))
+                        {
+                            return ScaleToSquare(c, size);
+                        }
+                    }
+                    catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine("[BlockBrowser] 缓存读取失败: " + ex.Message); }
+                }
             }
-            if (!File.Exists(block.FilePath)) return GeneratePlaceholder(block.Name, size);
+            if (!hasSrc) return GeneratePlaceholder(block.Name, size);
             try
             {
                 using (var db = new Database(false, true))
@@ -194,6 +214,7 @@ namespace BlockBrowser
                     using (var tr = db.TransactionManager.StartTransaction())
                     {
                         var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                        // Try PreviewIcon first, validate not empty
                         foreach (ObjectId btrId in bt)
                         {
                             var btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
@@ -203,9 +224,9 @@ namespace BlockBrowser
                                 {
                                     using (Bitmap icon = btr.PreviewIcon)
                                     {
-                                        if (icon != null)
+                                        if (icon != null && IsBitmapUseful(icon))
                                         {
-                                            Bitmap scaled = new Bitmap(icon, size, size);
+                                            Bitmap scaled = ScaleToSquare(icon, size);
                                             SaveThumbnailCache(cachePath, scaled);
                                             return scaled;
                                         }
@@ -214,25 +235,59 @@ namespace BlockBrowser
                                 catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine("[BlockBrowser] PreviewIcon 失败: " + ex.Message); }
                             }
                         }
-                        // 无 PreviewIcon，用几何渲染
-                        if (bt.Has("*Model_Space"))
+                        // Fallback: render first non-anonymous block definition
+                        foreach (ObjectId btrId in bt)
                         {
-                            var ms = (BlockTableRecord)tr.GetObject(bt["*Model_Space"], OpenMode.ForRead);
-                            Bitmap bmp = new Bitmap(size, size);
-                            using (var g = Graphics.FromImage(bmp))
+                            var btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
+                            if (!btr.IsLayout && !btr.Name.StartsWith("*"))
                             {
-                                g.SmoothingMode = SmoothingMode.AntiAlias;
-                                g.Clear(Color.White);
-                                RenderBlockContents(g, tr, ms, size);
+                                Bitmap bmp = new Bitmap(size, size);
+                                using (var g = Graphics.FromImage(bmp))
+                                {
+                                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                                    g.Clear(Color.White);
+                                    RenderBlockContents(g, tr, btr, size);
+                                }
+                                SaveThumbnailCache(cachePath, bmp);
+                                return bmp;
                             }
-                            SaveThumbnailCache(cachePath, bmp);
-                            return bmp;
                         }
                     }
                 }
             }
             catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine("[BlockBrowser] GetThumbnail: " + ex.Message); }
             return GeneratePlaceholder(block.Name, size);
+        }
+
+        private static bool IsBitmapUseful(Bitmap bmp)
+        {
+            if (bmp.Width < 2 || bmp.Height < 2) return false;
+            try
+            {
+                Color c0 = bmp.GetPixel(0, 0);
+                Color cm = bmp.GetPixel(bmp.Width / 2, bmp.Height / 2);
+                Color ce = bmp.GetPixel(bmp.Width - 1, bmp.Height - 1);
+                return !(c0.ToArgb() == cm.ToArgb() && cm.ToArgb() == ce.ToArgb());
+            }
+            catch { return true; }
+        }
+
+        public static Bitmap ScaleToSquare(Image src, int size)
+        {
+            if (src.Width < 1 || src.Height < 1) return new Bitmap(size, size);
+            Bitmap bmp = new Bitmap(size, size);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.Clear(Color.White);
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                float ratio = System.Math.Min((float)size / src.Width, (float)size / src.Height);
+                int w = (int)(src.Width * ratio);
+                int h = (int)(src.Height * ratio);
+                int x = (size - w) / 2;
+                int y = (size - h) / 2;
+                g.DrawImage(src, x, y, w, h);
+            }
+            return bmp;
         }
 
         private static void RenderBlockContents(Graphics g, Transaction tr, BlockTableRecord btr, int size)
@@ -537,7 +592,7 @@ namespace BlockBrowser
             return true;
         }
 
-                public static void InsertBlock(BlockInfo block, double scale, double rotation)
+        public static void InsertBlock(BlockInfo block, double scale, double rotation)
         {
             if (block == null || !File.Exists(block.FilePath)) return;
             Document doc = CadApp.DocumentManager.MdiActiveDocument;
