@@ -1,0 +1,142 @@
+name: CadToolkit Build & Release
+
+on:
+  push:
+    tags: ['ct-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Compile CAD API stubs
+        shell: pwsh
+        run: |
+          $ws = "${{ github.workspace }}"
+          $stubs = "$ws\.github\stubs"
+          $outDir = "$ws\stubs"
+          New-Item -ItemType Directory -Path "$outDir\gcad","$outDir\zwcad","$outDir\acad" -Force | Out-Null
+
+          dotnet build "$stubs\GstarCAD.csproj" -c Release --nologo -v quiet -o "$outDir\gcad"
+          Copy-Item "$outDir\gcad\gmdb.dll" "$outDir\gcad\gmap.dll" -Force
+          Write-Host "GstarCAD stubs OK"
+
+          dotnet build "$stubs\ZWCAD.csproj" -c Release --nologo -v quiet -o "$outDir\zwcad"
+          Copy-Item "$outDir\zwcad\ZwDatabaseMgd.dll" "$outDir\zwcad\ZwManaged.dll" -Force
+          Write-Host "ZWCAD stubs OK"
+
+          dotnet build "$stubs\AutoCAD.csproj" -c Release --nologo -v quiet -o "$outDir\acad"
+          Copy-Item "$outDir\acad\acdbmgd.dll" "$outDir\acad\acmgd.dll" -Force
+          Copy-Item "$outDir\acad\acdbmgd.dll" "$outDir\acad\accoremgd.dll" -Force
+          Write-Host "AutoCAD stubs OK"
+
+      - name: Build GstarCAD
+        shell: pwsh
+        run: |
+          $msbuild = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe"
+          $src = "${{ github.workspace }}\CadToolkit\src"
+          $stubs = "${{ github.workspace }}\stubs\gcad"
+
+          & $msbuild "$src\CadToolkit.Core\CadToolkit.Core.csproj" /p:Configuration=Release /p:Platform=x64 /t:Rebuild /v:minimal
+          & $msbuild "$src\CadToolkit.UI\CadToolkit.UI.csproj" /p:Configuration=Release /p:Platform=x64 /t:Rebuild /v:minimal
+          & $msbuild "$src\CadToolkit\CadToolkit.GstarCAD.csproj" /p:Configuration=Release /p:Platform=x64 "/p:GstarCADDir=$stubs" /t:Rebuild /v:minimal
+
+      - name: Build ZWCAD
+        shell: pwsh
+        run: |
+          $msbuild = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe"
+          $src = "${{ github.workspace }}\CadToolkit\src"
+          $stubs = "${{ github.workspace }}\stubs\zwcad"
+
+          Remove-Item "$src\CadToolkit\bin\Release" -Recurse -Force -ErrorAction SilentlyContinue
+          & $msbuild "$src\CadToolkit\CadToolkit.ZWCAD.csproj" /p:Configuration=Release /p:Platform=x64 "/p:ZWCADDir=$stubs" /t:Rebuild /v:minimal
+
+      - name: Build AutoCAD
+        shell: pwsh
+        run: |
+          $msbuild = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe"
+          $src = "${{ github.workspace }}\CadToolkit\src"
+          $stubs = "${{ github.workspace }}\stubs\acad"
+
+          Remove-Item "$src\CadToolkit\bin\Release" -Recurse -Force -ErrorAction SilentlyContinue
+          & $msbuild "$src\CadToolkit\CadToolkit.AutoCAD.csproj" /p:Configuration=Release /p:Platform=x64 "/p:AutoCADDir=$stubs" /t:Rebuild /v:minimal
+
+      - name: Package
+        id: package
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag -replace '^ct-v',''
+          $SRC = "${{ github.workspace }}\CadToolkit\src"
+          $out = "${{ github.workspace }}\release"
+          $pkg = "$out\CadToolkit"
+          New-Item -ItemType Directory -Path $pkg -Force | Out-Null
+
+          foreach ($plat in @("gcad","zwcad","acad")) {
+            $dll = "$SRC\CadToolkit\bin\Release\$plat\CadToolkit.dll"
+            if (-not (Test-Path $dll)) {
+              $dll = "$SRC\CadToolkit\bin\Release\CadToolkit.dll"
+            }
+            if (Test-Path $dll) {
+              New-Item -ItemType Directory -Path "$pkg\$plat" -Force | Out-Null
+              Copy-Item $dll "$pkg\$plat\"
+              Copy-Item "$SRC\CadToolkit.Core\bin\Release\CadToolkit.Core.dll" "$pkg\$plat\" -ErrorAction SilentlyContinue
+              Copy-Item "$SRC\CadToolkit.UI\bin\Release\CadToolkit.UI.dll" "$pkg\$plat\" -ErrorAction SilentlyContinue
+              Copy-Item "${{ github.workspace }}\CadToolkit\CadToolkit.ini" "$pkg\$plat\"
+              Write-Host "OK: $plat"
+            } else {
+              Write-Host "MISSING: $plat"
+            }
+          }
+
+          Copy-Item "${{ github.workspace }}\CadToolkit\autoload.lsp" "$pkg\"
+
+          $zip = "$out\CadToolkit-v$ver.zip"
+          Compress-Archive -Path "$pkg\*" -DestinationPath $zip -Force
+          Write-Host "Packed: $zip"
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+          "version=$ver" >> $env:GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "CadToolkit v${{ steps.package.outputs.version }}"
+          generate_release_notes: false
+          files: ${{ steps.package.outputs.zip }}
+          body: |
+            ## CadToolkit ${{ github.ref_name }}
+
+            AutoCAD / ZWCAD / GstarCAD 三平台通用插件工具箱。
+
+            ### 安装
+            1. 解压到 `C:\CadToolkit`
+            2. CAD 中执行 `(load "C:/CadToolkit/autoload.lsp")`
+            3. 输入 `CC` 打开工具面板
+
+            ### 包含
+            | 平台 | 文件 |
+            |------|------|
+            | GstarCAD | `gcad/CadToolkit.dll` |
+            | ZWCAD | `zwcad/CadToolkit.dll` |
+            | AutoCAD | `acad/CadToolkit.dll` |
+
+            ### 命令
+            | 命令 | 功能 |
+            |------|------|
+            | `CC` | 打开工具面板 |
+            | `CT_FINDREPLACE` | 查找替换 |
+            | `CT_ALIGN` | 文字对齐 |
+            | `CT_UNDERLINE` | 加下划线 |
+            | `CT_RENAMEBLOCK` | 重命名块 |
+            | `CT_QUICKBLOCK` | 快捷建块 |
+            | `CT_SETLAYER0` | 改到0层 |
