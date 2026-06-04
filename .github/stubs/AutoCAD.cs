@@ -95,6 +95,8 @@ namespace Autodesk.AutoCAD.DatabaseServices
         public ObjectId BlockTableRecord { get; set; }
         public AttributeCollection AttributeCollection { get; set; }
     }
+    public enum TextHorizontalMode { TextLeft, TextCenter, TextRight, TextAlign, TextMid, TextFit }
+    public enum TextVerticalMode { TextBase, TextBottom, TextVerticalMid, TextTop }
     public class DBText : Entity
     {
         public string TextString { get; set; }
@@ -102,6 +104,9 @@ namespace Autodesk.AutoCAD.DatabaseServices
         public double Height { get; set; }
         public double WidthFactor { get; set; }
         public double Rotation { get; set; }
+        public TextHorizontalMode HorizontalMode { get; set; }
+        public TextVerticalMode VerticalMode { get; set; }
+        public Geometry.Point3d AlignmentPoint { get; set; }
     }
     public class MText : Entity
     {
