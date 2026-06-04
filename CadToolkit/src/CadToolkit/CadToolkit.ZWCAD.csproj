@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+    <OutputType>Library</OutputType>
+    <RootNamespace>CadToolkit</RootNamespace>
+    <AssemblyName>CadToolkit</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <ZWCADDir Condition=" '$(ZWCADDir)' == '' ">C:\Program Files\ZWSOFT\ZWCAD 2020</ZWCADDir>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+    <OutputPath>bin\Release\</OutputPath><DefineConstants>TRACE;ZWCAD</DefineConstants><PlatformTarget>x64</PlatformTarget><Optimize>true</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
+    <OutputPath>bin\Debug\</OutputPath><DefineConstants>DEBUG;TRACE;ZWCAD</DefineConstants><PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" /><Reference Include="System.Core" /><Reference Include="System.Drawing" /><Reference Include="System.Windows.Forms" />
+    <Reference Include="ZwDatabaseMgd"><HintPath>$(ZWCADDir)\ZwDatabaseMgd.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="ZwManaged"><HintPath>$(ZWCADDir)\ZwManaged.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="ZwRx"><HintPath>$(ZWCADDir)\ZwRx.dll</HintPath><Private>False</Private></Reference>
+  </ItemGroup>
+  <ItemGroup><Compile Include="Plugin.cs" /></ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CadToolkit.Core\CadToolkit.Core.csproj"><Name>CadToolkit.Core</Name></ProjectReference>
+    <ProjectReference Include="..\CadToolkit.UI\CadToolkit.UI.csproj"><Name>CadToolkit.UI</Name></ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
