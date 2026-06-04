@@ -3,24 +3,27 @@
 
 (vl-load-com)
 
-;; 搜索常见位置找插件目录
+;; safe getvar - returns "" instead of nil
+(defun _bb-getvar (sym / v)
+  (setq v (getvar sym))
+  (if v v "")
+)
+
+;; search common locations for plugin directory
 (defun _bb-find (/ dir candidates)
   (setq candidates
     (list
-      ;; 相对当前图纸目录
-      (strcat (getvar "DWGPREFIX") "BlockBrowser")
-      ;; 常见固定路径
+      (strcat (_bb-getvar "DWGPREFIX") "BlockBrowser")
       "C:\\BlockBrowser"
       "D:\\BlockBrowser"
       "C:\\mini工具箱\\BlockBrowser"
       "D:\\mini工具箱\\BlockBrowser"
-      ;; 桌面
-      (strcat (getvar "LOCALROOTPREFIX") "Desktop\\BlockBrowser")
+      (strcat (_bb-getvar "LOCALROOTPREFIX") "Desktop\\BlockBrowser")
     )
   )
   (setq dir nil)
   (foreach c candidates
-    (if (and c (not dir) (vl-file-directory-p c))
+    (if (and c (> (strlen c) 0) (not dir) (vl-file-directory-p c))
       (setq dir c)
     )
   )
@@ -38,8 +41,8 @@
         (progn
           (setq plat
             (cond
-              ((wcmatch (strcase (getvar "PROGRAM")) "*ACAD*") "acad")
-              ((wcmatch (strcase (getvar "PROGRAM")) "*ZWCAD*") "zwcad")
+              ((wcmatch (strcase (_bb-getvar "PROGRAM")) "*ACAD*") "acad")
+              ((wcmatch (strcase (_bb-getvar "PROGRAM")) "*ZWCAD*") "zwcad")
               (T "gcad")
             )
           )
