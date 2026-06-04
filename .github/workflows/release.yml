@@ -69,12 +69,14 @@ jobs:
       - name: Build AutoCAD
         shell: pwsh
         run: |
+          $msbuild = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe"
           $src = "${{ github.workspace }}\BlockBrowser"
-          $acadDir = "${{ github.workspace }}\stubs\acad"
-          $csproj = Get-Content "$src\BlockBrowser.AutoCAD8.csproj" -Raw
-          $csproj = $csproj.Replace('C:\Program Files\Autodesk\AutoCAD 2026', $acadDir)
-          Set-Content "$src\BlockBrowser.AutoCAD8.csproj" -Value $csproj -Encoding UTF8
-          dotnet build "$src\BlockBrowser.AutoCAD8.csproj" -c Release -o "$src\bin\Release\acad\" --nologo --no-incremental
+          $stubs = "${{ github.workspace }}\stubs\acad"
+          & $msbuild "$src\BlockBrowser.AutoCAD.csproj" `
+            /p:Configuration=Release /p:Platform=x64 `
+            "/p:AutoCADDir=$stubs" `
+            /p:OutputPath="bin\Release\acad\" `
+            /t:Rebuild /v:minimal
 
       - name: Package
         id: package
@@ -139,4 +141,5 @@ jobs:
             | `BBEXPORT` | 导出当前图纸块到库 |
             | `BBTHUMB` | 清除缩略图缓存 |
             | `BBINFO` | 显示版本信息 |
+
 

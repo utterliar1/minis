@@ -3,18 +3,18 @@
 
 (vl-load-com)
 
-;; ????????λ????????
+;; 搜索常见位置找插件目录
 (defun _bb-find (/ dir candidates)
   (setq candidates
     (list
-      ;; ?????????
+      ;; 相对当前图纸目录
       (strcat (getvar "DWGPREFIX") "BlockBrowser")
-      ;; ???????·??
+      ;; 常见固定路径
       "C:\\BlockBrowser"
       "D:\\BlockBrowser"
-      "C:\\mini??????\\BlockBrowser"
-      "D:\\mini??????\\BlockBrowser"
-      ;; ????
+      "C:\\mini工具箱\\BlockBrowser"
+      "D:\\mini工具箱\\BlockBrowser"
+      ;; 桌面
       (strcat (getvar "LOCALROOTPREFIX") "Desktop\\BlockBrowser")
     )
   )
@@ -32,7 +32,7 @@
 
 (defun c:BB (/ plat dll)
   (if (null blockbrowser-dir)
-    (princ "\n[BlockBrowser] δ???????????? BlockBrowser ????з??? C:\\ ?? D:\\ ??????")
+    (princ "\n[BlockBrowser] 未找到插件目录，请将 BlockBrowser 文件夹放在 C:\\ 或 D:\\ 根目录。")
     (progn
       (if (not blockbrowser-loaded)
         (progn
@@ -49,7 +49,7 @@
               (vl-cmdf "NETLOAD" dll)
               (setq blockbrowser-loaded T)
             )
-            (princ (strcat "\n[BlockBrowser] δ??? DLL: " dll))
+            (princ (strcat "\n[BlockBrowser] 未找到 DLL: " dll))
           )
         )
       )
@@ -61,5 +61,5 @@
 
 (defun c:KLLQ () (c:BB))
 
-(princ "\nBlockBrowser v1.23 ??????????? BB ?????")
+(princ "\nBlockBrowser v1.23 已就绪，输入 BB 启动。")
 (princ)

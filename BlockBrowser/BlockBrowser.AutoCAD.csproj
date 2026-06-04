@@ -4,19 +4,19 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
-    <ProjectGuid>{C2D3E4F5-A6B7-8901-CDEF-234567890ABC}</ProjectGuid>
+    <ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>BlockBrowser</RootNamespace>
     <AssemblyName>BlockBrowser</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <ZWCADDir Condition=" '$(ZWCADDir)' == '' ">C:\Program Files\ZWSOFT\ZWCAD 2020</ZWCADDir>
+    <AutoCADDir Condition=" '$(AutoCADDir)' == '' ">C:\Program Files\Autodesk\AutoCAD 2020</AutoCADDir>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\x64\Release-ZWCAD\</OutputPath>
-    <DefineConstants>TRACE;ZWCAD</DefineConstants>
+    <OutputPath>bin\Release\acad\</OutputPath>
+    <DefineConstants>TRACE;AUTOCAD</DefineConstants>
     <PlatformTarget>x64</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -26,12 +26,16 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
-    <Reference Include="ZwDatabaseMgd">
-      <HintPath>$(ZWCADDir)\ZwDatabaseMgd.dll</HintPath>
+    <Reference Include="acdbmgd">
+      <HintPath>$(AutoCADDir)\acdbmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="ZwManaged">
-      <HintPath>$(ZWCADDir)\ZwManaged.dll</HintPath>
+    <Reference Include="acmgd">
+      <HintPath>$(AutoCADDir)\acmgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="accoremgd">
+      <HintPath>$(AutoCADDir)\accoremgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
@@ -43,4 +47,3 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
-
