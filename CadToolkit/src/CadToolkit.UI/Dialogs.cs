@@ -8,63 +8,93 @@ namespace CadToolkit.UI
 {
     public class AlignDialog : Form
     {
-        public AlignChoice Choice;
+        public int HorzIndex = 0;
+        public bool UseFirstBase = true;
+        public double LineSpacing = 0;
         public AlignDialog()
         {
-            Choice = new AlignChoice { Horizontal = HAlign.Left, Vertical = VAlign.Bottom };
+            HorzIndex = Config.AlignHorizontal;
+            UseFirstBase = Config.AlignUseFirstBase;
+            LineSpacing = Config.AlignLineSpacing;
+
             Text = "\u6587\u5B57\u5BF9\u9F50";
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
-            ClientSize = new Size(300, 220);
+            AutoScaleMode = AutoScaleMode.Dpi; ClientSize = new Size(360, 178);
 
-            var hint = new Label();
-            hint.Text = "\u70B9\u51FB\u4E5D\u5BAB\u683C\u9009\u62E9\u5BF9\u9F50\u65B9\u5411";
-            hint.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            hint.Dock = DockStyle.Top;
-            hint.Height = 26;
-            hint.TextAlign = ContentAlignment.MiddleCenter;
+            // Group 1: horizontal alignment
+            var pnlH = new Panel();
+            pnlH.Left = 12; pnlH.Top = 8; pnlH.Size = new Size(336, 30);
+            pnlH.BorderStyle = BorderStyle.None;
 
-            var grid = new TableLayoutPanel();
-            grid.Dock = DockStyle.Top;
-            grid.Height = 150;
-            grid.ColumnCount = 3;
-            grid.RowCount = 3;
-            grid.Padding = new Padding(8);
-            for (int i = 0; i < 3; i++) { grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33)); grid.RowStyles.Add(new RowStyle(SizeType.Percent, 33)); }
+            var lblH = new Label();
+            lblH.Text = "\u6C34\u5E73\u5BF9\u9F50\uFF1A";
+            lblH.Left = 4; lblH.Top = 7; lblH.AutoSize = true;
+            lblH.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
 
-            string[] labels = { "\u5DE6\u4E0A", "\u4E2D\u4E0A", "\u53F3\u4E0A", "\u5DE6\u4E2D", "\u6B63\u4E2D", "\u53F3\u4E2D", "\u5DE6\u4E0B", "\u4E2D\u4E0B", "\u53F3\u4E0B" };
-            HAlign[] ha = { HAlign.Left, HAlign.Center, HAlign.Right, HAlign.Left, HAlign.Center, HAlign.Right, HAlign.Left, HAlign.Center, HAlign.Right };
-            VAlign[] va = { VAlign.Top, VAlign.Top, VAlign.Top, VAlign.Middle, VAlign.Middle, VAlign.Middle, VAlign.Bottom, VAlign.Bottom, VAlign.Bottom };
+            var rbL = new RadioButton(); rbL.Text = "\u5DE6"; rbL.Left = 94; rbL.Top = 5; rbL.AutoSize = true; rbL.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f); rbL.Checked = (HorzIndex == 0);
+            var rbC = new RadioButton(); rbC.Text = "\u4E2D"; rbC.Left = 154; rbC.Top = 5; rbC.AutoSize = true; rbC.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f); rbC.Checked = (HorzIndex == 1);
+            var rbR = new RadioButton(); rbR.Text = "\u53F3"; rbR.Left = 214; rbR.Top = 5; rbR.AutoSize = true; rbR.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f); rbR.Checked = (HorzIndex == 2);
+            rbL.CheckedChanged += delegate { if (rbL.Checked) HorzIndex = 0; };
+            rbC.CheckedChanged += delegate { if (rbC.Checked) HorzIndex = 1; };
+            rbR.CheckedChanged += delegate { if (rbR.Checked) HorzIndex = 2; };
+            pnlH.Controls.AddRange(new Control[] { lblH, rbL, rbC, rbR });
 
-            for (int i = 0; i < 9; i++)
+            // Group 2: base point
+            var pnlB = new Panel();
+            pnlB.Left = 12; pnlB.Top = 40; pnlB.Size = new Size(336, 30);
+            pnlB.BorderStyle = BorderStyle.None;
+
+            var lblBase = new Label();
+            lblBase.Text = "\u57FA\u70B9\uFF1A";
+            lblBase.Left = 4; lblBase.Top = 7; lblBase.AutoSize = true;
+            lblBase.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var rbFirst = new RadioButton(); rbFirst.Text = "\u7B2C\u4E00\u4E2A\u9009\u4E2D\u6587\u5B57"; rbFirst.Left = 94; rbFirst.Top = 5; rbFirst.AutoSize = true; rbFirst.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f); rbFirst.Checked = UseFirstBase;
+            var rbPick = new RadioButton(); rbPick.Text = "\u624B\u52A8\u6307\u5B9A"; rbPick.Left = 244; rbPick.Top = 5; rbPick.AutoSize = true; rbPick.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f); rbPick.Checked = !UseFirstBase;
+            rbFirst.CheckedChanged += delegate { if (rbFirst.Checked) UseFirstBase = true; };
+            rbPick.CheckedChanged += delegate { if (rbPick.Checked) UseFirstBase = false; };
+            pnlB.Controls.AddRange(new Control[] { lblBase, rbFirst, rbPick });
+
+            // Group 3: line spacing
+            var pnlS = new Panel();
+            pnlS.Left = 12; pnlS.Top = 74; pnlS.Size = new Size(336, 52);
+            pnlS.BorderStyle = BorderStyle.None;
+
+            var lblSpace = new Label();
+            lblSpace.Text = "\u884C\u8DDD\uFF1A";
+            lblSpace.Left = 4; lblSpace.Top = 7; lblSpace.AutoSize = true;
+            lblSpace.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var rbAuto = new RadioButton(); rbAuto.Text = "\u81EA\u52A8"; rbAuto.Left = 94; rbAuto.Top = 5; rbAuto.AutoSize = true; rbAuto.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f); rbAuto.Checked = (LineSpacing <= 0);
+            var rbManual = new RadioButton(); rbManual.Text = "\u6307\u5B9A"; rbManual.Left = 174; rbManual.Top = 5; rbManual.AutoSize = true; rbManual.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f); rbManual.Checked = (LineSpacing > 0);
+
+            var txtSpace = new TextBox();
+            txtSpace.Text = LineSpacing > 0 ? LineSpacing.ToString() : "";
+            txtSpace.Left = 234; txtSpace.Top = 3; txtSpace.Width = 60;
+            txtSpace.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
+            txtSpace.Enabled = rbManual.Checked;
+            rbAuto.CheckedChanged += delegate { if (rbAuto.Checked) { txtSpace.Enabled = false; LineSpacing = 0; } };
+            rbManual.CheckedChanged += delegate { if (rbManual.Checked) { txtSpace.Enabled = true; double.TryParse(txtSpace.Text, out LineSpacing); } };
+            txtSpace.TextChanged += delegate { if (txtSpace.Enabled) double.TryParse(txtSpace.Text, out LineSpacing); };
+            pnlS.Controls.AddRange(new Control[] { lblSpace, rbAuto, rbManual, txtSpace });
+
+            // Buttons
+            var ok = new Button(); ok.Text = "\u786E\u5B9A"; ok.DialogResult = DialogResult.OK; ok.Left = 170; ok.Top = 134; ok.Width = 80; ok.Height = 28; ok.FlatStyle = FlatStyle.System; ok.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            var cancel = new Button(); cancel.Text = "\u53D6\u6D88"; cancel.DialogResult = DialogResult.Cancel; cancel.Left = 262; cancel.Top = 134; cancel.Width = 80; cancel.Height = 28; cancel.FlatStyle = FlatStyle.System; cancel.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
+            ok.Click += delegate
             {
-                int idx = i;
-                var btn = new Button();
-                btn.Text = labels[i];
-                btn.Dock = DockStyle.Fill;
-                btn.Margin = new Padding(2);
-                btn.FlatStyle = FlatStyle.System;
-                btn.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
-                btn.Click += delegate { Choice = new AlignChoice { Horizontal = ha[idx], Vertical = va[idx] }; DialogResult = DialogResult.OK; Close(); };
-                grid.Controls.Add(btn, i % 3, i / 3);
-            }
+                Config.AlignHorizontal = HorzIndex;
+                Config.AlignUseFirstBase = UseFirstBase;
+                Config.AlignLineSpacing = LineSpacing;
+            };
 
-            var close = new Button();
-            close.Text = "\u53D6\u6D88";
-            close.DialogResult = DialogResult.Cancel;
-            close.FlatStyle = FlatStyle.System;
-            close.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            close.Size = new Size(70, 28);
-            close.Location = new Point(ClientSize.Width - 82, ClientSize.Height - 36);
-
-            Controls.Add(grid);
-            Controls.Add(hint);
-            Controls.Add(close);
-            CancelButton = close;
+            Controls.AddRange(new Control[] { pnlH, pnlB, pnlS, ok, cancel });
+            AcceptButton = ok; CancelButton = cancel;
         }
     }
-
     public class FindReplaceDialog : Form
     {
         public string FindText;
@@ -77,7 +107,7 @@ namespace CadToolkit.UI
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
-            ClientSize = new Size(400, 180);
+            AutoScaleMode = AutoScaleMode.Dpi; ClientSize = new Size(400, 180);
 
             var l1 = new Label(); l1.Text = "\u67E5\u627E\uFF1A"; l1.Left = 16; l1.Top = 18; l1.AutoSize = true; l1.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
             var t1 = new TextBox(); t1.Left = 76; t1.Top = 14; t1.Width = 300; t1.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
@@ -104,7 +134,7 @@ namespace CadToolkit.UI
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
-            ClientSize = new Size(400, 150);
+            AutoScaleMode = AutoScaleMode.Dpi; ClientSize = new Size(400, 150);
 
             var l1 = new Label(); l1.Text = "\u65E7\u540D\u79F0\uFF1A"; l1.Left = 16; l1.Top = 18; l1.AutoSize = true; l1.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
             var t1 = new TextBox(); t1.Left = 90; t1.Top = 14; t1.Width = 280; t1.Font = new System.Drawing.Font("Microsoft YaHei", 10f); t1.Text = OldName; if (OldName.Length > 0) t1.ReadOnly = true;
@@ -129,7 +159,7 @@ namespace CadToolkit.UI
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
-            ClientSize = new Size(400, 150);
+            AutoScaleMode = AutoScaleMode.Dpi; ClientSize = new Size(400, 150);
 
             var l1 = new Label(); l1.Text = "\u663E\u793A\u540D\u79F0\uFF1A"; l1.Left = 16; l1.Top = 18; l1.AutoSize = true; l1.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
             var t1 = new TextBox(); t1.Left = 100; t1.Top = 14; t1.Width = 270; t1.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
@@ -151,7 +181,7 @@ namespace CadToolkit.UI
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
-            ClientSize = new Size(400, 300);
+            AutoScaleMode = AutoScaleMode.Dpi; ClientSize = new Size(400, 300);
 
             var stored = new List<KeyValuePair<string, string>>(Config.GetCommands());
 

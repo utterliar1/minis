@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 using System.Collections.Generic;
+using System.Collections;
 using CadToolkit.Core;
 using CadToolkit.UI;
 
@@ -86,6 +87,12 @@ namespace CadToolkit
         static Editor Ed { get { return CadApp.DocumentManager.MdiActiveDocument.Editor; } }
         static Database Db { get { return CadApp.DocumentManager.MdiActiveDocument.Database; } }
         static string SafeStr(string s) { return s == null ? "" : s; }
+        static ObjectId GetTextStyleId(Transaction tr, string name)
+        {
+            var tst = (TextStyleTable)tr.GetObject(Db.TextStyleTableId, OpenMode.ForRead);
+            if (tst.Has(name)) return tst[name];
+            return Db.Textstyle;
+        }
 
         static string ReplaceEx(string src, string oldStr, string rep, StringComparison comp)
         {
@@ -115,14 +122,41 @@ namespace CadToolkit
         public void ShowPanel()
         {
             EnsureInit();
-            var cmds = Config.GetCommands();
-            if (cmds.Count == 0)
+            var groups = Config.GetCommandGroups();
+            int totalCmds = 0;
+            foreach (var g in groups) totalCmds += g.Commands.Count;
+            if (totalCmds == 0)
             {
                 System.Windows.Forms.MessageBox.Show(
-                    "\u6CA1\u6709\u914D\u7F6E\u4EFB\u4F55\u547D\u4EE4\u3002\n\u8BF7\u7F16\u8F91 CadToolkit.ini \u7684 [Commands] \u6BB5\u3002",
-                    "\u63D0\u793A", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    "没有配置任何命令。\n请编辑 CadToolkit.ini 的 [Commands] 段。",
+                    "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+
+            // group grid: 2x2 for <=4 groups, 3x3 for 5-9, etc.
+            int groupCols = groups.Count <= 4 ? 2 : (groups.Count <= 9 ? 3 : 4);
+
+            // inner button grid within each cell: 2 columns
+            int innerCols = 2;
+            int bw = 96, bh = 28, gap = 3;
+            int headerH = 22;
+            int cellPad = 6;
+
+            // find max button rows across all groups to set uniform cell height
+            int maxRows = 0;
+            foreach (var g in groups)
+            {
+                int rows = (int)Math.Ceiling(g.Commands.Count / (double)innerCols);
+                if (rows > maxRows) maxRows = rows;
+            }
+
+            int cellW = cellPad + innerCols * (bw + gap) - gap + cellPad;
+            int cellH = headerH + cellPad + maxRows * (bh + gap) - gap + cellPad;
+            int groupGap = 6;
+
+            int totalW = groupGap + groupCols * (cellW + groupGap);
+            int groupRows = (int)Math.Ceiling(groups.Count / (double)groupCols);
+            int totalH = groupGap + groupRows * (cellH + groupGap) + 32;
 
             var f = new Form();
             f.Text = "CadToolkit " + Config.Version;
@@ -130,7 +164,12 @@ namespace CadToolkit
             f.FormBorderStyle = FormBorderStyle.FixedToolWindow;
             f.TopMost = true;
             f.ShowInTaskbar = false;
-            f.BackColor = SystemColors.Control;
+            f.AutoScaleDimensions = new System.Drawing.SizeF(96f, 96f);
+            f.AutoScaleMode = AutoScaleMode.Dpi;
+            f.ClientSize = new Size(totalW, totalH);
+            f.BackColor = Color.FromArgb(240, 240, 240);
+
+            // hidden cancel for ESC
             var btnCancel = new Button();
             btnCancel.DialogResult = DialogResult.Cancel;
             btnCancel.Size = new Size(0, 0);
@@ -138,68 +177,113 @@ namespace CadToolkit
             f.Controls.Add(btnCancel);
             f.CancelButton = btnCancel;
 
-            int bw = 156, bh = 34, pad = 5, cols = 2;
-            int cmdRows = (int)Math.Ceiling(cmds.Count / (double)cols);
-            int cmdAreaH = cmdRows * (bh + pad);
-            int barH = 34;
-            int w = cols * (bw + pad) + pad;
-            int h = cmdAreaH + pad + barH + pad;
-            f.ClientSize = new Size(w, h);
+            string action = null;
 
-            for (int i = 0; i < cmds.Count; i++)
+            for (int gi = 0; gi < groups.Count; gi++)
             {
-                string label = cmds[i].Key;
-                string cmd = cmds[i].Value;
-                var b = new Button();
-                b.Text = label;
-                b.FlatStyle = FlatStyle.System;
-                b.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
-                b.Size = new Size(bw, bh);
-                b.Location = new Point(pad + (i % cols) * (bw + pad), pad + (i / cols) * (bh + pad));
-                string cmdName = cmd;
-                b.Click += delegate { f.Close(); CadApp.DocumentManager.MdiActiveDocument.SendStringToExecute(cmdName + " ", true, false, true); };
-                f.Controls.Add(b);
+                var g = groups[gi];
+                int gx = groupGap + (gi % groupCols) * (cellW + groupGap);
+                int gy = groupGap + (gi / groupCols) * (cellH + groupGap);
+
+                // cell panel
+                var pnl = new Panel();
+                pnl.Location = new Point(gx, gy);
+                pnl.Size = new Size(cellW, cellH);
+                pnl.BackColor = Color.White;
+                pnl.BorderStyle = BorderStyle.FixedSingle;
+
+                // group name
+                var lbl = new Label();
+                lbl.Text = g.Name;
+                lbl.Left = cellPad; lbl.Top = 2;
+                lbl.AutoSize = false; lbl.Size = new Size(cellW - cellPad * 2, headerH);
+                lbl.TextAlign = ContentAlignment.MiddleCenter;
+                lbl.Font = new System.Drawing.Font("Microsoft YaHei", 9f, FontStyle.Bold);
+                lbl.ForeColor = Color.FromArgb(60, 60, 60);
+                pnl.Controls.Add(lbl);
+
+                // buttons
+                int btnY0 = headerH + cellPad;
+                for (int i = 0; i < g.Commands.Count; i++)
+                {
+                    string label = g.Commands[i].Key;
+                    string cmd = g.Commands[i].Value;
+                    var b = new Button();
+                    b.Text = label;
+                    b.FlatStyle = FlatStyle.Flat;
+                    b.FlatAppearance.BorderColor = Color.FromArgb(190, 190, 190);
+                    b.FlatAppearance.MouseOverBackColor = Color.FromArgb(220, 232, 255);
+                    b.BackColor = Color.White;
+                    b.Font = new System.Drawing.Font("Microsoft YaHei", 8.5f);
+                    b.Size = new Size(bw, bh);
+                    b.Location = new Point(cellPad + (i % innerCols) * (bw + gap), btnY0 + (i / innerCols) * (bh + gap));
+                    string cmdName = cmd;
+                    b.Click += delegate { action = "CMD:" + cmdName; f.Close(); };
+                    pnl.Controls.Add(b);
+                }
+
+                f.Controls.Add(pnl);
             }
 
+            // bottom bar
             var bar = new Panel();
-            bar.Location = new Point(0, cmdAreaH + pad);
-            bar.Size = new Size(w, barH);
-            bar.BackColor = SystemColors.Control;
+            bar.Location = new Point(0, totalH - 30);
+            bar.Size = new Size(totalW, 30);
+            bar.BackColor = Color.FromArgb(240, 240, 240);
 
             var btnAdd = new Button();
-            btnAdd.Text = "\u6DFB\u52A0";
-            btnAdd.FlatStyle = FlatStyle.System;
-            btnAdd.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            btnAdd.Size = new Size(50, 26);
-            btnAdd.Location = new Point(pad, 4);
-            btnAdd.Click += delegate
-            {
-                f.Close();
-                using (var dlg = new AddCommandDialog())
-                {
-                    if (dlg.ShowDialog() == DialogResult.OK && dlg.CmdLabel.Length > 0 && dlg.CmdName.Length > 0)
-                        Config.SaveCommand(dlg.CmdLabel, dlg.CmdName);
-                }
-            };
+            btnAdd.Text = "+";
+            btnAdd.FlatStyle = FlatStyle.Flat;
+            btnAdd.FlatAppearance.BorderColor = Color.FromArgb(180, 180, 180);
+            btnAdd.BackColor = Color.White;
+            btnAdd.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
+            btnAdd.Size = new Size(24, 22);
+            btnAdd.Location = new Point(groupGap, 4);
+            btnAdd.Click += delegate { action = "ADD"; f.Close(); };
 
             var btnManage = new Button();
-            btnManage.Text = "\u7BA1\u7406";
-            btnManage.FlatStyle = FlatStyle.System;
-            btnManage.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            btnManage.Size = new Size(50, 26);
-            btnManage.Location = new Point(pad + 56, 4);
-            btnManage.Click += delegate
-            {
-                f.Close();
-                using (var dlg = new ManageCommandsDialog()) { dlg.ShowDialog(); }
-            };
+            btnManage.Text = "-";
+            btnManage.FlatStyle = FlatStyle.Flat;
+            btnManage.FlatAppearance.BorderColor = Color.FromArgb(180, 180, 180);
+            btnManage.BackColor = Color.White;
+            btnManage.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
+            btnManage.Size = new Size(24, 22);
+            btnManage.Location = new Point(groupGap + 30, 4);
+            btnManage.Click += delegate { action = "MANAGE"; f.Close(); };
 
             bar.Controls.Add(btnAdd);
             bar.Controls.Add(btnManage);
             f.Controls.Add(bar);
-            f.ShowDialog();
-        }
 
+            f.ShowDialog();
+            f.Dispose();
+
+            if (action == null) return;
+            if (action.StartsWith("CMD:"))
+            {
+                string cmdName = action.Substring(4);
+                // Defer until CAD editor is ready after dialog close
+                System.EventHandler idle = null;
+                idle = delegate(object sender, System.EventArgs ea)
+                {
+                    try { CadApp.Idle -= idle; } catch {}
+                    CadApp.DocumentManager.MdiActiveDocument.SendStringToExecute(cmdName + " ", true, false, true);
+                };
+                CadApp.Idle += idle;
+            }
+            else if (action == "ADD")
+            {
+                using (var dlg = new AddCommandDialog())
+                {
+                    if (dlg.ShowDialog() == DialogResult.OK && dlg.CmdLabel != null && dlg.CmdLabel.Length > 0 && dlg.CmdName != null && dlg.CmdName.Length > 0)
+                        Config.SaveCommand(dlg.CmdLabel, dlg.CmdName);
+                }
+            }
+            else if (action == "MANAGE")
+            {
+                using (var dlg = new ManageCommandsDialog()) { dlg.ShowDialog(); }
+            }
+        }
         [CommandMethod("CT_FINDREPLACE")]
         public void FindReplace()
         {
@@ -253,51 +337,89 @@ namespace CadToolkit
             }
         }
 
-        [CommandMethod("CT_ALIGN")]
+                                [CommandMethod("CT_ALIGN")]
         public void AlignText()
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            var psr = Ed.GetSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672A\u9009\u62E9\u5BF9\u8C61\u3002"); return; }
+            // try pre-selection first, fall back to interactive selection
+            var psr = Ed.SelectImplied();
+            if (psr.Status != PromptStatus.OK || psr.Value == null || psr.Value.Count == 0) { psr = Ed.GetSelection(); }
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
             using (var dlg = new AlignDialog())
             {
                 if (dlg.ShowDialog() != DialogResult.OK) return;
-                int h = (int)dlg.Choice.Horizontal;
-                int v = (int)dlg.Choice.Vertical;
-                int count = 0;
+                int h = dlg.HorzIndex;
+                bool useFirst = dlg.UseFirstBase;
+                double spacing = dlg.LineSpacing;
+
+                var texts = new System.Collections.Generic.List<DBText>();
                 using (var tr = Db.TransactionManager.StartTransaction())
                 {
                     foreach (ObjectId id in psr.Value.GetObjectIds())
                     {
                         var ent = tr.GetObject(id, OpenMode.ForRead);
-                        if (!(ent is DBText)) continue;
-                        var dt = (DBText)ent;
-                        double x = dt.Position.X;
-                        double y = dt.Position.Y;
-                        double w = 0;
-                        try { w = dt.WidthFactor * dt.TextString.Length * dt.Height * 0.6; } catch { }
-                        if (h == 1) x = x + w / 2.0;
-                        else if (h == 2) x = x + w;
-                        double hh = dt.Height;
-                        if (v == 1) y = y + hh / 2.0;
-                        else if (v == 2) y = y + hh;
-                        dt.UpgradeOpen();
-                        dt.Position = new Point3d(x, y, 0);
-                        count++;
+                        if (ent is DBText) texts.Add((DBText)ent);
                     }
                     tr.Commit();
                 }
-                Ed.WriteMessage(string.Format("\n\u5DF2\u5BF9\u9F50 {0} \u4E2A\u5355\u884C\u6587\u5B57\u3002", count));
+                if (texts.Count == 0) { Ed.WriteMessage("\n未找到单行文字。"); return; }
+
+                texts.Sort(delegate(DBText a, DBText b) { return b.Position.Y.CompareTo(a.Position.Y); });
+
+                if (spacing <= 0)
+                {
+                    double maxH = 0;
+                    foreach (var t in texts) { if (t.Height > maxH) maxH = t.Height; }
+                    spacing = maxH * 1.8;
+                }
+
+                double baseX;
+                double baseY = texts[0].Position.Y;
+
+                using (var tr = Db.TransactionManager.StartTransaction())
+                {
+                    if (useFirst)
+                    {
+                        var t0 = (DBText)tr.GetObject(texts[0].ObjectId, OpenMode.ForRead);
+                        double tw = 0;
+                        try { tw = t0.WidthFactor * t0.TextString.Length * t0.Height * 0.6; } catch { }
+                        if (h == 0) baseX = t0.Position.X;
+                        else if (h == 1) baseX = t0.Position.X + tw / 2.0;
+                        else baseX = t0.Position.X + tw;
+                    }
+                    else
+                    {
+                        var ppr = Ed.GetPoint("\n指定对齐基点：");
+                        if (ppr.Status != PromptStatus.OK) return;
+                        baseX = ppr.Value.X;
+                        baseY = ppr.Value.Y;
+                    }
+
+                    for (int i = 0; i < texts.Count; i++)
+                    {
+                        var dt = (DBText)tr.GetObject(texts[i].ObjectId, OpenMode.ForWrite);
+                        double tw = 0;
+                        try { tw = dt.WidthFactor * dt.TextString.Length * dt.Height * 0.6; } catch { }
+                        double nx = baseX;
+                        if (h == 1) nx = baseX - tw / 2.0;
+                        else if (h == 2) nx = baseX - tw;
+                        double ny = baseY - i * spacing;
+                        dt.Position = new Point3d(nx, ny, 0);
+                    }
+                    tr.Commit();
+                }
+                Ed.WriteMessage(string.Format("\n已对齐 {0} 个文字。", texts.Count));
             }
         }
-
-        [CommandMethod("CT_UNDERLINE")]
+[CommandMethod("CT_UNDERLINE")]
         public void UnderlineText()
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            var psr = Ed.GetSelection();
+            // try pre-selection first, fall back to interactive selection
+            var psr = Ed.SelectImplied();
+            if (psr.Status != PromptStatus.OK || psr.Value == null || psr.Value.Count == 0) { psr = Ed.GetSelection(); }
             if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672A\u9009\u62E9\u5BF9\u8C61\u3002"); return; }
             bool keep = Config.KeepOriginal;
             int count = 0;
@@ -331,57 +453,55 @@ namespace CadToolkit
         {
             EnsureInit();
             if (!CheckDoc()) return;
+
+            // pick a block reference
+            var peo = new PromptEntityOptions("\n选择要重命名的块：");
+            peo.SetRejectMessage("\n只能选择块参照。");
+            peo.AddAllowedClass(typeof(BlockReference), true);
+            var per = Ed.GetEntity(peo);
+            if (per.Status != PromptStatus.OK) return;
+
             string oldName = "";
-            var psr = Ed.GetSelection();
-            if (psr.Status == PromptStatus.OK && psr.Value.GetObjectIds().Length == 1)
+            using (var tr = Db.TransactionManager.StartTransaction())
             {
-                using (var tr = Db.TransactionManager.StartTransaction())
-                {
-                    var ent = tr.GetObject(psr.Value.GetObjectIds()[0], OpenMode.ForRead);
-                    if (ent is BlockReference)
-                    {
-                        var br = (BlockReference)ent;
-                        var btr = (BlockTableRecord)tr.GetObject(br.BlockTableRecord, OpenMode.ForRead);
-                        oldName = btr.Name;
-                    }
-                    tr.Commit();
-                }
+                var br = (BlockReference)tr.GetObject(per.ObjectId, OpenMode.ForRead);
+                var btr = (BlockTableRecord)tr.GetObject(br.BlockTableRecord, OpenMode.ForRead);
+                oldName = btr.Name;
+                tr.Commit();
             }
+
+            // show dialog: old name is read-only, user only types new name
             using (var dlg = new RenameBlockDialog(oldName))
             {
                 if (dlg.ShowDialog() != DialogResult.OK) return;
-                if (string.IsNullOrEmpty(dlg.OldName) || string.IsNullOrEmpty(dlg.NewName))
+                if (string.IsNullOrEmpty(dlg.NewName))
                 {
-                    Ed.WriteMessage("\n\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A\u3002");
+                    Ed.WriteMessage("\n新名称不能为空。");
                     return;
                 }
                 using (var tr = Db.TransactionManager.StartTransaction())
                 {
                     var bt = (BlockTable)tr.GetObject(Db.BlockTableId, OpenMode.ForRead);
-                    if (!bt.Has(dlg.OldName))
-                    {
-                        Ed.WriteMessage(string.Format("\n\u5757 \"{0}\" \u4E0D\u5B58\u5728\u3002", dlg.OldName));
-                        return;
-                    }
                     if (bt.Has(dlg.NewName))
                     {
-                        Ed.WriteMessage(string.Format("\n\u5757 \"{0}\" \u5DF2\u5B58\u5728\u3002", dlg.NewName));
+                        Ed.WriteMessage(string.Format("\n块 \"{0}\" 已存在。", dlg.NewName));
                         return;
                     }
-                    var btr = (BlockTableRecord)tr.GetObject(bt[dlg.OldName], OpenMode.ForWrite);
+                    var btr = (BlockTableRecord)tr.GetObject(bt[oldName], OpenMode.ForWrite);
                     btr.Name = dlg.NewName;
                     tr.Commit();
-                    Ed.WriteMessage(string.Format("\n\u5DF2\u5C06\u5757 \"{0}\" \u91CD\u547D\u540D\u4E3A \"{1}\"\u3002", dlg.OldName, dlg.NewName));
+                    Ed.WriteMessage(string.Format("\n已将块 \"{0}\" 重命名为 \"{1}\"。", oldName, dlg.NewName));
                 }
             }
         }
-
-        [CommandMethod("CT_QUICKBLOCK")]
+[CommandMethod("CT_QUICKBLOCK")]
         public void QuickBlock()
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            var psr = Ed.GetSelection();
+            // try pre-selection first, fall back to interactive selection
+            var psr = Ed.SelectImplied();
+            if (psr.Status != PromptStatus.OK || psr.Value == null || psr.Value.Count == 0) { psr = Ed.GetSelection(); }
             if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672A\u9009\u62E9\u5BF9\u8C61\u3002"); return; }
             var ppr = Ed.GetPoint("\n\u6307\u5B9A\u5757\u57FA\u70B9\uFF1A");
             if (ppr.Status != PromptStatus.OK) return;
@@ -422,7 +542,9 @@ namespace CadToolkit
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            var psr = Ed.GetSelection();
+            // try pre-selection first, fall back to interactive selection
+            var psr = Ed.SelectImplied();
+            if (psr.Status != PromptStatus.OK || psr.Value == null || psr.Value.Count == 0) { psr = Ed.GetSelection(); }
             if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672A\u9009\u62E9\u5BF9\u8C61\u3002"); return; }
             int count = 0;
             using (var tr = Db.TransactionManager.StartTransaction())
@@ -444,6 +566,555 @@ namespace CadToolkit
                 tr.Commit();
             }
             Ed.WriteMessage(string.Format("\n\u5DF2\u5C06 {0} \u4E2A\u5BF9\u8C61\u6539\u5230 0 \u5C42\u3002", count));
+        }
+        [CommandMethod("CT_CENTERLINE")]
+        public void DrawCenterLine()
+        {
+            EnsureInit();
+            if (!CheckDoc()) return;
+            // try pre-selection first, fall back to interactive selection
+            var psr = Ed.SelectImplied();
+            if (psr.Status != PromptStatus.OK || psr.Value == null || psr.Value.Count == 0) { psr = Ed.GetSelection(); }
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
+
+            // try load CENTER linetype
+            string ltName = "Continuous";
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                var lt = (LinetypeTable)tr.GetObject(Db.LinetypeTableId, OpenMode.ForRead);
+                if (lt.Has("CENTER")) { ltName = "CENTER"; }
+                else
+                {
+                    try { Db.LoadLineTypeFile("CENTER", "acad.lin"); ltName = "CENTER"; } catch { }
+                }
+                tr.Commit();
+            }
+
+            int count = 0;
+            double extRatio = 0.25;
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
+                foreach (ObjectId id in psr.Value.GetObjectIds())
+                {
+                    var ent = tr.GetObject(id, OpenMode.ForRead);
+                    Point3d center = Point3d.Origin;
+                    double halfX = 0, halfY = 0;
+                    bool ok = false;
+
+                    if (ent is Circle)
+                    {
+                        var ci = (Circle)ent;
+                        center = ci.Center;
+                        double r = ci.Radius;
+                        double ext = r * extRatio;
+                        halfX = r + ext;
+                        halfY = r + ext;
+                        ok = true;
+                    }
+                    else if (ent is Polyline)
+                    {
+                        var pl = (Polyline)ent;
+                        if (pl.Closed && pl.NumberOfVertices == 4)
+                        {
+                            double minX = double.MaxValue, minY = double.MaxValue;
+                            double maxX = double.MinValue, maxY = double.MinValue;
+                            for (int i = 0; i < 4; i++)
+                            {
+                                Point3d pt = pl.GetPoint3dAt(i);
+                                if (pt.X < minX) minX = pt.X;
+                                if (pt.Y < minY) minY = pt.Y;
+                                if (pt.X > maxX) maxX = pt.X;
+                                if (pt.Y > maxY) maxY = pt.Y;
+                            }
+                            center = new Point3d((minX + maxX) / 2.0, (minY + maxY) / 2.0, 0);
+                            halfX = (maxX - minX) / 2.0 * (1.0 + extRatio);
+                            halfY = (maxY - minY) / 2.0 * (1.0 + extRatio);
+                            ok = true;
+                        }
+                    }
+                    else if (ent is Hatch || ent is Solid3d)
+                    {
+                        // try bounding box
+                        Extents3d ext3d;
+                        var e2 = (Entity)ent; try { ext3d = e2.GeometricExtents; } catch { continue; }
+                        center = new Point3d(
+                            (ext3d.MinPoint.X + ext3d.MaxPoint.X) / 2.0,
+                            (ext3d.MinPoint.Y + ext3d.MaxPoint.Y) / 2.0, 0);
+                        halfX = (ext3d.MaxPoint.X - ext3d.MinPoint.X) / 2.0 * (1.0 + extRatio);
+                        halfY = (ext3d.MaxPoint.Y - ext3d.MinPoint.Y) / 2.0 * (1.0 + extRatio);
+                        ok = true;
+                    }
+
+                    if (!ok) continue;
+
+                    // horizontal centerline
+                    var l1 = new Line(
+                        new Point3d(center.X - halfX, center.Y, 0),
+                        new Point3d(center.X + halfX, center.Y, 0));
+                    l1.Layer = "0";
+                    l1.ColorIndex = 1;
+                    try { l1.Linetype = ltName; } catch { }
+                    l1.LinetypeScale = 1.0;
+                    msBtr.AppendEntity(l1);
+                    tr.AddNewlyCreatedDBObject(l1, true);
+
+                    // vertical centerline
+                    var l2 = new Line(
+                        new Point3d(center.X, center.Y - halfY, 0),
+                        new Point3d(center.X, center.Y + halfY, 0));
+                    l2.Layer = "0";
+                    l2.ColorIndex = 1;
+                    try { l2.Linetype = ltName; } catch { }
+                    l2.LinetypeScale = 1.0;
+                    msBtr.AppendEntity(l2);
+                    tr.AddNewlyCreatedDBObject(l2, true);
+
+                    count++;
+                }
+                tr.Commit();
+            }
+            Ed.WriteMessage(string.Format("\n已为 {0} 个对象绘制中心线。", count));
+        }
+        [CommandMethod("CT_SELECTBYLAYER")]
+        public void SelectByLayer()
+        {
+            EnsureInit();
+            if (!CheckDoc()) return;
+            var peo = new PromptEntityOptions("\n选择一个对象以按图层选择：");
+            var per = Ed.GetEntity(peo);
+            if (per.Status != PromptStatus.OK) return;
+
+            string layerName;
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                var ent = (Entity)tr.GetObject(per.ObjectId, OpenMode.ForRead);
+                layerName = ent.Layer;
+                tr.Commit();
+            }
+
+            var filter = new TypedValue[] { new TypedValue(8, layerName) };
+            var sf = new SelectionFilter(filter);
+            var psr = Ed.GetSelection(sf);
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
+
+            // highlight and set as current selection
+            Ed.SetImpliedSelection(psr.Value.GetObjectIds());
+            Ed.WriteMessage(string.Format("\n已选择图层 \"{0}\" 上的 {1} 个对象。", layerName, psr.Value.Count));
+        }
+
+        [CommandMethod("CT_SELECTBYCOLOR")]
+        public void SelectByColor()
+        {
+            EnsureInit();
+            if (!CheckDoc()) return;
+            var peo = new PromptEntityOptions("\n选择一个对象以按颜色选择：");
+            var per = Ed.GetEntity(peo);
+            if (per.Status != PromptStatus.OK) return;
+
+            int colorIndex;
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                var ent = (Entity)tr.GetObject(per.ObjectId, OpenMode.ForRead);
+                colorIndex = ent.ColorIndex;
+                tr.Commit();
+            }
+
+            var filter = new TypedValue[] { new TypedValue(62, colorIndex) };
+            var sf = new SelectionFilter(filter);
+            var psr = Ed.GetSelection(sf);
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
+
+            Ed.SetImpliedSelection(psr.Value.GetObjectIds());
+            string colorName = colorIndex == 256 ? "ByLayer" : (colorIndex == 0 ? "ByBlock" : colorIndex.ToString());
+            Ed.WriteMessage(string.Format("\n已选择颜色 {0} 的 {1} 个对象。", colorName, psr.Value.Count));
+        }
+
+        [CommandMethod("CT_SELECTBYBLOCK")]
+        public void SelectByBlock()
+        {
+            EnsureInit();
+            if (!CheckDoc()) return;
+            var peo = new PromptEntityOptions("\n选择一个块参照以按块名选择：");
+            peo.SetRejectMessage("\n只能选择块参照。");
+            peo.AddAllowedClass(typeof(BlockReference), true);
+            var per = Ed.GetEntity(peo);
+            if (per.Status != PromptStatus.OK) return;
+
+            string blockName;
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                var br = (BlockReference)tr.GetObject(per.ObjectId, OpenMode.ForRead);
+                var btr = (BlockTableRecord)tr.GetObject(br.BlockTableRecord, OpenMode.ForRead);
+                blockName = btr.Name;
+                tr.Commit();
+            }
+
+            var filter = new TypedValue[] { new TypedValue(0, "INSERT"), new TypedValue(2, blockName) };
+            var sf = new SelectionFilter(filter);
+            var psr = Ed.GetSelection(sf);
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
+
+            Ed.SetImpliedSelection(psr.Value.GetObjectIds());
+            Ed.WriteMessage(string.Format("\n已选择块 \"{0}\" 的 {1} 个参照。", blockName, psr.Value.Count));
+        }
+
+        // ========== 文字刷 ==========
+        [CommandMethod("CT_TEXTBRUSH")]
+        public void TextBrush()
+        {
+            EnsureInit();
+            if (!CheckDoc()) return;
+            // pick source text
+            var peo1 = new PromptEntityOptions("\n选择源文字（单行/多行）：");
+            peo1.SetRejectMessage("\n只能选择文字对象。");
+            peo1.AddAllowedClass(typeof(DBText), true);
+            peo1.AddAllowedClass(typeof(MText), true);
+            var per1 = Ed.GetEntity(peo1);
+            if (per1.Status != PromptStatus.OK) return;
+
+            string srcLayer; int srcColor; double srcHeight; string srcStyle;
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                var ent = tr.GetObject(per1.ObjectId, OpenMode.ForRead);
+                if (ent is DBText) { var dt = (DBText)ent; srcLayer = dt.Layer; srcColor = dt.ColorIndex; srcHeight = dt.Height; srcStyle = dt.TextStyleName; }
+                else { var mt = (MText)ent; srcLayer = mt.Layer; srcColor = mt.ColorIndex; srcHeight = mt.TextHeight; srcStyle = mt.TextStyleName; }
+                tr.Commit();
+            }
+
+            // pick target texts
+            var psr = Ed.GetSelection();
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择目标文字。"); return; }
+            int count = 0;
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                foreach (ObjectId id in psr.Value.GetObjectIds())
+                {
+                    var ent = tr.GetObject(id, OpenMode.ForWrite);
+                    if (ent is DBText) { var dt = (DBText)ent; dt.Layer = srcLayer; dt.ColorIndex = srcColor; dt.Height = srcHeight; dt.TextStyleId = GetTextStyleId(tr, srcStyle); count++; }
+                    else if (ent is MText) { var mt = (MText)ent; mt.Layer = srcLayer; mt.ColorIndex = srcColor; mt.TextHeight = srcHeight; mt.TextStyleId = GetTextStyleId(tr, srcStyle); count++; }
+                }
+                tr.Commit();
+            }
+            Ed.WriteMessage(string.Format("\n已刷 {0} 个文字对象。", count));
+        }
+
+        // ========== 文字合并 ==========
+        [CommandMethod("CT_TEXTMERGE")]
+        public void TextMerge()
+        {
+            EnsureInit();
+            if (!CheckDoc()) return;
+            var psr = Ed.GetSelection();
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
+
+            var texts = new List<KeyValuePair<double, string>>();
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                foreach (ObjectId id in psr.Value.GetObjectIds())
+                {
+                    var ent = tr.GetObject(id, OpenMode.ForRead);
+                    string txt = null; double y = 0;
+                    if (ent is DBText) { var dt = (DBText)ent; txt = SafeStr(dt.TextString); y = dt.Position.Y; }
+                    else if (ent is MText) { var mt = (MText)ent; txt = SafeStr(mt.Contents); y = mt.Location.Y; }
+                    if (txt != null) texts.Add(new KeyValuePair<double, string>(y, txt));
+                }
+                tr.Commit();
+            }
+            if (texts.Count < 2) { Ed.WriteMessage("\n需要至少两个文字对象。"); return; }
+
+            // sort by Y descending (top to bottom)
+            texts.Sort(delegate(KeyValuePair<double, string> a, KeyValuePair<double, string> b) { return b.Key.CompareTo(a.Key); });
+            var sb = new StringBuilder();
+            for (int i = 0; i < texts.Count; i++) { if (i > 0) sb.Append("\\P"); sb.Append(texts[i].Value); }
+
+            // insert MText at the position of the first (topmost) text
+            double mx = 0, my = texts[0].Key;
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                var first = tr.GetObject(psr.Value.GetObjectIds()[0], OpenMode.ForRead);
+                if (first is DBText) mx = ((DBText)first).Position.X;
+                else if (first is MText) mx = ((MText)first).Location.X;
+
+                var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
+                var mt = new MText();
+                mt.Contents = sb.ToString();
+                mt.Location = new Point3d(mx, my, 0);
+                mt.TextHeight = 3.0;
+                msBtr.AppendEntity(mt);
+                tr.AddNewlyCreatedDBObject(mt, true);
+                tr.Commit();
+            }
+            Ed.WriteMessage(string.Format("\n已合并 {0} 个文字为多行文字。", texts.Count));
+        }
+
+        // ========== 文字编号 ==========
+        [CommandMethod("CT_TEXTNUMBER")]
+        public void TextNumber()
+        {
+            EnsureInit();
+            if (!CheckDoc()) return;
+            var psr = Ed.GetSelection();
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
+
+            // ask prefix via dialog
+            var f = new Form();
+            f.Text = "文字编号";
+            f.StartPosition = FormStartPosition.CenterParent;
+            f.FormBorderStyle = FormBorderStyle.FixedDialog;
+            f.MaximizeBox = false; f.MinimizeBox = false; f.ShowInTaskbar = false;
+            f.ClientSize = new Size(300, 120);
+
+            var l1 = new Label(); l1.Text = "前缀："; l1.Left = 16; l1.Top = 16; l1.AutoSize = true; l1.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var t1 = new TextBox(); t1.Left = 76; t1.Top = 12; t1.Width = 60; t1.Text = ""; t1.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
+            var l2 = new Label(); l2.Text = "后缀："; l2.Left = 150; l2.Top = 16; l2.AutoSize = true; l2.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var t2 = new TextBox(); t2.Left = 210; t2.Top = 12; t2.Width = 60; t2.Text = ""; t2.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
+            var l3 = new Label(); l3.Text = "起始号："; l3.Left = 16; l3.Top = 52; l3.AutoSize = true; l3.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var t3 = new TextBox(); t3.Left = 76; t3.Top = 48; t3.Width = 60; t3.Text = "1"; t3.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
+            var chkReplace = new CheckBox(); chkReplace.Text = "替换（用编号替换原文）"; chkReplace.Left = 150; chkReplace.Top = 50; chkReplace.AutoSize = true; chkReplace.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            var ok = new Button(); ok.Text = "确定"; ok.DialogResult = DialogResult.OK; ok.Left = 120; ok.Top = 82; ok.Width = 80; ok.FlatStyle = FlatStyle.System;
+            var cancel = new Button(); cancel.Text = "取消"; cancel.DialogResult = DialogResult.Cancel; cancel.Left = 210; cancel.Top = 82; cancel.Width = 76; cancel.FlatStyle = FlatStyle.System;
+            f.Controls.AddRange(new Control[] { l1, t1, l2, t2, l3, t3, chkReplace, ok, cancel });
+            f.AcceptButton = ok; f.CancelButton = cancel;
+            if (f.ShowDialog() != DialogResult.OK) return;
+
+            string prefix = t1.Text.Trim();
+            string suffix = t2.Text.Trim();
+            int startNum = 1; int.TryParse(t3.Text.Trim(), out startNum);
+
+            // sort by Y desc then X asc
+            var items = new List<KeyValuePair<Point3d, ObjectId>>();
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                foreach (ObjectId id in psr.Value.GetObjectIds())
+                {
+                    var ent = tr.GetObject(id, OpenMode.ForRead);
+                    Point3d pos = Point3d.Origin;
+                    if (ent is DBText) pos = ((DBText)ent).Position;
+                    else if (ent is MText) pos = ((MText)ent).Location;
+                    else continue;
+                    items.Add(new KeyValuePair<Point3d, ObjectId>(pos, id));
+                }
+                tr.Commit();
+            }
+            items.Sort(delegate(KeyValuePair<Point3d, ObjectId> a, KeyValuePair<Point3d, ObjectId> b)
+            {
+                int cmp = b.Key.Y.CompareTo(a.Key.Y);
+                if (cmp != 0) return cmp;
+                return a.Key.X.CompareTo(b.Key.X);
+            });
+
+            int count = 0;
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                for (int i = 0; i < items.Count; i++)
+                {
+                    var ent = tr.GetObject(items[i].Value, OpenMode.ForWrite);
+                    string numStr = prefix + (startNum + i).ToString() + suffix;
+                    if (chkReplace.Checked)
+                    {
+                        if (ent is DBText) { ((DBText)ent).TextString = numStr; count++; }
+                        else if (ent is MText) { ((MText)ent).Contents = numStr; count++; }
+                    }
+                    else
+                    {
+                        if (ent is DBText) { ((DBText)ent).TextString = numStr + ((DBText)ent).TextString; count++; }
+                        else if (ent is MText) { ((MText)ent).Contents = numStr + ((MText)ent).Contents; count++; }
+                    }
+                }
+                tr.Commit();
+            }
+            Ed.WriteMessage(string.Format("\n已编号 {0} 个文字对象。", count));
+        }
+
+        // ========== 孤立图层 ==========
+        static ObjectId[] _frozenLayers;
+        [CommandMethod("CT_ISOLAYER")]
+        public void IsoLayer()
+        {
+            EnsureInit();
+            if (!CheckDoc()) return;
+
+            // if already isolated, restore
+            if (_frozenLayers != null)
+            {
+                using (var tr = Db.TransactionManager.StartTransaction())
+                {
+                    var lt = (LayerTable)tr.GetObject(Db.LayerTableId, OpenMode.ForRead);
+                    foreach (var lid in _frozenLayers)
+                    {
+                        if (!lid.IsValid) continue;
+                        var ltr = (LayerTableRecord)tr.GetObject(lid, OpenMode.ForWrite);
+                        ltr.IsFrozen = false;
+                    }
+                    tr.Commit();
+                }
+                _frozenLayers = null;
+                Ed.WriteMessage("\n已恢复所有图层。");
+                return;
+            }
+
+            var peo = new PromptEntityOptions("\n选择要孤立的对象（其余图层将冻结）：");
+            var per = Ed.GetEntity(peo);
+            if (per.Status != PromptStatus.OK) return;
+
+            string targetLayer;
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                var ent = (Entity)tr.GetObject(per.ObjectId, OpenMode.ForRead);
+                targetLayer = ent.Layer;
+                tr.Commit();
+            }
+
+            var toFreeze = new List<ObjectId>();
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                var lt = (LayerTable)tr.GetObject(Db.LayerTableId, OpenMode.ForRead);
+                foreach (ObjectId lid in lt)
+                {
+                    var ltr = (LayerTableRecord)tr.GetObject(lid, OpenMode.ForRead);
+                    if (ltr.Name == targetLayer || ltr.Name == "0" || ltr.Name == "Defpoints") continue;
+                    if (ltr.IsFrozen) continue;
+                    toFreeze.Add(lid);
+                }
+                // freeze
+                foreach (var lid in toFreeze)
+                {
+                    var ltr = (LayerTableRecord)tr.GetObject(lid, OpenMode.ForWrite);
+                    ltr.IsFrozen = true;
+                }
+                tr.Commit();
+            }
+            _frozenLayers = toFreeze.ToArray();
+            Ed.WriteMessage(string.Format("\n已冻结 {0} 个图层，仅显示 \"{1}\"。再次执行恢复。", toFreeze.Count, targetLayer));
+        }
+
+        // ========== 快速标注 ==========
+        [CommandMethod("CT_QUICKDIM")]
+        public void QuickDim()
+        {
+            EnsureInit();
+            if (!CheckDoc()) return;
+            var psr = Ed.GetSelection();
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
+
+            double minX = double.MaxValue, minY = double.MaxValue;
+            double maxX = double.MinValue, maxY = double.MinValue;
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                foreach (ObjectId id in psr.Value.GetObjectIds())
+                {
+                    var ent = tr.GetObject(id, OpenMode.ForRead);
+                    try
+                    {
+                        var ext = ((Entity)ent).GeometricExtents;
+                        if (ext.MinPoint.X < minX) minX = ext.MinPoint.X;
+                        if (ext.MinPoint.Y < minY) minY = ext.MinPoint.Y;
+                        if (ext.MaxPoint.X > maxX) maxX = ext.MaxPoint.X;
+                        if (ext.MaxPoint.Y > maxY) maxY = ext.MaxPoint.Y;
+                    }
+                    catch { }
+                }
+                tr.Commit();
+            }
+            if (minX >= maxX || minY >= maxY) { Ed.WriteMessage("\n无法计算包围盒。"); return; }
+
+            double offset = (maxY - minY) * 0.15;
+            if (offset < 5) offset = 5;
+
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
+                // horizontal dim (width)
+                var dimH = new AlignedDimension();
+                dimH.XLine1Point = new Point3d(minX, minY - offset, 0);
+                dimH.XLine2Point = new Point3d(maxX, minY - offset, 0);
+                dimH.DimLinePoint = new Point3d((minX + maxX) / 2.0, minY - offset * 2, 0);
+                dimH.DimensionStyle = Db.Dimstyle;
+                msBtr.AppendEntity(dimH);
+                tr.AddNewlyCreatedDBObject(dimH, true);
+
+                // vertical dim (height)
+                var dimV = new AlignedDimension();
+                dimV.XLine1Point = new Point3d(maxX + offset, minY, 0);
+                dimV.XLine2Point = new Point3d(maxX + offset, maxY, 0);
+                dimV.DimLinePoint = new Point3d(maxX + offset * 2, (minY + maxY) / 2.0, 0);
+                dimV.DimensionStyle = Db.Dimstyle;
+                msBtr.AppendEntity(dimV);
+                tr.AddNewlyCreatedDBObject(dimV, true);
+
+                tr.Commit();
+            }
+            Ed.WriteMessage(string.Format("\n已创建快速标注: {0:F1} x {1:F1}", maxX - minX, maxY - minY));
+        }
+
+        // ========== 递增复制 ==========
+        [CommandMethod("CT_INCCOPY")]
+        public void IncCopy()
+        {
+            EnsureInit();
+            if (!CheckDoc()) return;
+            var psr = Ed.GetSelection();
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
+
+            // find the text to increment and its anchor point
+            string baseText = null;
+            Point3d anchor = Point3d.Origin;
+            foreach (ObjectId id in psr.Value.GetObjectIds())
+            {
+                using (var tr = Db.TransactionManager.StartTransaction())
+                {
+                    var ent = tr.GetObject(id, OpenMode.ForRead);
+                    if (ent is DBText) { baseText = ((DBText)ent).TextString; anchor = ((DBText)ent).Position; }
+                    else if (ent is MText) { baseText = ((MText)ent).Contents; anchor = ((MText)ent).Location; }
+                    tr.Commit();
+                }
+                if (baseText != null) break;
+            }
+            if (baseText == null) { Ed.WriteMessage("\n选择的对象中没有文字。"); return; }
+
+            // extract trailing number
+            int numEnd = baseText.Length;
+            int numStart = numEnd;
+            while (numStart > 0 && char.IsDigit(baseText[numStart - 1])) numStart--;
+            string prefix = baseText.Substring(0, numStart);
+            int num = 0;
+            if (numStart < numEnd) int.TryParse(baseText.Substring(numStart), out num);
+            int numLen = numEnd - numStart;
+            if (numLen == 0) { numLen = 1; num = 1; }
+
+            int copyCount = 0;
+            while (true)
+            {
+                var ppr = Ed.GetPoint(string.Format("\n指定复制基点（当前: {0}，回车结束）：", prefix + num.ToString().PadLeft(numLen, '0')));
+                if (ppr.Status != PromptStatus.OK) break;
+
+                num++;
+                string newText = prefix + num.ToString().PadLeft(numLen, '0');
+
+                double dx = ppr.Value.X - anchor.X;
+                double dy = ppr.Value.Y - anchor.Y;
+                var transform = Matrix3d.Displacement(new Vector3d(dx, dy, 0));
+
+                using (var tr = Db.TransactionManager.StartTransaction())
+                {
+                    var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
+                    foreach (ObjectId id in psr.Value.GetObjectIds())
+                    {
+                        var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                        if (ent == null) continue;
+                        var clone = (Entity)ent.Clone();
+                        clone.TransformBy(transform);
+                        msBtr.AppendEntity(clone);
+                        tr.AddNewlyCreatedDBObject(clone, true);
+                        if (clone is DBText) ((DBText)clone).TextString = newText;
+                        else if (clone is MText) ((MText)clone).Contents = newText;
+                    }
+                    tr.Commit();
+                }
+                copyCount++;
+            }
+            Ed.WriteMessage(string.Format("\n已递增复制 {0} 次。", copyCount));
         }
     }
 }
