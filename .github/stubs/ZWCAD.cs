@@ -36,7 +36,6 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public ObjectId LayerTableId { get; set; }
         public ObjectId LinetypeTableId { get; set; }
         public ObjectId TextStyleTableId { get; set; }
-        public ObjectId DimstyleTableId { get; set; }
         public TransactionManager TransactionManager { get; set; }
         public ObjectId Dimstyle { get; set; }
         public ObjectId Textstyle { get; set; }
@@ -46,11 +45,8 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public LinetypeTable Linetypes { get; set; }
         public void LoadLineTypeFile(string name, string file) {}
         public void DeepCloneObjects(ObjectIdCollection ids, ObjectId owner, IdMapping mapping, bool b) {}
-        public void Wblock(Database dest, ObjectIdCollection ids, Geometry.Point3d pt, DuplicateRecordCloning mode) {}
-        public void Insert(string name, Database source, bool b) {}
         public void Dispose() {}
     }
-    public enum DuplicateRecordCloning { Replace, MangleExisting, Ignore, UnmangleName, UseCloneCallback }
     public class TransactionManager { public Transaction StartTransaction() { return new Transaction(); } }
     public class Transaction : IDisposable
     {
@@ -75,8 +71,6 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public override int GetHashCode() { return 0; }
         public static bool operator ==(ObjectId a, ObjectId b) => false;
         public static bool operator !=(ObjectId a, ObjectId b) => true;
-        public bool IsNull { get; set; }
-        public bool IsValid { get; set; }
     }
     public class ObjectIdCollection : IEnumerable<ObjectId>
     {
@@ -94,11 +88,7 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public IdPair this[ObjectId id] { get { return new IdPair(); } }
         public IEnumerator GetEnumerator() { yield break; }
     }
-    public struct IdPair
-    {
-        public ObjectId Key { get; set; }
-        public ObjectId Value { get; set; }
-    }
+    public struct IdPair { public ObjectId Key { get; set; } public ObjectId Value { get; set; } }
     public class BlockTable : DBObject, IEnumerable<ObjectId>
     {
         public void Add(BlockTableRecord btr) {}
@@ -111,7 +101,6 @@ namespace ZwSoft.ZwCAD.DatabaseServices
     {
         public string Name { get; set; }
         public Geometry.Point3d Origin { get; set; }
-        public bool IsFromExternalReference { get; set; }
         public void AppendEntity(Entity ent) {}
         public IEnumerator<ObjectId> GetEnumerator() { yield break; }
         IEnumerator IEnumerable.GetEnumerator() { yield break; }
@@ -128,8 +117,6 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public Geometry.Extents3d GeometricExtents { get; set; }
         public Entity Clone() { return null; }
         public void TransformBy(Geometry.Matrix3d mat) {}
-        public void UpgradeOpen() {}
-        public void Erase() {}
     }
     public class BlockReference : Entity
     {
@@ -137,19 +124,10 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public BlockReference(Geometry.Point3d pt, ObjectId id) {}
         public string Name { get; set; }
         public ObjectId BlockTableRecord { get; set; }
-        public ObjectId BlockId { get; set; }
         public AttributeCollection AttributeCollection { get; set; }
         public Geometry.Point3d Position { get; set; }
         public Geometry.Scale3d ScaleFactors { get; set; }
         public double Rotation { get; set; }
-    }
-    public struct Scale3d
-    {
-        public Scale3d(double uniformScale) {}
-        public Scale3d(double sx, double sy, double sz) {}
-        public double X { get; set; }
-        public double Y { get; set; }
-        public double Z { get; set; }
     }
     public enum TextHorizontalMode { TextLeft, TextCenter, TextRight, TextAlign, TextMid, TextFit }
     public enum TextVerticalMode { TextBase, TextBottom, TextVerticalMid, TextTop }
@@ -165,11 +143,10 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public Geometry.Point3d AlignmentPoint { get; set; }
         public string TextStyleName { get; set; }
     }
-    public enum AttachmentPoint { TopLeft, TopCenter, TopRight, MiddleLeft, MiddleCenter, MiddleRight, BottomLeft, BottomCenter, BottomRight, BaseLeft, BaseCenter, BaseRight, BaseAlign, BaseFit, BaseMid, BaseStart, BaseEnd }
+    public enum AttachmentPoint { TopLeft, TopCenter, TopRight, MiddleLeft, MiddleCenter, MiddleRight, BottomLeft, BottomCenter, BottomRight }
     public class MText : Entity
     {
         public string Contents { get; set; }
-        public string Text { get; set; }
         public Geometry.Point3d Location { get; set; }
         public double TextHeight { get; set; }
         public double Width { get; set; }
@@ -177,11 +154,7 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public AttachmentPoint Attachment { get; set; }
         public string TextStyleName { get; set; }
     }
-    public class AttributeReference : Entity
-    {
-        public string TextString { get; set; }
-        public string Tag { get; set; }
-    }
+    public class AttributeReference : Entity { public string TextString { get; set; } public string Tag { get; set; } }
     public class AttributeCollection : IEnumerable<ObjectId>
     {
         public int Count { get; set; }
@@ -196,13 +169,7 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public IEnumerator<ObjectId> GetEnumerator() { yield break; }
         IEnumerator IEnumerable.GetEnumerator() { yield break; }
     }
-    public class LayerTableRecord : DBObject
-    {
-        public string Name { get; set; }
-        public bool IsFrozen { get; set; }
-        public bool IsOff { get; set; }
-        public bool IsLocked { get; set; }
-    }
+    public class LayerTableRecord : DBObject { public string Name { get; set; } public bool IsFrozen { get; set; } public bool IsOff { get; set; } public bool IsLocked { get; set; } }
     public class LinetypeTable : DBObject, IEnumerable<ObjectId>
     {
         public bool Has(string name) { return false; }
@@ -217,12 +184,6 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public IEnumerator<ObjectId> GetEnumerator() { yield break; }
         IEnumerator IEnumerable.GetEnumerator() { yield break; }
     }
-    public class TextStyleTableRecord : DBObject
-    {
-        public string Name { get; set; }
-        public string FileName { get; set; }
-        public string BigFontFileName { get; set; }
-    }
     public class Circle : Entity
     {
         public Circle() {}
@@ -235,7 +196,7 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public Line() {}
         public Line(Geometry.Point3d start, Geometry.Point3d end) {}
         public Geometry.Point3d StartPoint { get; set; }
-        
+        public Geometry.Point3d EndPoint { get; set; }
         public double LinetypeScale { get; set; }
     }
     public class Polyline : Entity
@@ -244,20 +205,9 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public bool Closed { get; set; }
         public int NumberOfVertices { get; }
         public Geometry.Point3d GetPoint3dAt(int index) { return new Geometry.Point3d(); }
-        public void AddVertexAt(int index, Geometry.Point2d pt, double bulge, double startWidth, double endWidth) {}
-        public void SetDatabaseDefaults() {}
     }
-    public class Solid3d : Entity
-    {
-        public void CreateBox(double x, double y, double z) {}
-    }
-    public class Hatch : Entity
-    {
-        public string PatternName { get; set; }
-    }
-    {
-        public void CreateBox(double x, double y, double z) {}
-    }
+    public class Hatch : Entity { public string PatternName { get; set; } }
+    public class Solid3d : Entity { public void CreateBox(double x, double y, double z) {} }
     public class AlignedDimension : Entity
     {
         public AlignedDimension() {}
@@ -287,11 +237,7 @@ namespace ZwSoft.ZwCAD.EditorInput
         public void WriteMessage(string fmt, params object[] args) {}
     }
     public enum PromptStatus { OK, Cancel, None, Error }
-    public class PromptPointOptions
-    {
-        public string Message { get; set; }
-        public bool AllowNone { get; set; }
-    }
+    public class PromptPointOptions { public string Message { get; set; } public bool AllowNone { get; set; } }
     public class PromptPointResult { public PromptStatus Status { get; set; } public Geometry.Point3d Value { get; set; } }
     public class PromptEntityOptions
     {
@@ -301,90 +247,21 @@ namespace ZwSoft.ZwCAD.EditorInput
         public void SetRejectMessage(string msg) {}
         public void AddAllowedClass(Type type, bool exactMatch) {}
     }
-        public string Message { get; set; }
-        public bool AllowNone { get; set; }
-    }
-    public class PromptEntityResult
-    {
-        public PromptStatus Status { get; set; }
-        public DatabaseServices.ObjectId ObjectId { get; set; }
-        public Geometry.Point3d PickPoint { get; set; }
-    }
+    public class PromptEntityResult { public PromptStatus Status { get; set; } public DatabaseServices.ObjectId ObjectId { get; set; } public Geometry.Point3d PickPoint { get; set; } }
     public class PromptSelectionResult { public PromptStatus Status { get; set; } public SelectionSet Value { get; set; } }
-    public class SelectionSet
-    {
-        public DatabaseServices.ObjectId[] GetObjectIds() { return new DatabaseServices.ObjectId[0]; }
-        public int Count { get; set; }
-    }
-    public class SelectionFilter
-    {
-        public SelectionFilter(TypedValue[] tv) {}
-    }
-    public struct TypedValue
-    {
-        public TypedValue(int code) { Code = code; Value = null; }
-        public TypedValue(int code, object value) { Code = code; Value = value; }
-        public int Code { get; set; }
-        public object Value { get; set; }
-    }
-    public class PromptStringResult
-    {
-        public PromptStatus Status { get; set; }
-        public string StringResult { get; set; }
-    }
-    public class PromptStringOptions
-    {
-        public PromptStringOptions(string msg) {}
-        public string Message { get; set; }
-        public bool AllowSpaces { get; set; }
-        public string DefaultValue { get; set; }
-    }
-    public class PromptDoubleResult
-    {
-        public PromptStatus Status { get; set; }
-        public double Value { get; set; }
-    }
+    public class SelectionSet { public DatabaseServices.ObjectId[] GetObjectIds() { return new DatabaseServices.ObjectId[0]; } public int Count { get; set; } }
+    public class SelectionFilter { public SelectionFilter(TypedValue[] tv) {} }
+    public struct TypedValue { public TypedValue(int code) { Code = code; Value = null; } public TypedValue(int code, object value) { Code = code; Value = value; } public int Code { get; set; } public object Value { get; set; } }
+    public class PromptStringResult { public PromptStatus Status { get; set; } public string StringResult { get; set; } }
+    public class PromptStringOptions { public PromptStringOptions(string msg) {} public string Message { get; set; } public bool AllowSpaces { get; set; } public string DefaultValue { get; set; } }
+    public class PromptDoubleResult { public PromptStatus Status { get; set; } public double Value { get; set; } }
 }
 namespace ZwSoft.ZwCAD.Geometry
 {
-    public struct Point2d
-    {
-        public Point2d(double x, double y) {}
-        public double X { get; set; }
-        public double Y { get; set; }
-    }
-    public struct Point3d
-    {
-        public Point3d(double x, double y, double z) {}
-        public double X { get; set; }
-        public double Y { get; set; }
-        public double Z { get; set; }
-        public static Point3d Origin { get { return new Point3d(0,0,0); } }
-    }
-    public struct Vector3d
-    {
-        public Vector3d(double x, double y, double z) {}
-        public double X { get; set; }
-        public double Y { get; set; }
-        public double Z { get; set; }
-        public static Vector3d XAxis { get { return new Vector3d(1,0,0); } }
-        public static Vector3d YAxis { get { return new Vector3d(0,1,0); } }
-        public static Vector3d ZAxis { get { return new Vector3d(0,0,1); } }
-    }
-    public struct Matrix3d
-    {
-        public static Matrix3d Displacement(Vector3d vec) { return new Matrix3d(); }
-        public static Matrix3d Identity { get { return new Matrix3d(); } }
-    }
-    public struct Extents3d
-    {
-        public Extents3d(Point3d min, Point3d max) {}
-        public Point3d MinPoint { get; set; }
-        public Point3d MaxPoint { get; set; }
-    }
-    public struct Scale3d
-    {
-        public Scale3d(double uniformScale) {}
-        public Scale3d(double sx, double sy, double sz) {}
-    }
+    public struct Point2d { public Point2d(double x, double y) {} public double X { get; set; } public double Y { get; set; } }
+    public struct Point3d { public Point3d(double x, double y, double z) {} public double X { get; set; } public double Y { get; set; } public double Z { get; set; } public static Point3d Origin { get { return new Point3d(0,0,0); } } }
+    public struct Vector3d { public Vector3d(double x, double y, double z) {} public double X { get; set; } public double Y { get; set; } public double Z { get; set; } public static Vector3d XAxis { get { return new Vector3d(1,0,0); } } public static Vector3d YAxis { get { return new Vector3d(0,1,0); } } public static Vector3d ZAxis { get { return new Vector3d(0,0,1); } } }
+    public struct Matrix3d { public static Matrix3d Displacement(Vector3d vec) { return new Matrix3d(); } public static Matrix3d Identity { get { return new Matrix3d(); } } }
+    public struct Extents3d { public Extents3d(Point3d min, Point3d max) {} public Point3d MinPoint { get; set; } public Point3d MaxPoint { get; set; } }
+    public struct Scale3d { public Scale3d(double uniformScale) {} public Scale3d(double sx, double sy, double sz) {} }
 }
