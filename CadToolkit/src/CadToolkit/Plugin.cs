@@ -545,7 +545,7 @@ namespace CadToolkit
             // try pre-selection first, fall back to interactive selection
             var psr = Ed.SelectImplied();
             if (psr.Status != PromptStatus.OK || psr.Value == null || psr.Value.Count == 0) { psr = Ed.GetSelection(); }
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672A\u9009\u62E9\u5BF9\u8C61\u3002"); return; }
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
             int count = 0;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
@@ -560,13 +560,56 @@ namespace CadToolkit
                 }
                 foreach (ObjectId id in psr.Value.GetObjectIds())
                 {
-                    var ent = tr.GetObject(id, OpenMode.ForWrite) as Entity;
-                    if (ent != null) { ent.Layer = "0"; count++; }
+                    var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                    if (ent == null) continue;
+                    if (ent is BlockReference)
+                    {
+                        var br = (BlockReference)ent;
+                        var btrId = br.BlockTableRecord;
+                        if (btrId.IsValid)
+                        {
+                            count += SetBlockLayer0(tr, btrId);
+                        }
+                    }
+                    else
+                    {
+                        ent.UpgradeOpen();
+                        ent.Layer = "0";
+                        count++;
+                    }
                 }
                 tr.Commit();
             }
-            Ed.WriteMessage(string.Format("\n\u5DF2\u5C06 {0} \u4E2A\u5BF9\u8C61\u6539\u5230 0 \u5C42\u3002", count));
+            Ed.WriteMessage(string.Format("\n已将 {0} 个对象改到 0 层。", count));
         }
+
+        static int SetBlockLayer0(Transaction tr, ObjectId btrId)
+        {
+            int count = 0;
+            var btr = tr.GetObject(btrId, OpenMode.ForWrite) as BlockTableRecord;
+            if (btr == null) return 0;
+            foreach (ObjectId entId in btr)
+            {
+                var ent = tr.GetObject(entId, OpenMode.ForRead) as Entity;
+                if (ent == null) continue;
+                if (ent is BlockReference)
+                {
+                    var innerBr = (BlockReference)ent;
+                    if (innerBr.BlockTableRecord.IsValid)
+                    {
+                        count += SetBlockLayer0(tr, innerBr.BlockTableRecord);
+                    }
+                }
+                else
+                {
+                    ent.UpgradeOpen();
+                    ent.Layer = "0";
+                    count++;
+                }
+            }
+            return count;
+        }
+        [CommandMethod("CT_SETLAYER0")]
         [CommandMethod("CT_CENTERLINE")]
         public void DrawCenterLine()
         {
