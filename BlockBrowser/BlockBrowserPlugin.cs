@@ -57,6 +57,8 @@ namespace BlockBrowser
         public static int ThumbSize { get; set; }
         public static double InsertScale { get; set; }
         public static double InsertRotation { get; set; }
+        public static int FormWidth { get; set; }
+        public static int FormHeight { get; set; }
 
         static BlockLibrary()
         {
@@ -66,6 +68,8 @@ namespace BlockBrowser
             ThumbSize = 128;
             InsertScale = 1.0;
             InsertRotation = 0;
+            FormWidth = 1000;
+            FormHeight = 650;
             LoadConfig();
         }
 
@@ -98,6 +102,8 @@ namespace BlockBrowser
                     if (key.Equals("ThumbSize", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { int ts; if (int.TryParse(val, out ts) && ts >= 40 && ts <= 512) ThumbSize = ts; }
                     else if (key.Equals("InsertScale", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { double ds; if (double.TryParse(val, out ds) && ds > 0) InsertScale = ds; }
                     else if (key.Equals("InsertRotation", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { double dr; if (double.TryParse(val, out dr)) InsertRotation = dr * Math.PI / 180.0; }
+                    else if (key.Equals("FormWidth", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { int fw; if (int.TryParse(val, out fw) && fw >= 400) FormWidth = fw; }
+                    else if (key.Equals("FormHeight", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { int fh; if (int.TryParse(val, out fh) && fh >= 300) FormHeight = fh; }
                     else if (key.Equals("LibraryPath", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val))
                     {
                         if (Path.IsPathRooted(val))
@@ -127,6 +133,8 @@ namespace BlockBrowser
                 lines.Add("ThumbSize=" + ThumbSize);
                 lines.Add("InsertScale=" + InsertScale.ToString("G"));
                 lines.Add("InsertRotation=" + (InsertRotation * 180.0 / Math.PI).ToString("G"));
+                lines.Add("FormWidth=" + FormWidth);
+                lines.Add("FormHeight=" + FormHeight);
                 File.WriteAllLines(cfgPath, lines, System.Text.Encoding.UTF8);
             }
             catch { }
@@ -235,22 +243,53 @@ namespace BlockBrowser
                                 catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine("[BlockBrowser] PreviewIcon 失败: " + ex.Message); }
                             }
                         }
-                        // Fallback: render first non-anonymous block definition
-                        foreach (ObjectId btrId in bt)
+                        // Fallback: render model space first, then largest block
+                        Bitmap renderResult = null;
+                        // Try model space (for files from "添加到库")
+                        if (bt.Has("*Model_Space"))
                         {
-                            var btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
-                            if (!btr.IsLayout && !btr.Name.StartsWith("*"))
+                            var msBtr = (BlockTableRecord)tr.GetObject(bt["*Model_Space"], OpenMode.ForRead);
+                            int msCnt = 0; foreach (ObjectId eid in msBtr) msCnt++;
+                            if (msCnt > 0)
                             {
-                                Bitmap bmp = new Bitmap(size, size);
-                                using (var g = Graphics.FromImage(bmp))
+                                renderResult = new Bitmap(size, size);
+                                using (var g = Graphics.FromImage(renderResult))
                                 {
                                     g.SmoothingMode = SmoothingMode.AntiAlias;
                                     g.Clear(Color.White);
-                                    RenderBlockContents(g, tr, btr, size);
+                                    RenderBlockContents(g, tr, msBtr, size);
                                 }
-                                SaveThumbnailCache(cachePath, bmp);
-                                return bmp;
                             }
+                        }
+                        // If model space empty, try largest block definition (for files from "导出块")
+                        if (renderResult == null)
+                        {
+                            BlockTableRecord bestBtr = null;
+                            int bestCount = 0;
+                            foreach (ObjectId btrId in bt)
+                            {
+                                var btr2 = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
+                                if (!btr2.IsLayout && !btr2.Name.StartsWith("*"))
+                                {
+                                    int cnt = 0; foreach (ObjectId eid in btr2) cnt++;
+                                    if (cnt > bestCount) { bestCount = cnt; bestBtr = btr2; }
+                                }
+                            }
+                            if (bestBtr != null)
+                            {
+                                renderResult = new Bitmap(size, size);
+                                using (var g = Graphics.FromImage(renderResult))
+                                {
+                                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                                    g.Clear(Color.White);
+                                    RenderBlockContents(g, tr, bestBtr, size);
+                                }
+                            }
+                        }
+                        if (renderResult != null)
+                        {
+                            SaveThumbnailCache(cachePath, renderResult);
+                            return renderResult;
                         }
                     }
                 }
@@ -261,9 +300,10 @@ namespace BlockBrowser
 
         private static bool IsBitmapUseful(Bitmap bmp)
         {
-            if (bmp.Width < 2 || bmp.Height < 2) return false;
+            if (bmp.Width < 4 || bmp.Height < 4) return false;
             try
             {
+                // Quick check: 3 corners + center
                 Color c0 = bmp.GetPixel(0, 0);
                 Color cm = bmp.GetPixel(bmp.Width / 2, bmp.Height / 2);
                 Color ce = bmp.GetPixel(bmp.Width - 1, bmp.Height - 1);
@@ -551,10 +591,23 @@ namespace BlockBrowser
 
         private static string GetCacheKey(BlockInfo block)
         {
-            string key = block.FilePath ?? "";
+            string path = block.FilePath ?? "";
+            long size = 0;
+            long ticks = 0;
+            try
+            {
+                if (File.Exists(path))
+                {
+                    var fi = new FileInfo(path);
+                    size = fi.Length;
+                    ticks = fi.LastWriteTimeUtc.Ticks;
+                }
+            }
+            catch { }
+            string raw = path + "|" + size + "|" + ticks;
             using (var md5 = System.Security.Cryptography.MD5.Create())
             {
-                byte[] hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(key.ToLowerInvariant()));
+                byte[] hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(raw.ToLowerInvariant()));
                 return BitConverter.ToString(hash).Replace("-", "").Substring(0, 16);
             }
         }
@@ -800,7 +853,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
             Editor ed = doc.Editor;
             try {
 
-            // 读取当前图纸的所有用户块
+            // Read all user blocks from current drawing
             var blockNames = new List<string>();
             using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
             {
@@ -822,21 +875,21 @@ newDb.SaveAs(outPath, DwgVersion.Current);
 
             blockNames.Sort();
 
-            // 弹窗选择块和分类
-            string selBlock = null;
+            // Dialog with multi-select
+            var selectedBlocks = new List<string>();
             string selCategory = null;
             using (var form = new Form())
             {
                 form.Text = "导出块到库";
-                form.Size = new Size(400, 450);
+                form.Size = new Size(400, 480);
                 form.StartPosition = FormStartPosition.CenterScreen;
                 form.FormBorderStyle = FormBorderStyle.FixedDialog;
                 form.MaximizeBox = false; form.MinimizeBox = false;
 
                 var lblSearch = new Label { Text = "搜索:", Location = new Point(15, 12), AutoSize = true };
                 var txtSearch = new TextBox { Location = new Point(55, 9), Width = 320 };
-                var lbl1 = new Label { Text = "选择块:", Location = new Point(15, 38), AutoSize = true };
-                var lst = new ListBox { Location = new Point(15, 55), Size = new Size(360, 260) };
+                var lbl1 = new Label { Text = "选择块 (Ctrl/Shift 多选):", Location = new Point(15, 38), AutoSize = true };
+                var lst = new ListBox { Location = new Point(15, 55), Size = new Size(360, 260), SelectionMode = System.Windows.Forms.SelectionMode.MultiExtended };
                 foreach (var name in blockNames) lst.Items.Add(name);
                 if (lst.Items.Count > 0) lst.SelectedIndex = 0;
                 txtSearch.TextChanged += (s2, e2) =>
@@ -849,26 +902,34 @@ newDb.SaveAs(outPath, DwgVersion.Current);
                     if (lst.Items.Count > 0) lst.SelectedIndex = 0;
                 };
 
+                var lblCount = new Label { Text = "已选: 0", Location = new Point(280, 322), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(80, 80, 100) };
+                lst.SelectedIndexChanged += (s2, e2) => { lblCount.Text = "已选: " + lst.SelectedIndices.Count; };
+
                 var lbl2 = new Label { Text = "分类:", Location = new Point(15, 325), AutoSize = true };
                 var cmb = new ComboBox { Location = new Point(15, 345), Width = 200, DropDownStyle = ComboBoxStyle.DropDown };
                 var categories = BlockLibrary.GetCategories().Where(c => c != "全部").ToList();
                 cmb.Items.AddRange(categories.ToArray());
                 if (cmb.Items.Count > 0) cmb.SelectedIndex = 0;
 
-                var btnOk = new Button { Text = "导出", DialogResult = DialogResult.OK, Location = new Point(200, 380) };
-                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(290, 380) };
-                form.Controls.AddRange(new Control[] { lblSearch, txtSearch, lbl1, lst, lbl2, cmb, btnOk, btnCancel });
+                var btnOk = new Button { Text = "导出", DialogResult = DialogResult.OK, Location = new Point(200, 410) };
+                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(290, 410) };
+                form.Controls.AddRange(new Control[] { lblSearch, txtSearch, lbl1, lst, lblCount, lbl2, cmb, btnOk, btnCancel });
                 form.AcceptButton = btnOk; form.CancelButton = btnCancel;
 
-                if (form.ShowDialog() == DialogResult.OK && lst.SelectedItem != null)
+                if (form.ShowDialog() == DialogResult.OK)
                 {
-                    selBlock = lst.SelectedItem.ToString();
+                    foreach (var item in lst.SelectedItems) selectedBlocks.Add(item.ToString());
                     selCategory = cmb.Text.Trim();
                 }
             }
 
-            if (string.IsNullOrEmpty(selBlock) || string.IsNullOrEmpty(selCategory)) { ed.WriteMessage("\n取消。"); return; }
-            BlockLibrary.ExportBlockFromCurrentDrawing(selBlock, selCategory);
+            if (selectedBlocks.Count == 0 || string.IsNullOrEmpty(selCategory)) { ed.WriteMessage("\n取消。"); return; }
+            int ok = 0, fail = 0;
+            foreach (var blk in selectedBlocks)
+            {
+                if (BlockLibrary.ExportBlockFromCurrentDrawing(blk, selCategory)) ok++; else fail++;
+            }
+            ed.WriteMessage(string.Format("\n导出完成: {0} 成功, {1} 失败", ok, fail));
             } catch (System.Exception ex) { ed.WriteMessage("\n导出失败: " + ex.Message); }
         }
         [CommandMethod("KLLQ", CommandFlags.Session)]

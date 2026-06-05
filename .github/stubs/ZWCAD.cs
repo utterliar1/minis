@@ -45,6 +45,7 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public LinetypeTable Linetypes { get; set; }
         public void LoadLineTypeFile(string name, string file) {}
         public void DeepCloneObjects(ObjectIdCollection ids, ObjectId owner, IdMapping mapping, bool b) {}
+        public ObjectId GetObjectId(bool createIfNotFound, Handle handle, long version) { return new ObjectId(); }
         public void Dispose() {}
     }
     public class TransactionManager { public Transaction StartTransaction() { return new Transaction(); } }
@@ -71,6 +72,7 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public override int GetHashCode() { return 0; }
         public static bool operator ==(ObjectId a, ObjectId b) => false;
         public static bool operator !=(ObjectId a, ObjectId b) => true;
+        public bool IsValid { get { return true; } }
     }
     public class ObjectIdCollection : IEnumerable<ObjectId>
     {
@@ -87,6 +89,11 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public bool Contains(ObjectId id) { return false; }
         public IdPair this[ObjectId id] { get { return new IdPair(); } }
         public IEnumerator GetEnumerator() { yield break; }
+    }
+    public struct Handle
+    {
+        public Handle(long value) {}
+        public long Value { get; set; }
     }
     public struct IdPair { public ObjectId Key { get; set; } public ObjectId Value { get; set; } }
     public class BlockTable : DBObject, IEnumerable<ObjectId>

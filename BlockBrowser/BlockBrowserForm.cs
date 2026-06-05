@@ -48,7 +48,7 @@ namespace BlockBrowser
         private void InitializeComponent()
         {
             Text = "块浏览器 v" + BlockLibrary.AppVersion + " - " + BlockLibrary.PlatformName;
-            Size = new Size(1000, 650);
+            Size = new Size(BlockLibrary.FormWidth, BlockLibrary.FormHeight);
             MinimumSize = new Size(700, 450);
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.FromArgb(245, 245, 248);
@@ -262,7 +262,7 @@ namespace BlockBrowser
                     string ck = (block.FilePath ?? "") + "_" + _thumbSize;
                     if (_thumbCache.ContainsKey(ck) && _thumbCache[ck] != null)
                     {
-                        try { card.LoadThumbnail(BlockLibrary.ScaleToSquare(_thumbCache[ck], _thumbSize)); }
+                        try { card.LoadThumbnail(_thumbCache[ck]); }
                         catch { _thumbCache.Remove(ck); }
                     }
                     newCards.Add(card);
@@ -324,10 +324,12 @@ namespace BlockBrowser
                     var img = BlockLibrary.GetThumbnail(card.Block, _thumbSize);
                     if (img != null)
                     {
-                        card.LoadThumbnail(img);
                         string ck = (card.Block.FilePath ?? "") + "_" + _thumbSize;
                         if (!_thumbCache.ContainsKey(ck))
-                            _thumbCache[ck] = new Bitmap(img);
+                            _thumbCache[ck] = img;
+                        else
+                            img.Dispose();
+                        card.LoadThumbnail(new Bitmap(_thumbCache[ck]));
                     }
                 }
                 catch { _failCount++; }
@@ -635,6 +637,12 @@ namespace BlockBrowser
                 _thumbCache.Clear();
                 foreach (var card in _cards) { try { card.Dispose(); } catch { } }
             }
+                if (this.WindowState == FormWindowState.Normal)
+                {
+                    BlockLibrary.FormWidth = this.Width;
+                    BlockLibrary.FormHeight = this.Height;
+                    BlockLibrary.SaveConfig();
+                }
             base.Dispose(disposing);
         }
     }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -7,14 +7,25 @@ namespace BlockBrowser
     public class BlockThumbnailCard : UserControl
     {
         public BlockInfo Block { get; private set; }
-        public bool IsSelected { get; set; }
         public event EventHandler<BlockInfo> BlockDoubleClicked;
         public event EventHandler<BlockInfo> BlockClicked;
 
         private PictureBox _pic;
         private Label _lbl;
+        private Panel _panel;
         private ToolTip _tip;
         private bool _hover;
+        private bool _selected;
+
+        public bool IsSelected
+        {
+            get { return _selected; }
+            set
+            {
+                _selected = value;
+                UpdateVisual();
+            }
+        }
 
         public BlockThumbnailCard(BlockInfo block, int thumbSize)
         {
@@ -23,13 +34,15 @@ namespace BlockBrowser
             int ch = thumbSize + 30;
             Size = new Size(cw, ch);
             Margin = new Padding(4);
+            Padding = new Padding(2);
             Cursor = Cursors.Hand;
             DoubleBuffered = true;
+            BackColor = Color.FromArgb(210, 215, 220);
 
             _tip = new ToolTip();
             _tip.SetToolTip(this, block.Name + "\n" + block.Category);
 
-            var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(3), BackColor = Color.FromArgb(245, 247, 250) };
+            _panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(3), BackColor = Color.FromArgb(245, 247, 250) };
 
             _pic = new PictureBox
             {
@@ -48,15 +61,34 @@ namespace BlockBrowser
                 Padding = new Padding(0, 2, 0, 0)
             };
 
-            panel.Controls.Add(_lbl);
-            panel.Controls.Add(_pic);
-            Controls.Add(panel);
+            _panel.Controls.Add(_lbl);
+            _panel.Controls.Add(_pic);
+            Controls.Add(_panel);
 
             EventHandler onClick = (s, e) => { if (BlockClicked != null) BlockClicked(this, Block); };
             EventHandler onDbl = (s, e) => { if (BlockDoubleClicked != null) BlockDoubleClicked(this, Block); };
             _pic.Click += onClick; _pic.DoubleClick += onDbl;
             _lbl.Click += onClick; _lbl.DoubleClick += onDbl;
             Click += onClick; DoubleClick += onDbl;
+        }
+
+        private void UpdateVisual()
+        {
+            if (_selected)
+            {
+                BackColor = Color.FromArgb(50, 110, 190);
+                _panel.BackColor = Color.FromArgb(215, 228, 248);
+            }
+            else if (_hover)
+            {
+                BackColor = Color.FromArgb(130, 170, 220);
+                _panel.BackColor = Color.FromArgb(230, 238, 248);
+            }
+            else
+            {
+                BackColor = Color.FromArgb(210, 215, 220);
+                _panel.BackColor = Color.FromArgb(245, 247, 250);
+            }
         }
 
         public void LoadThumbnail(Image img)
@@ -83,17 +115,8 @@ namespace BlockBrowser
             _tip.SetToolTip(this, newName + "\n" + Block.Category);
         }
 
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            base.OnPaint(e);
-            Color c = IsSelected ? Color.FromArgb(60, 120, 200) : _hover ? Color.FromArgb(130, 170, 220) : Color.FromArgb(210, 215, 220);
-            int w = IsSelected ? 2 : 1;
-            using (var p = new Pen(c, w))
-                e.Graphics.DrawRectangle(p, w / 2, w / 2, Width - w, Height - w);
-        }
-
-        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; Invalidate(); }
-        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; Invalidate(); }
+        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; UpdateVisual(); }
+        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; UpdateVisual(); }
 
         protected override void Dispose(bool disposing)
         {
