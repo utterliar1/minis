@@ -65,6 +65,7 @@ namespace CadToolkit
     public class CadCommands
     {
         static bool _initDone;
+        static ObjectId[] _pendingSelection;
         static void EnsureInit()
         {
             if (_initDone) return;
@@ -118,7 +119,25 @@ namespace CadToolkit
             return true;
         }
 
-        [CommandMethod("CC")]
+        static PromptSelectionResult GetPendingOrSelection()
+        {
+            if (_pendingSelection != null && _pendingSelection.Length > 0)
+            {
+                var ids = _pendingSelection;
+                _pendingSelection = null;
+                Ed.SetImpliedSelection(ids);
+                var result = Ed.SelectImplied();
+                if (result.Status == PromptStatus.OK && result.Value != null && result.Value.Count > 0)
+                    return result;
+            }
+            var psr = Ed.SelectImplied();
+            if (psr.Status == PromptStatus.OK && psr.Value != null && psr.Value.Count > 0)
+                return psr;
+            return Ed.GetSelection();
+        }
+
+
+        [CommandMethod("CT_PANEL")]
         public void ShowPanel()
         {
             EnsureInit();
@@ -255,6 +274,36 @@ namespace CadToolkit
             bar.Controls.Add(btnManage);
             f.Controls.Add(bar);
 
+            if (!CheckDoc()) return;
+            // Read pickfirst handles from file (saved by LISP CC wrapper)
+            _pendingSelection = null;
+            try
+            {
+                string _pfPath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(typeof(CadCommands).Assembly.Location), "..", "pickfirst.txt");
+                if (System.IO.File.Exists(_pfPath))
+                {
+                    string _handleStr = System.IO.File.ReadAllText(_pfPath).Trim();
+                    try { System.IO.File.Delete(_pfPath); } catch {}
+                    if (!string.IsNullOrEmpty(_handleStr))
+                    {
+                        string[] _handles = _handleStr.Split(new char[] { ',' });
+                        var _ids = new System.Collections.Generic.List<ObjectId>();
+                        foreach (string _h in _handles)
+                        {
+                            try
+                            {
+                                long _val = long.Parse(_h.Trim(), System.Globalization.NumberStyles.HexNumber);
+                                ObjectId _oid = Db.GetObjectId(false, new Handle(_val), 0);
+                                if (_oid.IsValid) _ids.Add(_oid);
+                            }
+                            catch { }
+                        }
+                        if (_ids.Count > 0) _pendingSelection = _ids.ToArray();
+                    }
+                }
+            }
+            catch { }
+
             f.ShowDialog();
             f.Dispose();
 
@@ -342,9 +391,7 @@ namespace CadToolkit
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            // try pre-selection first, fall back to interactive selection
-            var psr = Ed.SelectImplied();
-            if (psr.Status != PromptStatus.OK || psr.Value == null || psr.Value.Count == 0) { psr = Ed.GetSelection(); }
+            var psr = GetPendingOrSelection();
             if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
             using (var dlg = new AlignDialog())
             {
@@ -405,7 +452,8 @@ namespace CadToolkit
                         if (h == 1) nx = baseX - tw / 2.0;
                         else if (h == 2) nx = baseX - tw;
                         double ny = baseY - i * spacing;
-                        dt.Position = new Point3d(nx, ny, 0);
+                        dt.UpgradeOpen();
+                dt.Position = new Point3d(nx, ny, 0);
                     }
                     tr.Commit();
                 }
@@ -417,9 +465,7 @@ namespace CadToolkit
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            // try pre-selection first, fall back to interactive selection
-            var psr = Ed.SelectImplied();
-            if (psr.Status != PromptStatus.OK || psr.Value == null || psr.Value.Count == 0) { psr = Ed.GetSelection(); }
+            var psr = GetPendingOrSelection();
             if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672A\u9009\u62E9\u5BF9\u8C61\u3002"); return; }
             bool keep = Config.KeepOriginal;
             int count = 0;
@@ -438,6 +484,7 @@ namespace CadToolkit
                     mt.Rotation = dt.Rotation;
                     mt.Layer = dt.Layer;
                     mt.Color = dt.Color;
+                    mt.TextStyleId = dt.TextStyleId;
                     msBtr.AppendEntity(mt);
                     tr.AddNewlyCreatedDBObject(mt, true);
                     if (!keep) { dt.UpgradeOpen(); dt.Erase(); }
@@ -499,9 +546,7 @@ namespace CadToolkit
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            // try pre-selection first, fall back to interactive selection
-            var psr = Ed.SelectImplied();
-            if (psr.Status != PromptStatus.OK || psr.Value == null || psr.Value.Count == 0) { psr = Ed.GetSelection(); }
+            var psr = GetPendingOrSelection();
             if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672A\u9009\u62E9\u5BF9\u8C61\u3002"); return; }
             var ppr = Ed.GetPoint("\n\u6307\u5B9A\u5757\u57FA\u70B9\uFF1A");
             if (ppr.Status != PromptStatus.OK) return;
@@ -542,9 +587,7 @@ namespace CadToolkit
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            // try pre-selection first, fall back to interactive selection
-            var psr = Ed.SelectImplied();
-            if (psr.Status != PromptStatus.OK || psr.Value == null || psr.Value.Count == 0) { psr = Ed.GetSelection(); }
+            var psr = GetPendingOrSelection();
             if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
             int count = 0;
             using (var tr = Db.TransactionManager.StartTransaction())
@@ -569,12 +612,17 @@ namespace CadToolkit
                         if (btrId.IsValid)
                         {
                             count += SetBlockLayer0(tr, btrId);
+                        br.UpgradeOpen();
+                        br.Layer = "0";
+                        br.ColorIndex = 256;
+                        count++;
                         }
                     }
                     else
                     {
                         ent.UpgradeOpen();
                         ent.Layer = "0";
+                        ent.ColorIndex = 256;
                         count++;
                     }
                 }
@@ -604,7 +652,7 @@ namespace CadToolkit
                 {
                     ent.UpgradeOpen();
                     ent.Layer = "0";
-                    count++;
+                    ent.ColorIndex = 256;
                 }
             }
             return count;
@@ -614,9 +662,7 @@ namespace CadToolkit
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            // try pre-selection first, fall back to interactive selection
-            var psr = Ed.SelectImplied();
-            if (psr.Status != PromptStatus.OK || psr.Value == null || psr.Value.Count == 0) { psr = Ed.GetSelection(); }
+            var psr = GetPendingOrSelection();
             if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
 
             // try load CENTER linetype
@@ -627,7 +673,20 @@ namespace CadToolkit
                 if (lt.Has("CENTER")) { ltName = "CENTER"; }
                 else
                 {
-                    try { Db.LoadLineTypeFile("CENTER", "acad.lin"); ltName = "CENTER"; } catch { }
+                    try
+                    {
+#if AUTOCAD
+                        Db.LoadLineTypeFile("CENTER", "acad.lin");
+#elif ZWCAD
+                        Db.LoadLineTypeFile("CENTER", "zwcad.lin");
+#elif GSTARCAD
+                        Db.LoadLineTypeFile("CENTER", "gcad.lin");
+#else
+                        Db.LoadLineTypeFile("CENTER", "acad.lin");
+#endif
+                        ltName = "CENTER";
+                    }
+                    catch { }
                 }
                 tr.Commit();
             }
@@ -694,6 +753,7 @@ namespace CadToolkit
                     var l1 = new Line(
                         new Point3d(center.X - halfX, center.Y, 0),
                         new Point3d(center.X + halfX, center.Y, 0));
+                    l1.UpgradeOpen();
                     l1.Layer = "0";
                     l1.ColorIndex = 1;
                     try { l1.Linetype = ltName; } catch { }
@@ -705,6 +765,7 @@ namespace CadToolkit
                     var l2 = new Line(
                         new Point3d(center.X, center.Y - halfY, 0),
                         new Point3d(center.X, center.Y + halfY, 0));
+                    l2.UpgradeOpen();
                     l2.Layer = "0";
                     l2.ColorIndex = 1;
                     try { l2.Linetype = ltName; } catch { }
@@ -833,8 +894,8 @@ namespace CadToolkit
                 foreach (ObjectId id in psr.Value.GetObjectIds())
                 {
                     var ent = tr.GetObject(id, OpenMode.ForWrite);
-                    if (ent is DBText) { var dt = (DBText)ent; dt.Layer = srcLayer; dt.ColorIndex = srcColor; dt.Height = srcHeight; dt.TextStyleId = GetTextStyleId(tr, srcStyle); count++; }
-                    else if (ent is MText) { var mt = (MText)ent; mt.Layer = srcLayer; mt.ColorIndex = srcColor; mt.TextHeight = srcHeight; mt.TextStyleId = GetTextStyleId(tr, srcStyle); count++; }
+                    if (ent is DBText) { var dt = (DBText)ent; dt.UpgradeOpen(); dt.Layer = srcLayer; dt.ColorIndex = srcColor; dt.Height = srcHeight; dt.TextStyleId = GetTextStyleId(tr, srcStyle); count++; }
+                    else if (ent is MText) { var mt = (MText)ent; mt.UpgradeOpen(); mt.Layer = srcLayer; mt.ColorIndex = srcColor; mt.TextHeight = srcHeight; mt.TextStyleId = GetTextStyleId(tr, srcStyle); count++; }
                 }
                 tr.Commit();
             }
@@ -955,13 +1016,13 @@ namespace CadToolkit
                     string numStr = prefix + (startNum + i).ToString() + suffix;
                     if (chkReplace.Checked)
                     {
-                        if (ent is DBText) { ((DBText)ent).TextString = numStr; count++; }
-                        else if (ent is MText) { ((MText)ent).Contents = numStr; count++; }
+                        if (ent is DBText) { var _dt = (DBText)ent; _dt.UpgradeOpen(); _dt.TextString = numStr; count++; }
+                        else if (ent is MText) { var _mt = (MText)ent; _mt.UpgradeOpen(); _mt.Contents = numStr; count++; }
                     }
                     else
                     {
-                        if (ent is DBText) { ((DBText)ent).TextString = numStr + ((DBText)ent).TextString; count++; }
-                        else if (ent is MText) { ((MText)ent).Contents = numStr + ((MText)ent).Contents; count++; }
+                        if (ent is DBText) { var _dt2 = (DBText)ent; _dt2.UpgradeOpen(); _dt2.TextString = numStr + _dt2.TextString; count++; }
+                        else if (ent is MText) { var _mt2 = (MText)ent; _mt2.UpgradeOpen(); _mt2.Contents = numStr + _mt2.Contents; count++; }
                     }
                 }
                 tr.Commit();

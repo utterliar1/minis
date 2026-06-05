@@ -19,13 +19,51 @@
         (T "gcad")
       )
     )
-    (setq _ct-dll (strcat _ct-dir "\\" _ct-plat "\\CadToolkit.dll"))
-    (if (vl-file-systime _ct-dll)
-      (vl-cmdf "NETLOAD" _ct-dll)
-      (princ (strcat "\n[CadToolkit] Not found: " _ct-dll))
+    (if _ct-plat
+      (progn
+        (setq _ct-dll (strcat _ct-dir "\\" _ct-plat "\\CadToolkit.dll"))
+        (if (vl-file-systime _ct-dll)
+          (progn
+            (vl-cmdf "NETLOAD" _ct-dll)
+            (princ (strcat "\n[CadToolkit] loaded from " _ct-dll))
+          )
+          (princ (strcat "\n[CadToolkit] Not found: " _ct-dll))
+        )
+      )
     )
   )
   (princ "\n[CadToolkit] Not found on C:\\ or D:\\")
 )
+
+(defun c:CC (/ ss i f handleStr oldCmdEcho)
+  (setq oldCmdEcho (getvar "CMDECHO"))
+  (setvar "CMDECHO" 0)
+  (setq ss (ssget "_I"))
+  (if ss
+    (progn
+      (setq handleStr "")
+      (setq i 0)
+      (repeat (sslength ss)
+        (if (> i 0) (setq handleStr (strcat handleStr ",")))
+        (setq handleStr (strcat handleStr
+          (cdr (assoc 5 (entget (ssname ss i))))))
+        (setq i (1+ i))
+      )
+      (setq f (open (strcat _ct-dir "\\pickfirst.txt") "w"))
+      (if f
+        (progn (write-line handleStr f) (close f))
+        (princ "\n[CadToolkit] Cannot write pickfirst.txt")
+      )
+    )
+    (if (findfile (strcat _ct-dir "\\pickfirst.txt"))
+      (vl-file-delete (strcat _ct-dir "\\pickfirst.txt"))
+    )
+  )
+  (setvar "CMDECHO" oldCmdEcho)
+  (vl-cmdf "CT_PANEL")
+  (princ)
+)
+
+(defun c:CT () (c:CC))
 
 (princ)
