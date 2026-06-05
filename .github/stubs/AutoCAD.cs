@@ -71,6 +71,7 @@ namespace Autodesk.AutoCAD.DatabaseServices
         public override int GetHashCode() { return 0; }
         public static bool operator ==(ObjectId a, ObjectId b) => false;
         public static bool operator !=(ObjectId a, ObjectId b) => true;
+        public bool IsValid { get { return true; } }
     }
     public class ObjectIdCollection : IEnumerable<ObjectId>
     {
