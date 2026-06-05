@@ -163,6 +163,7 @@ namespace GrxCAD.DatabaseServices
         public TextHorizontalMode HorizontalMode { get; set; }
         public TextVerticalMode VerticalMode { get; set; }
         public Geometry.Point3d AlignmentPoint { get; set; }
+        public string TextStyleName { get; set; }
     }
     public enum AttachmentPoint { TopLeft, TopCenter, TopRight, MiddleLeft, MiddleCenter, MiddleRight, BottomLeft, BottomCenter, BottomRight, BaseLeft, BaseCenter, BaseRight, BaseAlign, BaseFit, BaseMid, BaseStart, BaseEnd }
     public class MText : Entity
@@ -174,6 +175,7 @@ namespace GrxCAD.DatabaseServices
         public double Width { get; set; }
         public double Rotation { get; set; }
         public AttachmentPoint Attachment { get; set; }
+        public string TextStyleName { get; set; }
     }
     public class AttributeReference : Entity
     {
@@ -233,17 +235,26 @@ namespace GrxCAD.DatabaseServices
         public Line() {}
         public Line(Geometry.Point3d start, Geometry.Point3d end) {}
         public Geometry.Point3d StartPoint { get; set; }
-        public Geometry.Point3d EndPoint { get; set; }
+        
+        public double LinetypeScale { get; set; }
     }
     public class Polyline : Entity
     {
         public Polyline() {}
+        public bool Closed { get; set; }
         public int NumberOfVertices { get; }
         public Geometry.Point3d GetPoint3dAt(int index) { return new Geometry.Point3d(); }
         public void AddVertexAt(int index, Geometry.Point2d pt, double bulge, double startWidth, double endWidth) {}
         public void SetDatabaseDefaults() {}
     }
     public class Solid3d : Entity
+    {
+        public void CreateBox(double x, double y, double z) {}
+    }
+    public class Hatch : Entity
+    {
+        public string PatternName { get; set; }
+    }
     {
         public void CreateBox(double x, double y, double z) {}
     }
@@ -285,6 +296,11 @@ namespace GrxCAD.EditorInput
     public class PromptEntityOptions
     {
         public PromptEntityOptions(string msg) {}
+        public string Message { get; set; }
+        public bool AllowNone { get; set; }
+        public void SetRejectMessage(string msg) {}
+        public void AddAllowedClass(Type type, bool exactMatch) {}
+    }
         public string Message { get; set; }
         public bool AllowNone { get; set; }
     }
@@ -343,6 +359,7 @@ namespace GrxCAD.Geometry
         public double X { get; set; }
         public double Y { get; set; }
         public double Z { get; set; }
+        public static Point3d Origin { get { return new Point3d(0,0,0); } }
     }
     public struct Vector3d
     {
