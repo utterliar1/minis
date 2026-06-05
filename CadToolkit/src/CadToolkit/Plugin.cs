@@ -609,7 +609,6 @@ namespace CadToolkit
             }
             return count;
         }
-        [CommandMethod("CT_SETLAYER0")]
         [CommandMethod("CT_CENTERLINE")]
         public void DrawCenterLine()
         {
