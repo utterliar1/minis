@@ -1,4 +1,4 @@
-// AutoCAD API stubs for CI compilation
+﻿// AutoCAD API stubs for CI compilation
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -17,6 +17,7 @@ namespace Autodesk.AutoCAD.ApplicationServices
     {
         public static DocumentManager DocumentManager { get; set; }
         public static void ShowModalDialog(System.Windows.Forms.Form form) {}
+    public static event System.EventHandler Idle;
     }
     public class DocumentManager { public Document MdiActiveDocument { get; set; } }
     public class Document

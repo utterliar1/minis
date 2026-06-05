@@ -1,4 +1,4 @@
-// GstarCAD API stubs for CI compilation
+﻿// GstarCAD API stubs for CI compilation
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -16,6 +16,7 @@ namespace GrxCAD.ApplicationServices
     public static class Application
     {
         public static DocumentManager DocumentManager { get; set; }
+    public static event System.EventHandler Idle;
     }
     public class DocumentManager { public Document MdiActiveDocument { get; set; } }
     public class Document
