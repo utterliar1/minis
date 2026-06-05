@@ -265,7 +265,7 @@ namespace ZwSoft.ZwCAD.EditorInput
         public PromptSelectionResult GetSelection() { return new PromptSelectionResult(); }
         public PromptSelectionResult GetSelection(SelectionFilter filter) { return new PromptSelectionResult(); }
         public PromptSelectionResult SelectImplied() { return new PromptSelectionResult(); }
-        public void SetImpliedSelection(ObjectId[] ids) {}
+        public void SetImpliedSelection(DatabaseServices.ObjectId[] ids) {}
         public PromptEntityResult GetEntity(string msg) { return new PromptEntityResult(); }
         public PromptEntityResult GetEntity(PromptEntityOptions opts) { return new PromptEntityResult(); }
         public PromptStringResult GetString(string msg) { return new PromptStringResult(); }
