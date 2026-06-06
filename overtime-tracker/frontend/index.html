@@ -148,19 +148,16 @@
 <div class="auth-screen" id="auth-screen">
   <div class="auth-card">
     <div class="auth-logo"><div class="icon">⏱</div><h2>考勤助手</h2><p>GPS定位 · 团队管理 · 自动计算</p></div>
-    <div class="auth-tabs">
+    <div class="auth-tabs" id="auth-tabs">
       <button class="auth-tab active" onclick="switchAuthTab('login')">登录</button>
-      <button class="auth-tab" onclick="switchAuthTab('register')">注册</button>
+      <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">注册</button>
     </div>
     <div class="auth-form active" id="form-login">
       <div class="auth-field"><label>用户名</label><input type="text" id="login-user" placeholder="请输入用户名"></div>
       <div class="auth-field"><label>密码</label><input type="password" id="login-pass" placeholder="请输入密码"></div>
       <div class="auth-error" id="login-error"></div>
       <button class="btn btn-primary" onclick="doLogin()">登 录</button>
-      <div style="text-align:center;margin-top:16px;font-size:13px">
-        <a href="使用指南.html" style="color:#4F46E5;text-decoration:underline;margin:0 8px">📋 使用指南</a>
-        <a href="管理员使用指南.html" style="color:#4F46E5;text-decoration:underline;margin:0 8px">🔧 管理员指南</a>
-      </div>
+      <div style="text-align:center;margin-top:16px;font-size:13px" id="guide-links"></div>
     </div>
     <div class="auth-form" id="form-register">
       <div class="auth-field"><label>姓名</label><input type="text" id="reg-name" placeholder="管理员添加的姓名"></div>
@@ -913,6 +910,24 @@ function showModal(html){document.getElementById('modal-body').innerHTML=html;do
 function closeModal(e){if(e.target===document.getElementById('modal'))document.getElementById('modal').classList.remove('show')}
 function closeModalDirect(){document.getElementById('modal').classList.remove('show')}
 function showConfirmModal(title,msg,onOk){showModal(`<div class="modal-title">${title}</div><p style="text-align:center;color:var(--text-sec);margin-bottom:16px;white-space:pre-line">${msg}</p><div class="btn-group"><button class="btn btn-outline" onclick="closeModalDirect()">取消</button><button class="btn btn-primary" id="modal-ok-btn">确认</button></div>`);document.getElementById('modal-ok-btn').onclick=()=>{closeModalDirect();onOk()}}
+
+// ==================== PATH DETECTION ====================
+(function(){
+  const path = window.location.pathname;
+  const isAdminPage = path === '/admin' || path === '/admin/';
+  const guideLinks = document.getElementById('guide-links');
+  if(isAdminPage){
+    // 管理员登录页：隐藏注册 tab，显示管理员指南
+    const tabReg = document.getElementById('tab-register');
+    if(tabReg) tabReg.style.display = 'none';
+    guideLinks.innerHTML = '<a href="使用指南.html" style="color:#4F46E5;text-decoration:underline;margin:0 8px">📋 使用指南</a><a href="管理员使用指南.html" style="color:#4F46E5;text-decoration:underline;margin:0 8px">🔧 管理员指南</a>';
+  } else {
+    // 成员登录页：隐藏注册 tab（需要管理员邀请），显示使用指南
+    const tabReg = document.getElementById('tab-register');
+    if(tabReg) tabReg.style.display = 'none';
+    guideLinks.innerHTML = '<a href="使用指南.html" style="color:#4F46E5;text-decoration:underline;margin:0 8px">📋 使用指南</a>';
+  }
+})();
 
 if(token&&currentUser)enterApp();
 
