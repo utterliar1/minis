@@ -113,6 +113,7 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public void Add(BlockTableRecord btr) {}
         public bool Has(string name) { return false; }
         public ObjectId this[string name] => new ObjectId();
+        public ObjectId this[ObjectId id] => new ObjectId();
         public IEnumerator<ObjectId> GetEnumerator() { yield break; }
         IEnumerator IEnumerable.GetEnumerator() { yield break; }
     }
@@ -123,6 +124,7 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public bool HasPreviewIcon { get { return false; } }
         public System.Drawing.Bitmap PreviewIcon { get { return null; } }
         public Geometry.Point3d Origin { get; set; }
+        public static readonly ObjectId ModelSpace = new ObjectId();
         public void AppendEntity(Entity ent) {}
         public IEnumerator<ObjectId> GetEnumerator() { yield break; }
         IEnumerator IEnumerable.GetEnumerator() { yield break; }
@@ -150,6 +152,7 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public Geometry.Point3d Position { get; set; }
         public Geometry.Scale3d ScaleFactors { get; set; }
         public double Rotation { get; set; }
+        public Geometry.Matrix3d BlockTransform { get { return Geometry.Matrix3d.Identity; } }
     }
     public enum TextHorizontalMode { TextLeft, TextCenter, TextRight, TextAlign, TextMid, TextFit }
     public enum TextVerticalMode { TextBase, TextBottom, TextVerticalMid, TextTop }
@@ -228,6 +231,27 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public int NumberOfVertices { get; }
         public Geometry.Point3d GetPoint3dAt(int index) { return new Geometry.Point3d(); }
     }
+    public class Arc : Entity
+    {
+        public Geometry.Point3d Center { get; set; }
+        public double Radius { get; set; }
+        public double StartAngle { get; set; }
+        public double EndAngle { get; set; }
+    }
+    public class Spline : Entity
+    {
+        public Entity ToPolyline() { return null; }
+    }
+    public class Ellipse : Entity
+    {
+        public Geometry.Point3d Center { get; set; }
+        public Geometry.Vector3d MajorAxis { get; set; }
+        public Geometry.Vector3d MinorAxis { get; set; }
+    }
+    public class DBPoint : Entity
+    {
+        public Geometry.Point3d Position { get; set; }
+    }
     public class Hatch : Entity { public string PatternName { get; set; } }
     public class Solid3d : Entity { public void CreateBox(double x, double y, double z) {} }
     public class AlignedDimension : Entity
@@ -283,7 +307,8 @@ namespace ZwSoft.ZwCAD.Geometry
     public struct Point2d { public Point2d(double x, double y) {} public double X { get; set; } public double Y { get; set; } }
     public struct Point3d { public Point3d(double x, double y, double z) {} public double X { get; set; } public double Y { get; set; } public double Z { get; set; } public static Point3d Origin { get { return new Point3d(0,0,0); } }
         public Point3d TransformBy(Matrix3d xf) { return this; } }
-    public struct Vector3d { public Vector3d(double x, double y, double z) {} public double X { get; set; } public double Y { get; set; } public double Z { get; set; } public static Vector3d XAxis { get { return new Vector3d(1,0,0); } } public static Vector3d YAxis { get { return new Vector3d(0,1,0); } } public static Vector3d ZAxis { get { return new Vector3d(0,0,1); } } }
+    public struct Vector3d { public Vector3d(double x, double y, double z) {} public double X { get; set; } public double Y { get; set; } public double Z { get; set; } public static Vector3d XAxis { get { return new Vector3d(1,0,0); } } public static Vector3d YAxis { get { return new Vector3d(0,1,0); } } public static Vector3d ZAxis { get { return new Vector3d(0,0,1); } }
+        public double Length { get { return 0; } } }
     public struct Matrix3d { public static Matrix3d Displacement(Vector3d vec) { return new Matrix3d(); } public static Matrix3d Identity { get { return new Matrix3d(); } }
         public static Matrix3d operator *(Matrix3d a, Matrix3d b) { return new Matrix3d(); } }
     public struct Extents3d { public Extents3d(Point3d min, Point3d max) {} public Point3d MinPoint { get; set; } public Point3d MaxPoint { get; set; } }
