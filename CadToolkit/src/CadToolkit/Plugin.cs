@@ -1158,6 +1158,138 @@ namespace CadToolkit
             }
             Ed.WriteMessage(string.Format("\n\u5df2\u9012\u589e\u590d\u5236 {0} \u6b21\u3002", copyCount));
         }
+
+        // ========== Z轴归零 ==========
+        [CommandMethod("CT_FLATTEN")]
+        public void FlattenZ()
+        {
+            EnsureInit();
+            if (!CheckDoc()) return;
+            var psr = GetPendingOrSelection();
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
+            int count = 0;
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                foreach (ObjectId id in psr.Value.GetObjectIds())
+                {
+                    var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                    if (ent == null) continue;
+                    if (ent is Line)
+                    {
+                        var ln = (Line)ent;
+                        ln.UpgradeOpen();
+                        ln.StartPoint = new Point3d(ln.StartPoint.X, ln.StartPoint.Y, 0);
+                        ln.EndPoint = new Point3d(ln.EndPoint.X, ln.EndPoint.Y, 0);
+                        count++;
+                    }
+                    else if (ent is Circle)
+                    {
+                        var ci = (Circle)ent;
+                        ci.UpgradeOpen();
+                        ci.Center = new Point3d(ci.Center.X, ci.Center.Y, 0);
+                        count++;
+                    }
+                    else if (ent is Arc)
+                    {
+                        var ar = (Arc)ent;
+                        ar.UpgradeOpen();
+                        ar.Center = new Point3d(ar.Center.X, ar.Center.Y, 0);
+                        count++;
+                    }
+                    else if (ent is Polyline)
+                    {
+                        var pl = (Polyline)ent;
+                        pl.UpgradeOpen();
+                        for (int i = 0; i < pl.NumberOfVertices; i++)
+                        {
+                            var pt = pl.GetPoint3dAt(i);
+                            pl.SetPointAt(i, new Point2d(pt.X, pt.Y));
+                        }
+                        pl.Elevation = 0;
+                        count++;
+                    }
+                    else if (ent is Polyline2d)
+                    {
+                        var pl2 = (Polyline2d)ent;
+                        pl2.UpgradeOpen();
+                        pl2.Elevation = 0;
+                        count++;
+                    }
+                    else if (ent is Polyline3d)
+                    {
+                        var pl3 = (Polyline3d)ent;
+                        pl3.UpgradeOpen();
+                        foreach (ObjectId vId in pl3)
+                        {
+                            var v = tr.GetObject(vId, OpenMode.ForWrite) as PolylineVertex3d;
+                            if (v != null)
+                                v.Position = new Point3d(v.Position.X, v.Position.Y, 0);
+                        }
+                        count++;
+                    }
+                    else if (ent is DBText)
+                    {
+                        var dt = (DBText)ent;
+                        dt.UpgradeOpen();
+                        dt.Position = new Point3d(dt.Position.X, dt.Position.Y, 0);
+                        count++;
+                    }
+                    else if (ent is MText)
+                    {
+                        var mt = (MText)ent;
+                        mt.UpgradeOpen();
+                        mt.Location = new Point3d(mt.Location.X, mt.Location.Y, 0);
+                        count++;
+                    }
+                    else if (ent is BlockReference)
+                    {
+                        var br = (BlockReference)ent;
+                        br.UpgradeOpen();
+                        br.Position = new Point3d(br.Position.X, br.Position.Y, 0);
+                        count++;
+                    }
+                    else if (ent is Dimension)
+                    {
+                        var dim = (Dimension)ent;
+                        dim.UpgradeOpen();
+                        dim.TextPosition = new Point3d(dim.TextPosition.X, dim.TextPosition.Y, 0);
+                        count++;
+                    }
+                    else if (ent is Spline)
+                    {
+                        var sp = (Spline)ent;
+                        sp.UpgradeOpen();
+                        var pts = new Point3dCollection();
+                        for (int i = 0; i < sp.NumControlPoints; i++)
+                        {
+                            var cp = sp.GetControlPointAt(i);
+                            pts.Add(new Point3d(cp.X, cp.Y, 0));
+                        }
+                        for (int i = 0; i < sp.NumControlPoints; i++)
+                            sp.SetControlPointAt(i, pts[i]);
+                        count++;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var ext = ent.GeometricExtents;
+                            if (ext.MinPoint.Z != 0 || ext.MaxPoint.Z != 0)
+                            {
+                                double dz = 0 - (ext.MinPoint.Z + ext.MaxPoint.Z) / 2.0;
+                                var xf = Matrix3d.Displacement(new Vector3d(0, 0, dz));
+                                ent.UpgradeOpen();
+                                ent.TransformBy(xf);
+                                count++;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                tr.Commit();
+            }
+            Ed.WriteMessage(string.Format("\n已将 {0} 个对象 Z 轴归零。", count));
+        }
     }
 }
 

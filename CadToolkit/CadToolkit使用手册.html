@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CadToolkit v1.22 - 使用手册</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:#F8FAFC;color:#1E293B;line-height:1.8;padding:16px}
+  .container{max-width:720px;margin:0 auto}
+  .header{background:linear-gradient(135deg,#1E40AF,#3B82F6);color:#fff;border-radius:16px;padding:32px 24px;text-align:center;margin-bottom:20px}
+  .header h1{font-size:26px;font-weight:800;letter-spacing:1px}
+  .header p{font-size:14px;opacity:0.85;margin-top:6px}
+  .header .tags{margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  .header .tag{background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:20px;font-size:12px}
+  .card{background:#fff;border-radius:12px;padding:20px 24px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+  .card h2{font-size:17px;font-weight:700;margin-bottom:14px;color:#1E40AF;display:flex;align-items:center;gap:8px}
+  .card h3{font-size:15px;font-weight:600;margin:16px 0 8px;color:#334155}
+  .card p,.card li{font-size:14px;color:#475569}
+  .card ul,.card ol{padding-left:20px;margin:6px 0}
+  .card li{margin-bottom:4px}
+  .step{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start}
+  .step-num{width:26px;height:26px;background:#1E40AF;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;margin-top:2px}
+  .step-text{flex:1;font-size:14px}
+  .step-text strong{color:#1E293B}
+  .tip{background:#EFF6FF;border-left:4px solid #3B82F6;padding:10px 14px;border-radius:0 8px 8px 0;margin:10px 0;font-size:13px;color:#1E40AF}
+  .warn{background:#FEF3C7;border-left:4px solid #F59E0B;padding:10px 14px;border-radius:0 8px 8px 0;margin:10px 0;font-size:13px;color:#92400E}
+  code{background:#F1F5F9;padding:2px 6px;border-radius:4px;font-size:13px;font-family:'Cascadia Code','Fira Code',monospace;color:#BE185D}
+  pre{background:#1E293B;color:#E2E8F0;padding:14px;border-radius:8px;font-size:13px;overflow-x:auto;margin:8px 0;font-family:'Cascadia Code','Fira Code',monospace;line-height:1.6}
+  pre .comment{color:#64748B}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+  th,td{padding:8px 10px;border:1px solid #E2E8F0;text-align:left}
+  th{background:#F8FAFC;font-weight:600;color:#64748B;white-space:nowrap}
+  td code{font-size:12px}
+  .cmd-tag{display:inline-block;background:#EFF6FF;color:#1E40AF;padding:1px 6px;border-radius:4px;font-size:12px;font-weight:600;font-family:monospace}
+  .group-badge{display:inline-block;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:600;margin-bottom:10px}
+  .badge-text{background:#DBEAFE;color:#1E40AF}
+  .badge-layer{background:#D1FAE5;color:#059669}
+  .badge-block{background:#FDE68A;color:#92400E}
+  .badge-draw{background:#E0E7FF;color:#4338CA}
+  .divider{height:1px;background:#E2E8F0;margin:20px 0}
+  .q{font-weight:600;margin-top:14px;font-size:14px;color:#1E293B}
+  .a{font-size:13px;color:#64748B;margin-bottom:10px}
+  .footer{text-align:center;padding:16px;color:#94A3B8;font-size:12px}
+  .feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+  .feature-item{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px 12px;font-size:13px}
+  .feature-item .name{font-weight:600;color:#1E293B}
+  .feature-item .desc{color:#64748B;font-size:12px;margin-top:2px}
+  @media print{body{background:#fff;padding:0}.card{box-shadow:none;border:1px solid #E2E8F0;break-inside:avoid}}
+  @media(max-width:480px){.feature-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>⚙️ CadToolkit</h1>
+  <p>AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱</p>
+  <div class="tags">
+    <span class="tag">v1.22</span>
+    <span class="tag">17 个内置命令</span>
+    <span class="tag">无限自定义</span>
+  </div>
+</div>
+
+<!-- 安装 -->
+<div class="card">
+  <h2>📦 安装方法</h2>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text"><strong>解压文件夹</strong><br>将 <code>CadToolkit</code> 文件夹解压到 <code>C:\CadToolkit</code>（或任意位置）</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text"><strong>加载插件</strong><br>在 CAD 命令行输入：<br><pre>(load "C:/CadToolkit/autoload.lsp")</pre>看到 <code>CadToolkit v1.22 已就绪</code> 提示即成功</div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text"><strong>开始使用</strong><br>输入 <code>CC</code> 呼出工具面板，点击按钮执行命令</div>
+  </div>
+  <div class="tip">💡 <strong>推荐：</strong>将 <code>(load "C:/CadToolkit/autoload.lsp")</code> 添加到 CAD 启动组，每次打开 CAD 自动加载，直接输入 CC 即可。</div>
+</div>
+
+<!-- 基本操作 -->
+<div class="card">
+  <h2>📝 基本操作</h2>
+  <h3>打开面板</h3>
+  <p>命令行输入 <code>CC</code>，弹出分组工具面板。</p>
+  <h3>关闭面板</h3>
+  <ul>
+    <li>按 <code>ESC</code> 键</li>
+    <li>点击右上角 <code>X</code></li>
+  </ul>
+  <h3>预选模式</h3>
+  <p>先在图线中选中对象，再输入 <code>CC</code> 打开面板点击命令，选中的对象会自动作为命令的操作对象。</p>
+  <h3>两种执行方式</h3>
+  <ul>
+    <li><strong>面板点击</strong>：输入 <code>CC</code> → 点击按钮</li>
+    <li><strong>命令行</strong>：直接输入命令名（如 <code>CT_ALIGN</code>）</li>
+  </ul>
+</div>
+
+<!-- 文字编辑 -->
+<div class="card">
+  <h2>✍️ 文字编辑</h2>
+  <span class="group-badge badge-text">6 个命令</span>
+
+  <h3>查找替换 <span class="cmd-tag">CT_FINDREPLACE</span></h3>
+  <p>批量替换图线中的文字内容。</p>
+  <ul>
+    <li>支持单行文字、多行文字、块属性文字</li>
+    <li>支持块定义内部的文字替换</li>
+    <li>可选忽略大小写</li>
+  </ul>
+
+  <h3>文字对齐 <span class="cmd-tag">CT_ALIGN</span></h3>
+  <p>将多个单行文字整齐排列。</p>
+  <ul>
+    <li><strong>水平方向</strong>：左对齐 / 居中 / 右对齐</li>
+    <li><strong>基点方式</strong>：第一个选中文字 / 手动指定</li>
+    <li><strong>行距</strong>：自动（根据字高计算）/ 手动输入</li>
+    <li>对齐设置自动保存，下次使用自动恢复</li>
+  </ul>
+
+  <h3>加下划线 <span class="cmd-tag">CT_UNDERLINE</span></h3>
+  <p>将单行文字转换为带下划线的多行文字，保持原始内容和位置不变。</p>
+
+  <h3>格式复制 <span class="cmd-tag">CT_TEXTBRUSH</span></h3>
+  <p>文字格式刷。选择源文字获取格式（图层、颜色、字高、字体），再选择目标文字一键应用。</p>
+
+  <h3>文字合并 <span class="cmd-tag">CT_TEXTMERGE</span></h3>
+  <p>将多个文字按从上到下的顺序合并为一个多行文字。字高自动继承源文字。</p>
+
+  <h3>文字编号 <span class="cmd-tag">CT_TEXTNUMBER</span></h3>
+  <p>为选中的文字添加顺序编号。</p>
+  <ul>
+    <li><strong>追加模式</strong>：在原文字后加编号（如「房间」→「房间1」「房间2」）</li>
+    <li><strong>替换模式</strong>：用编号替换原文字（如「任意文字」→「1」「2」「3」）</li>
+    <li>可自定义前缀、后缀、起始编号</li>
+  </ul>
+</div>
+
+<!-- 图层管理 -->
+<div class="card">
+  <h2>👻 图层管理</h2>
+  <span class="group-badge badge-layer">5 个命令</span>
+
+  <h3>图层归零 <span class="cmd-tag">CT_SETLAYER0</span></h3>
+  <p>将选中对象全部移到图层 0，快速清理杂乱图层。</p>
+  <ul>
+    <li>递归处理块定义内部对象</li>
+    <li>颜色同时改为随层</li>
+  </ul>
+
+  <h3>孤立图层 <span class="cmd-tag">CT_ISOLAYER</span></h3>
+  <p>选中一个对象，冻结除该对象所在图层以外的所有图层。再次执行可恢复。</p>
+
+  <h3>按层选择 <span class="cmd-tag">CT_SELECTBYLAYER</span></h3>
+  <p>选中一个对象，自动选中同图层的所有对象。</p>
+
+  <h3>按色选择 <span class="cmd-tag">CT_SELECTBYCOLOR</span></h3>
+  <p>选中一个对象，自动选中同颜色的所有对象。</p>
+
+  <h3>按块选择 <span class="cmd-tag">CT_SELECTBYBLOCK</span></h3>
+  <p>选中一个块参照，自动选中图线中所有同名块参照。</p>
+</div>
+
+<!-- 图块操作 -->
+<div class="card">
+  <h2>🧱 图块操作</h2>
+  <span class="group-badge badge-block">2 个命令</span>
+
+  <h3>重命名块 <span class="cmd-tag">CT_RENAMEBLOCK</span></h3>
+  <p>点选一个块参照，自动识别块名，在弹窗中输入新名称完成重命名。</p>
+
+  <h3>快捷建块 <span class="cmd-tag">CT_QUICKBLOCK</span></h3>
+  <p>选择对象 → 指定基点 → 自动创建块。</p>
+  <ul>
+    <li>块名自动生成：前缀 + 递增编号（如 BK001、BK002）</li>
+    <li>可配置是否删除原对象</li>
+  </ul>
+</div>
+
+<!-- 绘图标注 -->
+<div class="card">
+  <h2>🖊️ 绘图标注</h2>
+  <span class="group-badge badge-draw">4 个命令</span>
+
+  <h3>画中心线 <span class="cmd-tag">CT_CENTERLINE</span></h3>
+  <p>为选中的圆和矩形自动绘制中心线。</p>
+  <ul>
+    <li>图层：0，颜色：红色，线型：CENTER（自动加载）</li>
+    <li>长度按图形尺寸自动延伸</li>
+  </ul>
+
+  <h3>快速标注 <span class="cmd-tag">CT_QUICKDIM</span></h3>
+  <p>选中对象后自动计算包围盒，一键创建水平 + 垂直两个方向的尺寸标注。</p>
+
+  <h3>递增复制 <span class="cmd-tag">CT_INCCOPY</span></h3>
+  <p>选中含编号的对象，连续指定复制位置，每次复制自动递增编号。</p>
+  <ul>
+    <li>识别尾部数字自动递增（A001 → A002 → A003）</li>
+    <li>回车结束</li>
+  </ul>
+
+  <h3>Z轴归零 <span class="cmd-tag">CT_FLATTEN</span></h3>
+  <p>将选中对象的 Z 坐标全部归零，将 3D 对象压平到 XY 平面。</p>
+  <ul>
+    <li>支持：直线、圆、圆弧、多段线、三维多段线、文字、块参照、标注、样条曲线</li>
+    <li>其他对象通过包围盒位移归零</li>
+  </ul>
+</div>
+
+<!-- 配置 -->
+<div class="card">
+  <h2>⚙️ 配置文件</h2>
+  <p><code>CadToolkit.ini</code> 与插件放在同一目录，随插件一起迁移。</p>
+  <table>
+    <tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
+    <tr><td><code>QuickBlockPrefix</code></td><td>快捷建块前缀</td><td>BK</td></tr>
+    <tr><td><code>DeleteOriginal</code></td><td>建块后删除原对象</td><td>true</td></tr>
+    <tr><td><code>KeepOriginal</code></td><td>加下划线时保留原文字</td><td>false</td></tr>
+    <tr><td><code>AlignHorizontal</code></td><td>对齐方向（0左/1中/2右）</td><td>0</td></tr>
+    <tr><td><code>AlignUseFirstBase</code></td><td>以第一个文字为基点</td><td>true</td></tr>
+    <tr><td><code>AlignLineSpacing</code></td><td>对齐行距（0=自动）</td><td>0</td></tr>
+  </table>
+
+  <h3>自定义命令</h3>
+  <p>在 <code>[Commands]</code> 段添加任意 CAD 命令：</p>
+  <pre><span class="comment"># 格式：显示名称=CAD命令</span>
+清理=PU
+打印=PLOT
+图层管理=LAYMCOL</pre>
+  <p>也可以通过面板底部 <code>+</code> / <code>-</code> 按钮添加和管理。</p>
+</div>
+
+<!-- 平台支持 -->
+<div class="card">
+  <h2>📱 平台支持</h2>
+  <table>
+    <tr><th>平台</th><th>最低版本</th><th>状态</th></tr>
+    <tr><td>AutoCAD</td><td>2020+</td><td>✅</td></tr>
+    <tr><td>中望 CAD (ZWCAD)</td><td>2020+</td><td>✅</td></tr>
+    <tr><td>浩辰 CAD (GstarCAD)</td><td>2022+</td><td>✅</td></tr>
+  </table>
+  <div class="tip">💡 三个 CAD 共享同一份配置文件，修改一次三端同步。</div>
+</div>
+
+<!-- 迁移 -->
+<div class="card">
+  <h2>📥 迁移方法</h2>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text">将整个 <code>CadToolkit</code> 文件夹复制到新电脑</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text">在 CAD 中执行 <code>(load "C:/CadToolkit/autoload.lsp")</code></div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text">所有配置和自定义命令自动保留</div>
+  </div>
+</div>
+
+<!-- 常见问题 -->
+<div class="card">
+  <h2>❓ 常见问题</h2>
+
+  <div class="q">Q：输入 CC 没有反应？</div>
+  <div class="a">A：确认已加载插件。输入 <code>(load "C:/CadToolkit/autoload.lsp")</code>，看到成功提示后再试。</div>
+
+  <div class="q">Q：面板按钮点击后没有反应？</div>
+  <div class="a">A：部分命令需要先选中对象再点击。支持预选模式：先选对象→再输入 CC →点击命令。</div>
+
+  <div class="q">Q：配置文件修改后需要重新加载吗？</div>
+  <div class="a">A：不需要重新加载 LSP，但需要重新输入 CC 打开面板才能看到更新。</div>
+
+  <div class="q">Q：三个 CAD 可以同时使用吗？</div>
+  <div class="a">A：可以。三个 CAD 共享同一份配置文件，修改一次三端同步。</div>
+
+  <div class="q">Q：如何迁移到其他电脑？</div>
+  <div class="a">A：将整个 <code>CadToolkit</code> 文件夹复制到新电脑，按安装步骤重新加载即可，所有配置都保留。</div>
+</div>
+
+<div class="footer">
+  <p>CadToolkit v1.22 | WLUP</p>
+  <p>有问题请联系管理员</p>
+</div>
+
+</div>
+</body>
+</html>
