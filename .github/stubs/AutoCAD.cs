@@ -25,6 +25,9 @@ namespace Autodesk.AutoCAD.ApplicationServices
         public DatabaseServices.Database Database { get; set; }
         public EditorInput.Editor Editor { get; set; }
         public void SendStringToExecute(string cmd, bool b1, bool b2, bool b3) {}
+        public DocumentLock LockDocument() { return new DocumentLock(); }
+    }
+    public class DocumentLock : IDisposable { public void Dispose() {} }
     }
 }
 namespace Autodesk.AutoCAD.DatabaseServices
@@ -46,6 +49,14 @@ namespace Autodesk.AutoCAD.DatabaseServices
         public void LoadLineTypeFile(string name, string file) {}
         public void DeepCloneObjects(ObjectIdCollection ids, ObjectId owner, IdMapping mapping, bool b) {}
         public ObjectId GetObjectId(bool createIfNotFound, Handle handle, long version) { return new ObjectId(); }
+        public Database() {}
+        public Database(bool buildDefaultDrawing, bool noDocument) {}
+        public void ReadDwgFile(string fileName, FileOpenMode mode, bool allowCPConversion, string password) {}
+        public void Insert(string blockName, Database sourceDatabase, bool preserveSourceDatabase) {}
+        public Database Wblock(ObjectIdCollection ids, Point3d basePoint) { return new Database(); }
+        public Database Wblock(ObjectId blockId) { return new Database(); }
+        public Database Wblock() { return new Database(); }
+        public void SaveAs(string fileName, DwgVersion version) {}
         public void Dispose() {}
     }
     public class TransactionManager { public Transaction StartTransaction() { return new Transaction(); } }
@@ -58,6 +69,8 @@ namespace Autodesk.AutoCAD.DatabaseServices
         public void Dispose() {}
     }
     public enum OpenMode { ForRead, ForWrite }
+    public enum FileOpenMode { OpenForReadAndAllShare, OpenForReadAndWriteNoShare, OpenForReadAndAllShareWithConversions }
+    public enum DwgVersion { Current, AC1015, AC1018, AC1021, AC1024, AC1027, AC1032 }
     public class DBObject
     {
         public ObjectId ObjectId { get; set; }
@@ -107,6 +120,9 @@ namespace Autodesk.AutoCAD.DatabaseServices
     public class BlockTableRecord : DBObject, IEnumerable<ObjectId>
     {
         public string Name { get; set; }
+        public bool IsLayout { get; set; }
+        public bool HasPreviewIcon { get { return false; } }
+        public System.Drawing.Bitmap PreviewIcon { get { return null; } }
         public Geometry.Point3d Origin { get; set; }
         public void AppendEntity(Entity ent) {}
         public IEnumerator<ObjectId> GetEnumerator() { yield break; }
@@ -266,9 +282,11 @@ namespace Autodesk.AutoCAD.EditorInput
 namespace Autodesk.AutoCAD.Geometry
 {
     public struct Point2d { public Point2d(double x, double y) {} public double X { get; set; } public double Y { get; set; } }
-    public struct Point3d { public Point3d(double x, double y, double z) {} public double X { get; set; } public double Y { get; set; } public double Z { get; set; } public static Point3d Origin { get { return new Point3d(0,0,0); } } }
+    public struct Point3d { public Point3d(double x, double y, double z) {} public double X { get; set; } public double Y { get; set; } public double Z { get; set; } public static Point3d Origin { get { return new Point3d(0,0,0); } }
+        public Point3d TransformBy(Matrix3d xf) { return this; } }
     public struct Vector3d { public Vector3d(double x, double y, double z) {} public double X { get; set; } public double Y { get; set; } public double Z { get; set; } public static Vector3d XAxis { get { return new Vector3d(1,0,0); } } public static Vector3d YAxis { get { return new Vector3d(0,1,0); } } public static Vector3d ZAxis { get { return new Vector3d(0,0,1); } } }
-    public struct Matrix3d { public static Matrix3d Displacement(Vector3d vec) { return new Matrix3d(); } public static Matrix3d Identity { get { return new Matrix3d(); } } }
+    public struct Matrix3d { public static Matrix3d Displacement(Vector3d vec) { return new Matrix3d(); } public static Matrix3d Identity { get { return new Matrix3d(); } }
+        public static Matrix3d operator *(Matrix3d a, Matrix3d b) { return new Matrix3d(); } }
     public struct Extents3d { public Extents3d(Point3d min, Point3d max) {} public Point3d MinPoint { get; set; } public Point3d MaxPoint { get; set; } }
     public struct Scale3d { public Scale3d(double uniformScale) {} public Scale3d(double sx, double sy, double sz) {} }
 }
