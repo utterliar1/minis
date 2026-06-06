@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>考勤助手 - 同事使用指南</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif;background:#F8FAFC;color:#1E293B;line-height:1.8;padding:16px}
+  .container{max-width:600px;margin:0 auto}
+  .header{background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;border-radius:16px;padding:32px 24px;text-align:center;margin-bottom:20px}
+  .header h1{font-size:24px;font-weight:800}
+  .header p{font-size:14px;opacity:0.85;margin-top:4px}
+  .card{background:#fff;border-radius:12px;padding:20px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+  .card h2{font-size:17px;font-weight:700;margin-bottom:12px;color:#4F46E5}
+  .card h3{font-size:15px;font-weight:600;margin:14px 0 6px}
+  .card p,.card li{font-size:14px;color:#475569}
+  .card ul,.card ol{padding-left:20px;margin:6px 0}
+  .card li{margin-bottom:4px}
+  .step{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start}
+  .step-num{width:28px;height:28px;background:#4F46E5;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+  .step-text{flex:1;font-size:14px}
+  .step-text strong{color:#1E293B}
+  .tip{background:#EEF2FF;border-left:4px solid #4F46E5;padding:12px;border-radius:0 8px 8px 0;margin:10px 0;font-size:13px;color:#3730A3}
+  .warn{background:#FEF3C7;border-left:4px solid #F59E0B;padding:12px;border-radius:0 8px 8px 0;margin:10px 0;font-size:13px;color:#92400E}
+  .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600}
+  .badge-green{background:#D1FAE5;color:#059669}
+  .badge-blue{background:#DBEAFE;color:#2563EB}
+  .badge-red{background:#FEE2E2;color:#DC2626}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+  th,td{padding:8px 10px;border:1px solid #E2E8F0;text-align:left}
+  th{background:#F8FAFC;font-weight:600;color:#64748B}
+  .btn{display:inline-block;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none}
+  .btn-primary{background:#4F46E5;color:#fff}
+  .divider{height:1px;background:#E2E8F0;margin:16px 0}
+  .q{font-weight:600;margin-top:12px;font-size:14px}
+  .a{font-size:13px;color:#64748B;margin-bottom:8px}
+  @media print{body{background:#fff;padding:0}.card{box-shadow:none;border:1px solid #E2E8F0;break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>⏱ 考勤助手</h1>
+  <p>同事使用指南</p>
+</div>
+
+<!-- Step 1: 注册 -->
+<div class="card">
+  <h2>📋 第一步：注册账号</h2>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text"><strong>管理员将你的姓名添加到白名单</strong><br>请联系管理员，告知你的姓名</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text"><strong>打开考勤助手网址</strong><br>点击工作群里分享的链接，或在浏览器输入：<br><code style="background:#F1F5F9;padding:2px 6px;border-radius:4px">mark.wlup.eu.org</code></div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text"><strong>点击「注册」</strong><br>输入管理员给你的<strong>姓名</strong>和你自己设的<strong>密码</strong>（至少4位）</div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-text"><strong>注册成功后，用姓名+密码登录</strong></div>
+  </div>
+  <div class="tip">💡 <strong>重要提示：</strong>用户名就是你的姓名，登录时直接输入姓名即可，不需要记其他编号。</div>
+</div>
+
+<!-- Step 2: 添加到桌面 -->
+<div class="card">
+  <h2>📱 第二步：添加到手机桌面（推荐）</h2>
+  <p>添加后就像 APP 一样在桌面打开，体验更好：</p>
+  
+  <h3>安卓手机</h3>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text">打开网址后，底部会弹出「添加到主屏幕？」</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text">点击「添加」即可</div>
+  </div>
+
+  <h3>iPhone</h3>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text">点击底部「分享」按钮（方框+向上箭头）</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text">选择「添加到主屏幕」</div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text">点击右上角「添加」</div>
+  </div>
+  <div class="tip">💡 添加后桌面会出现「考勤助手」图标，点击即可全屏使用。</div>
+</div>
+
+<!-- Step 3: 打卡 -->
+<div class="card">
+  <h2>📍 第三步：打卡</h2>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text"><strong>到达公司范围内</strong><br>确保手机 GPS 已开启，在公司附近（管理员设定的范围内）</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text"><strong>上班打卡</strong><br>点击蓝色「打卡上班」按钮<br>系统会弹窗让你填写<strong>加班事由</strong>（填你在做什么工作）</div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text"><strong>下班打卡</strong><br>点击红色「打卡下班」按钮<br>（下班不需要填事由，直接记录）</div>
+  </div>
+  <div class="warn">⚠️ <strong>打卡注意事项：</strong>
+    <ul>
+      <li>必须在公司 GPS 范围内才能打卡（状态显示「✅ 范围内」）</li>
+      <li>如果显示「❌ 范围外」，可能是 GPS 漂移，可以点击确认强制打卡</li>
+      <li>上班需要填写加班事由，下班直接打卡即可</li>
+      <li>同一天可以多次打卡（上班→下班→再上班→再下班）</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Step 4: 查看记录 -->
+<div class="card">
+  <h2>📅 第四步：查看记录</h2>
+  <p>点击底部「记录」标签：</p>
+  <ul>
+    <li><strong>日历视图</strong>：有打卡记录的日期会显示圆点</li>
+    <li><strong>点击日期</strong>：弹出当天的打卡详情（时间、事由、工时）</li>
+    <li><strong>记录列表</strong>：显示每天的上班→下班时间和加班工时</li>
+  </ul>
+</div>
+
+<!-- Step 5: 查看统计 -->
+<div class="card">
+  <h2>📊 第五步：查看统计</h2>
+  <p>点击底部「统计」标签：</p>
+  <ul>
+    <li><strong>本周/本月/累计</strong>加班工时</li>
+    <li><strong>月度趋势</strong>：查看加班变化</li>
+    <li><strong>导出</strong>：点击右上角「📤 导出」可以导出自己的 CSV 报表</li>
+  </ul>
+</div>
+
+<div class="divider"></div>
+
+<!-- 常见问题 -->
+<div class="card">
+  <h2>❓ 常见问题</h2>
+  
+  <div class="q">Q：注册时提示"姓名不在管理员名单中"？</div>
+  <div class="a">A：联系管理员，让他把你的姓名添加到白名单后再注册。</div>
+
+  <div class="q">Q：登录时提示"用户名或密码错误"？</div>
+  <div class="a">A：用你的<strong>姓名</strong>登录（不是用户名），密码是注册时设置的。</div>
+
+  <div class="q">Q：打卡时显示"GPS精度不足"？</div>
+  <div class="a">A：到开阔地方等待几秒，GPS 信号恢复后重试。</div>
+
+  <div class="q">Q：打卡时显示"范围外"？</div>
+  <div class="a">A：确保你在公司附近。如果确实到了公司但 GPS 不准，可以点击确认强制打卡（会标记为范围外）。</div>
+
+  <div class="q">Q：忘记密码了？</div>
+  <div class="a">A：联系管理员重置密码。</div>
+
+  <div class="q">Q：下班忘记打卡了？</div>
+  <div class="a">A：补打卡即可，系统会自动计算加班时间。但尽量及时打卡，避免遗漏。</div>
+</div>
+
+<div class="card" style="text-align:center">
+  <p style="color:#94A3B8;font-size:12px">如有问题请联系管理员</p>
+</div>
+
+</div>
+</body>
+</html>
