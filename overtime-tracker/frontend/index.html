@@ -627,10 +627,10 @@ function renderStats(){
   let totalOT=0,wkOT=0,hdOT=0;
   Object.entries(dg).forEach(([date,recs])=>{const ot=calcTodayOT(recs,new Date(date+'T12:00:00'));totalOT+=ot;isWorkingDay(new Date(date+'T12:00:00'))?wkOT+=ot:hdOT+=ot});
   const days=Object.keys(dg).length;
+  const ws2=new Date();ws2.setDate(ws2.getDate()-ws2.getDay()+1);ws2.setHours(0,0,0,0);
+  let weekTotal=0,weekDays=0;
+  Object.entries(dg).forEach(([date,recs])=>{const d=new Date(date+'T12:00:00');if(d>=ws2){const ot=calcTodayOT(recs,d);weekTotal+=ot;weekDays++}});
   document.getElementById('stats-content').innerHTML=`
-    const ws2=new Date();ws2.setDate(ws2.getDate()-ws2.getDay()+1);ws2.setHours(0,0,0,0);
-    let weekTotal=0,weekDays=0;
-    Object.entries(dg).forEach(([date,recs])=>{const d=new Date(date+'T12:00:00');if(d>=ws2){const ot=calcTodayOT(recs,d);weekTotal+=ot;weekDays++}});
     <div class="summary-row"><span class="label">本周工时</span><span class="value overtime">${formatMinutes(weekTotal)}（${weekDays}天）</span></div>
     <div class="summary-row"><span class="label">本月工时</span><span class="value overtime">${formatMinutes(totalOT)}（${days}天）</span></div>
     <div class="summary-row"><span class="label">工作日工时</span><span class="value">${formatMinutes(wkOT)}</span></div>
@@ -652,12 +652,11 @@ function updateHeaderStats(){
   let mot=0;Object.entries(mdg).forEach(([date,recs])=>{mot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
   const adg={};allRecords.forEach(r=>{if(!adg[r.date])adg[r.date]=[];adg[r.date].push(r)});
   let ttot=0;Object.entries(adg).forEach(([date,recs])=>{ttot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
+  const ws=new Date();ws.setDate(ws.getDate()-ws.getDay()+1);ws.setHours(0,0,0,0);
+  const wRecs=allRecords.filter(r=>{const d=new Date(r.ts);return d>=ws});
+  const wdg={};wRecs.forEach(r=>{if(!wdg[r.date])wdg[r.date]=[];wdg[r.date].push(r)});
+  let wot=0;Object.entries(wdg).forEach(([date,recs])=>{wot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
   document.getElementById('header-stats').innerHTML=`
-    const ws=new Date();ws.setDate(ws.getDate()-ws.getDay()+1);ws.setHours(0,0,0,0);
-    const wRecs=allRecords.filter(r=>{const d=new Date(r.ts);return d>=ws});
-    const wdg={};wRecs.forEach(r=>{if(!wdg[r.date])wdg[r.date]=[];wdg[r.date].push(r)});
-    let wot=0;Object.entries(wdg).forEach(([date,recs])=>{wot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
-    document.getElementById('header-stats').innerHTML=`
     <div class="stat-item"><div class="stat-value">${fmtMin(tot)}</div><div class="stat-label">今日</div></div>
     <div class="stat-item"><div class="stat-value">${fmtMin(wot)}</div><div class="stat-label">本周</div></div>
     <div class="stat-item"><div class="stat-value">${fmtMin(mot)}</div><div class="stat-label">本月</div></div>`;
