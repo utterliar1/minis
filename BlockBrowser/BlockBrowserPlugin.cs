@@ -87,6 +87,11 @@ namespace BlockBrowser
             SaveConfig();
         }
 
+        public static void RemoveRecentBlock(string filePath)
+        {
+            if (_recentBlocks.Remove(filePath)) SaveConfig();
+        }
+
         private static string ConfigPath
         {
             get
@@ -1093,12 +1098,3 @@ namespace BlockBrowser
         }
     }
 }
-
-
-
-
-
-
-
-
-

@@ -64,5 +64,5 @@
 
 (defun c:KLLQ () (c:BB))
 
-(princ "\nBlockBrowser v1.23 已就绪，输入 BB 启动。")
+(princ "\nBlockBrowser v1.25 已就绪，输入 BB 启动。")
 (princ)

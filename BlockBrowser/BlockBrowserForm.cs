@@ -7,6 +7,16 @@ using System.Windows.Forms;
 
 namespace BlockBrowser
 {
+    // 禁止点击子控件时自动滚动的 FlowLayoutPanel
+    class StableFlowPanel : FlowLayoutPanel
+    {
+        public StableFlowPanel() { DoubleBuffered = true; }
+        public new void ScrollControlIntoView(Control activeControl)
+        {
+            // 不执行自动滚动，保持当前位置
+        }
+    }
+
     public class BlockBrowserForm : Form
     {
         // 模态模式：用户点了插入后返回OK
@@ -17,7 +27,7 @@ namespace BlockBrowser
         public double InsertRotation { get; private set; }
 
         internal string PendingCommand { get; set; }
-        private FlowLayoutPanel _flowBlocks;
+        private StableFlowPanel _flowBlocks;
         private FlowLayoutPanel _catBar;
         private TextBox _txtSearch;
         private ToolStrip _toolbar;
@@ -37,6 +47,7 @@ namespace BlockBrowser
         private Dictionary<string, Image> _thumbCache = new Dictionary<string, Image>();
         
         private Dictionary<string, List<BlockThumbnailCard>> _categoryCards = new Dictionary<string, List<BlockThumbnailCard>>();
+
 
         public BlockBrowserForm()
         {
@@ -113,6 +124,9 @@ namespace BlockBrowser
             {
                 _thumbSize = sizes[cmbThumbSize.SelectedIndex];
                 _savedThumbSize = _thumbSize; BlockLibrary.ThumbSize = _thumbSize; BlockLibrary.SaveConfig();
+                // 释放旧尺寸的缩略图缓存
+                foreach (var kv in _thumbCache) { try { kv.Value.Dispose(); } catch { } }
+                _thumbCache.Clear();
                 RefreshCards();
             };
             var cmbHost = new ToolStripControlHost(cmbThumbSize);
@@ -137,7 +151,7 @@ namespace BlockBrowser
             };
 
             // Thumbnail grid - fills remaining space
-            _flowBlocks = new FlowLayoutPanel
+            _flowBlocks = new StableFlowPanel
             {
                 Dock = DockStyle.Fill, AutoScroll = true,
                 FlowDirection = FlowDirection.LeftToRight, WrapContents = true,
@@ -181,7 +195,7 @@ namespace BlockBrowser
                 {
                     var btn = new Button
                     {
-                        Text = cat, FlatStyle = FlatStyle.Flat, AutoSize = true,
+                        Text = cat, FlatStyle = FlatStyle.System, AutoSize = true,
                         MinimumSize = new Size(0, 24), Padding = new Padding(8, 1, 8, 1),
                         Margin = new Padding(2, 0, 2, 0), Font = new Font("Microsoft YaHei", 9f),
                         Tag = cat, Cursor = Cursors.Hand
@@ -209,18 +223,9 @@ namespace BlockBrowser
 
         private void SetCatBtnStyle(Button btn, bool active)
         {
-            if (active)
-            {
-                btn.BackColor = Color.FromArgb(60, 120, 200);
-                btn.ForeColor = Color.White;
-                btn.FlatAppearance.BorderColor = Color.FromArgb(40, 100, 180);
-            }
-            else
-            {
-                btn.BackColor = Color.FromArgb(248, 250, 252);
-                btn.ForeColor = Color.FromArgb(50, 55, 65);
-                btn.FlatAppearance.BorderColor = Color.FromArgb(180, 190, 200);
-            }
+            btn.FlatStyle = FlatStyle.System;
+            // System style uses native rendering; use font bold for active highlight
+            btn.Font = new Font("Microsoft YaHei", 9f, active ? FontStyle.Bold : FontStyle.Regular);
         }
 
         private void UpdateCatHighlight()
@@ -234,7 +239,8 @@ namespace BlockBrowser
 
         private void LoadBlocks()
         {
-            _txtSearch.Text = "";
+            _searchTimer.Stop();
+            if (_txtSearch.Text.Length > 0) _txtSearch.Text = "";
             ShowBlocks(BlockLibrary.GetBlocks(_currentCategory));
         }
 
@@ -256,10 +262,18 @@ namespace BlockBrowser
                     var card = new BlockThumbnailCard(block, _thumbSize);
                     card.BlockClicked += (s, b) =>
                     {
+                        int sy = 0;
+                        try { sy = _flowBlocks.VerticalScroll.Value; } catch { }
+                        _flowBlocks.SuspendLayout();
                         _selectedBlock = b;
-                        foreach (var c2 in _cards) c2.IsSelected = (c2 == s);
-                        _flowBlocks.Invalidate(true);
+                        foreach (var c2 in _cards)
+                        {
+                            if (c2.IsSelected && c2 != s) { c2.IsSelected = false; break; }
+                        }
+                        ((BlockThumbnailCard)s).IsSelected = true;
                         ShowBlockInfo(b);
+                        _flowBlocks.ResumeLayout(false);
+                        try { if (sy > 0 && _flowBlocks.VerticalScroll.Visible) _flowBlocks.VerticalScroll.Value = Math.Min(sy, _flowBlocks.VerticalScroll.Maximum); } catch { }
                     };
                     card.BlockDoubleClicked += (s, b) => { _selectedBlock = b; DoInsert(); };
                     string ck = (block.FilePath ?? "") + "_" + _thumbSize;
@@ -308,8 +322,7 @@ namespace BlockBrowser
         }
 
         // Load thumbnails one by one on UI thread (safe for GstarCAD API)
-
-                        private void ThumbTimerTick(object sender, EventArgs e)
+        private void ThumbTimerTick(object sender, EventArgs e)
         {
             for (int i = 0; i < 5; i++)
             {
@@ -362,6 +375,8 @@ namespace BlockBrowser
             string kw = _txtSearch.Text.Trim().ToLowerInvariant();
             bool showAll = string.IsNullOrEmpty(kw);
             int visible = 0;
+            int sy = 0;
+            try { sy = _flowBlocks.VerticalScroll.Value; } catch { }
             _flowBlocks.SuspendLayout();
             for (int i = 0; i < _cards.Count; i++)
             {
@@ -374,6 +389,7 @@ namespace BlockBrowser
                 if (match) visible++;
             }
             _flowBlocks.ResumeLayout();
+            try { if (sy > 0 && _flowBlocks.VerticalScroll.Visible) _flowBlocks.VerticalScroll.Value = Math.Min(sy, _flowBlocks.VerticalScroll.Maximum); } catch { }
             _lblCount.Text = visible + " 个";
         }
 
@@ -435,9 +451,12 @@ namespace BlockBrowser
                 // Remove from memory cache (remove all size variants)
                 var keysToRemove = _thumbCache.Keys.Where(k => k.StartsWith(filePath + "_")).ToList();
                 foreach (var k in keysToRemove) { try { _thumbCache[k].Dispose(); } catch { } _thumbCache.Remove(k); }
+                // 从最近列表中移除
+                BlockLibrary.RemoveRecentBlock(filePath);
                 _selectedBlock = null;
                 _lblStatus.Text = "已删除: " + name;
-                int visible = _cards.Count(c => !c.IsDisposed && c.Visible);
+                int visible = 0;
+                foreach (var c in _cards) { if (!c.IsDisposed && c.Visible) visible++; }
                 _lblCount.Text = visible + " 个";
             }
             catch (System.Exception ex) { MessageBox.Show("删除失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
@@ -472,25 +491,7 @@ namespace BlockBrowser
                     _thumbCache[newPath + suffix] = _thumbCache[k];
                     _thumbCache.Remove(k);
                 }
-                // Update UI card label without full refresh
-                foreach (var card in _cards)
-                {
-                    if (card.Block.FilePath == newPath)
-                    {
-                        card.UpdateLabel(newName);
-                        break;
-                    }
-                }
-                // Update category cache references
-                foreach (var kv in _categoryCards)
-                {
-                    foreach (var c in kv.Value)
-                    {
-                        if (c.Block == _selectedBlock) { /* already updated via reference */ break; }
-                    }
-                }
                 _lblStatus.Text = "已重命名: " + oldName + " -> " + newName;
-                // Refresh display to show updated name
                 RefreshCards();
             }
             catch (System.Exception ex) { MessageBox.Show("重命名失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
@@ -549,8 +550,8 @@ namespace BlockBrowser
                 form.ShowInTaskbar = false;
                 form.MaximizeBox = false; form.MinimizeBox = false;
                 var txt = new TextBox { Location = new Point(15, 20), Width = 300 };
-                var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, Location = new Point(160, 70) };
-                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(250, 70) };
+                var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, FlatStyle = FlatStyle.System, Location = new Point(160, 70) };
+                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.System, Location = new Point(250, 70) };
                 form.Controls.AddRange(new Control[] { txt, btnOk, btnCancel });
                 form.AcceptButton = btnOk; form.CancelButton = btnCancel;
                 return form.ShowDialog(this) == DialogResult.OK ? txt.Text : null;
@@ -569,8 +570,8 @@ namespace BlockBrowser
                 form.MaximizeBox = false; form.MinimizeBox = false;
                 var txt = new TextBox { Text = defaultValue, Location = new Point(15, 20), Width = 300 };
                 txt.SelectAll();
-                var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, Location = new Point(160, 70) };
-                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(250, 70) };
+                var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, FlatStyle = FlatStyle.System, Location = new Point(160, 70) };
+                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.System, Location = new Point(250, 70) };
                 form.Controls.AddRange(new Control[] { txt, btnOk, btnCancel });
                 form.AcceptButton = btnOk; form.CancelButton = btnCancel;
                 return form.ShowDialog(this) == DialogResult.OK ? txt.Text : null;
@@ -590,8 +591,8 @@ namespace BlockBrowser
                 var cmb = new ComboBox { Location = new Point(15, 40), Width = 300, DropDownStyle = ComboBoxStyle.DropDown };
                 cmb.Items.AddRange(categories.ToArray());
                 if (cmb.Items.Count > 0) cmb.SelectedIndex = 0;
-                var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, Location = new Point(160, 100) };
-                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(250, 100) };
+                var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, FlatStyle = FlatStyle.System, Location = new Point(160, 100) };
+                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.System, Location = new Point(250, 100) };
                 form.Controls.AddRange(new Control[] { lbl, cmb, btnOk, btnCancel });
                 form.AcceptButton = btnOk; form.CancelButton = btnCancel;
                 return form.ShowDialog(this) == DialogResult.OK ? cmb.Text.Trim() : null;
@@ -611,7 +612,7 @@ namespace BlockBrowser
 
                 var lbl = new Label { Text = "块库路径:", Location = new Point(15, 20), AutoSize = true };
                 var txt = new TextBox { Text = BlockLibrary.LibraryPath, Location = new Point(15, 45), Width = 350 };
-                var btnBrowse = new Button { Text = "...", Location = new Point(370, 43), Width = 40 };
+                var btnBrowse = new Button { Text = "...", FlatStyle = FlatStyle.System, Location = new Point(370, 43), Width = 40 };
                 btnBrowse.Click += (s2, e2) =>
                 {
                     using (var dlg = new FolderBrowserDialog())
@@ -633,8 +634,8 @@ namespace BlockBrowser
                 if (rotDeg > 360m) rotDeg = 360m;
                 var numRot = new NumericUpDown { Location = new Point(340, 82), Width = 80, Minimum = -360, Maximum = 360, DecimalPlaces = 1, Value = rotDeg, Increment = 5 };
 
-                var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, Location = new Point(240, 180) };
-                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(330, 180) };
+                var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, FlatStyle = FlatStyle.System, Location = new Point(240, 180) };
+                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.System, Location = new Point(330, 180) };
                 form.Controls.AddRange(new Control[] { lbl, txt, btnBrowse, lblScale, numScale, lblRot, numRot, btnOk, btnCancel });
                 form.AcceptButton = btnOk; form.CancelButton = btnCancel;
 
@@ -674,27 +675,14 @@ namespace BlockBrowser
                 _thumbCache.Clear();
                 foreach (var card in _cards) { try { card.Dispose(); } catch { } }
             }
-                if (this.WindowState == FormWindowState.Normal)
-                {
-                    BlockLibrary.FormWidth = this.Width;
-                    BlockLibrary.FormHeight = this.Height;
-                    BlockLibrary.SaveConfig();
-                }
+            if (this.WindowState == FormWindowState.Normal)
+            {
+                BlockLibrary.FormWidth = this.Width;
+                BlockLibrary.FormHeight = this.Height;
+                BlockLibrary.SaveConfig();
+            }
             base.Dispose(disposing);
         }
     }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
