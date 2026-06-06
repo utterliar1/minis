@@ -89,7 +89,7 @@ namespace CadToolkit
 
         static Editor Ed { get { return CadApp.DocumentManager.MdiActiveDocument.Editor; } }
         static Database Db { get { return CadApp.DocumentManager.MdiActiveDocument.Database; } }
-        static string DocKey { get { var d = CadApp.DocumentManager.MdiActiveDocument; return d != null ? d.Name : ""; } }
+        static string DocKey { get { var d = CadApp.DocumentManager.MdiActiveDocument; if (d == null) return ""; try { return d.Name; } catch { return d.Database.Filename; } } }
         static string SafeStr(string s) { return s == null ? "" : s; }
         static string PlatformName
         {
@@ -375,7 +375,7 @@ namespace CadToolkit
                     foreach (ObjectId btrId in bt)
                     {
                         var btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
-                        if (btr.IsLayout || btr.Name.StartsWith("*")) continue;
+                        if (btr.Name.StartsWith("*") || btr.Name.Equals("Model_Space") || btr.Name.StartsWith("Paper_Space")) continue;
                         count += ReplaceInBlock(tr, btr, dlg.FindText, dlg.ReplaceText, cmp);
                     }
                     tr.Commit();
@@ -525,7 +525,7 @@ namespace CadToolkit
             EnsureInit();
             if (!CheckDoc()) return;
             var psr = GetPendingOrSelection();
-            ObjectId pickedId = ObjectId.Null;
+            ObjectId pickedId = default(ObjectId);
             if (psr.Status == PromptStatus.OK && psr.Value != null && psr.Value.Count > 0)
             {
                 using (var tr = Db.TransactionManager.StartTransaction())
@@ -538,7 +538,7 @@ namespace CadToolkit
                     tr.Commit();
                 }
             }
-            if (pickedId.IsNull)
+            if (!pickedId.IsValid)
             {
                 var peo = new PromptEntityOptions("\n\u9009\u62e9\u8981\u91cd\u547d\u540d\u7684\u5757\uff1a");
                 peo.SetRejectMessage("\n\u53ea\u80fd\u9009\u62e9\u5757\u53c2\u7167\u3002");
@@ -1155,6 +1155,7 @@ namespace CadToolkit
         }
     }
 }
+
 
 
 
