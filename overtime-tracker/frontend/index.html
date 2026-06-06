@@ -38,7 +38,10 @@
   .header-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
   .user-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.18);border-radius:16px;padding:3px 10px;font-size:12px;font-weight:600;margin-bottom:10px}
   .role-dot{width:7px;height:7px;border-radius:50%}.role-admin{background:var(--accent)}.role-user{background:var(--success)}
-  .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .stat-item{background:rgba(255,255,255,.12);border-radius:10px;padding:8px 4px;text-align:center}
+  .stat-value{font-size:18px;font-weight:700}
+  .stat-label{font-size:10px;opacity:.8;margin-top:1px}
   .stat-item{background:rgba(255,255,255,.12);border-radius:10px;padding:10px 8px;text-align:center}.stat-value{font-size:22px;font-weight:700}.stat-label{font-size:11px;opacity:.8;margin-top:2px}
 
   /* Tab */
@@ -129,6 +132,7 @@
   .empty-state{text-align:center;padding:40px 20px;color:var(--text-sec)}.empty-state .icon{font-size:48px;margin-bottom:12px}.empty-state .text{font-size:14px}
   .export-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
   .export-bar select,.export-bar input{border:1.5px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;font-family:inherit;background:#fff}
+  .trend-bar{transition:height .3s}
 </style>
 </head>
 <body>
@@ -436,7 +440,48 @@ async function loadDashboard(){
       <div class="stat-item"><div class="stat-value">${uList.length}</div><div class="stat-label">成员数</div></div>
       <div class="stat-item"><div class="stat-value">${fmtMin(totalTodayOT)}</div><div class="stat-label">今日团队工时</div></div>
       <div class="stat-item"><div class="stat-value">${fmtMin(totalMonthOT)}</div><div class="stat-label">本月团队工时</div></div>`;
-    document.getElementById('dash-content').innerHTML=`<table class="dash-table"><thead><tr><th>成员</th><th>状态</th><th>今日工时</th><th>本月工时</th></tr></thead><tbody>${rows}</tbody></table>`;
+    // Trend data (last 30 days)
+    const trendData=[];const todayDate=new Date();
+    for(let i=29;i>=0;i--){
+      const dd=new Date(todayDate);dd.setDate(dd.getDate()-i);
+      const dk=dateKey(dd);
+      const dayRecs=records.filter(r=>r.date===dk);
+      const dg2={};dayRecs.forEach(r=>{if(!dg2[r.date])dg2[r.date]=[];dg2[r.date].push(r)});
+      let dayOT=0;Object.entries(dg2).forEach(([d,recs])=>{dayOT+=calcTodayOT(recs,new Date(d+'T12:00:00'))});
+      trendData.push({date:dk,label:`${dd.getMonth()+1}/${dd.getDate()}`,ot:dayOT});
+    }
+    const maxOT=Math.max(...trendData.map(d=>d.ot),1);
+    const trendHTML=`<div class="card" style="margin-top:16px"><div class="card-title">📈 近30天工时趋势</div>
+      <div style="overflow-x:auto"><div style="display:flex;align-items:flex-end;gap:2px;height:120px;min-width:${trendData.length*20}px">
+      ${trendData.map(d=>`<div title="${d.label}: ${fmtMin(d.ot)}" style="flex:1;min-width:14px;background:${d.ot>0?'linear-gradient(to top,var(--primary),var(--primary-light))':'#E2E8F0'};border-radius:3px 3px 0 0;height:${Math.max(2,d.ot/maxOT*100)}%"></div>`).join('')}
+      </div><div style="display:flex;gap:2px;min-width:${trendData.length*20}px;margin-top:4px">
+      ${trendData.map((d,i)=>`<div style="flex:1;min-width:14px;text-align:center;font-size:9px;color:var(--text-sec);${i%5!==0?'visibility:hidden':''}">${d.label}</div>`).join('')}
+      </div></div></div>`;
+    // Ranking
+    const rankData=uList.map(u=>{
+      const uMonth=records.filter(r=>r.user_id===u.username&&r.date.startsWith(thisMonth));
+      const mdg={};uMonth.forEach(r=>{if(!mdg[r.date])mdg[r.date]=[];mdg[r.date].push(r)});
+      let mot=0;Object.entries(mdg).forEach(([d,recs])=>{mot+=calcTodayOT(recs,new Date(d+'T12:00:00'))});
+      return{name:u.display_name,ot:mot}
+    }).sort((a,b)=>b.ot-a.ot);
+    const avgOT=rankData.length?Math.round(rankData.reduce((s,r)=>s+r.ot,0)/rankData.length):0;
+    const rankHTML=`<div class="card" style="margin-top:16px"><div class="card-title">🏆 本月工时排行</div>
+      <div style="margin-bottom:12px;padding:8px 12px;background:#EEF2FF;border-radius:8px;font-size:13px">团队平均: <b style="color:var(--accent)">${fmtMin(avgOT)}</b>/人</div>
+      ${rankData.map((r,i)=>{
+        const medals=['🥇','🥈','🥉'];
+        const bar=Math.max(2,r.ot/Math.max(...rankData.map(x=>x.ot),1)*100);
+        const color=r.ot>avgOT*1.5?'var(--danger)':r.ot>avgOT?'var(--accent)':'var(--success)';
+        return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="width:24px;text-align:center;font-size:16px">${medals[i]||(i+1)}</span>
+          <span style="width:60px;font-size:13px;font-weight:600">${r.name}</span>
+          <div style="flex:1;height:16px;background:#F1F5F9;border-radius:4px;overflow:hidden">
+            <div style="height:100%;width:${bar}%;background:${color};border-radius:4px"></div>
+          </div>
+          <span style="width:50px;text-align:right;font-size:12px;font-weight:600;color:${color}">${fmtMin(r.ot)}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+    document.getElementById('dash-content').innerHTML=`<table class="dash-table"><thead><tr><th>成员</th><th>状态</th><th>今日</th><th>本月</th></tr></thead><tbody>${rows}</tbody></table>`+trendHTML+rankHTML;
     
     // Export dropdown
     const sel=document.getElementById('export-scope');
@@ -462,7 +507,7 @@ async function doExport(){
       if(!groups[key])groups[key]={name:r.display_name||r.user_id,date:r.date,records:[]};
       groups[key].records.push(r);
     });
-    const header='姓名,日期,星期,上班,下班,类型,工时\n';
+    const header='姓名,日期,星期,上班,下班,类型,工时(分),工时(h)\n';
     const rows=Object.values(groups).map(g=>{
       const d=new Date(g.date+'T12:00:00');
       const wd=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
@@ -471,7 +516,8 @@ async function doExport(){
       const lo=[...sorted].reverse().find(r=>r.type==='out');
       const isWork=isWorkingDay(d);
       const ot=calcTodayOT(sorted,d);
-      return `"${g.name}","${g.date}","${wd}","${fi?(fi.time_str||'').slice(0,5):''}","${lo?(lo.time_str||'').slice(0,5):''}","${isWork?'工作日':'休息日'}",${ot}`;
+      const hrs=ot>=60?Math.floor(ot/60)+'h'+(ot%60?ot%60+'m':''):ot+'m';
+      return `"${g.name}","${g.date}","${wd}","${fi?(fi.time_str||'').slice(0,5):''}","${lo?(lo.time_str||'').slice(0,5):''}","${isWork?'工作日':'休息日'}",${ot},"${hrs}"`;
     }).join('\n');
     downloadBlob(new Blob(['\uFEFF'+header+rows],{type:'text/csv;charset=utf-8'}),`工时报表_${scope}_${period}_${dateKey(new Date())}.csv`);
     showToast('📥 已导出');
@@ -516,10 +562,12 @@ async function handleClock(){
   if(btn.classList.contains('disabled')){showToast('请先满足打卡条件');return}
   if(!currentPos){showToast('正在获取位置...');return}
   if(!settings.lat){showToast('打卡地点未配置');return}
-  const last=getLastTodayRecord();let type='in';
-  if(last&&last.type==='in')type='out';
-  if(!isWithinRange(currentPos)){showConfirmModal('⚠️ 范围外打卡','不在范围内，是否记录？',async()=>{await doClock(type,true)},()=>{});return}
-  await doClock(type,false);
+  const last=getLastTodayRecord();let type='in',label='上班';
+  if(last&&last.type==='in'){type='out';label='下班'}
+  const reason=prompt(`请输入${label}事由（加班内容）：`);
+  if(reason===null)return;
+  if(!isWithinRange(currentPos)){showConfirmModal('⚠️ 范围外打卡','不在范围内，是否记录？',async()=>{await doClock(type,true,reason)},()=>{});return}
+  await doClock(type,false,reason);
 }
 async function doClock(type,outOfRange){
   try{
@@ -533,7 +581,7 @@ function updateTodayTimeline(){
   const t=dateKey(new Date()),recs=allRecords.filter(r=>r.date===t).sort((a,b)=>a.ts-b.ts),card=document.getElementById('today-card'),tl=document.getElementById('today-timeline');
   if(!recs.length){card.style.display='none';return}
   card.style.display='block';
-  tl.innerHTML=recs.map(r=>`<div class="timeline-item ${r.type==='out'?'out':''}"><div class="timeline-label">${r.type==='in'?'上班打卡':'下班打卡'}</div><div class="timeline-time">${r.time_str||''}</div></div>`).join('');
+  tl.innerHTML=recs.map(r=>`<div class="timeline-item ${r.type==='out'?'out':''}"><div class="timeline-label">${r.type==='in'?'上班打卡':'下班打卡'}</div><div class="timeline-time">${r.time_str||''}</div>${r.note?`<div class="note-text">${r.note}</div>`:''}</div>`).join('');
   document.getElementById('today-overtime').textContent=formatMinutes(calcTodayOT(recs,new Date()));
 }
 
@@ -580,11 +628,14 @@ function renderStats(){
   Object.entries(dg).forEach(([date,recs])=>{const ot=calcTodayOT(recs,new Date(date+'T12:00:00'));totalOT+=ot;isWorkingDay(new Date(date+'T12:00:00'))?wkOT+=ot:hdOT+=ot});
   const days=Object.keys(dg).length;
   document.getElementById('stats-content').innerHTML=`
-    <div class="summary-row"><span class="label">累计工时</span><span class="value overtime">${formatMinutes(totalOT)}</span></div>
+    const ws2=new Date();ws2.setDate(ws2.getDate()-ws2.getDay()+1);ws2.setHours(0,0,0,0);
+    let weekTotal=0,weekDays=0;
+    Object.entries(dg).forEach(([date,recs])=>{const d=new Date(date+'T12:00:00');if(d>=ws2){const ot=calcTodayOT(recs,d);weekTotal+=ot;weekDays++}});
+    <div class="summary-row"><span class="label">本周工时</span><span class="value overtime">${formatMinutes(weekTotal)}（${weekDays}天）</span></div>
+    <div class="summary-row"><span class="label">本月工时</span><span class="value overtime">${formatMinutes(totalOT)}（${days}天）</span></div>
     <div class="summary-row"><span class="label">工作日工时</span><span class="value">${formatMinutes(wkOT)}</span></div>
     <div class="summary-row"><span class="label">休息日工时</span><span class="value">${formatMinutes(hdOT)}</span></div>
-    <div class="summary-row"><span class="label">打卡天数</span><span class="value">${days} 天</span></div>
-    <div class="summary-row"><span class="label">平均工时</span><span class="value">${days?formatMinutes(Math.round(totalOT/days)):'0 分钟'}</span></div>`;
+    <div class="summary-row"><span class="label">日均工时</span><span class="value">${days?formatMinutes(Math.round(totalOT/days)):'0 分钟'}</span></div>`;
   // Monthly bar
   const mn={};allRecords.forEach(r=>{const d=new Date(r.ts);const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;if(!mn[k])mn[k]={s:new Set(),m:0};mn[k].s.add(r.date)});
   Object.keys(mn).forEach(k=>{let ot=0;const[y,m]=k.split('-').map(Number);Object.entries(dg).forEach(([date,recs])=>{const d=new Date(date+'T12:00:00');if(d.getFullYear()===y&&d.getMonth()===m-1)ot+=calcTodayOT(recs,d)});mn[k].m=ot});
@@ -602,9 +653,14 @@ function updateHeaderStats(){
   const adg={};allRecords.forEach(r=>{if(!adg[r.date])adg[r.date]=[];adg[r.date].push(r)});
   let ttot=0;Object.entries(adg).forEach(([date,recs])=>{ttot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
   document.getElementById('header-stats').innerHTML=`
-    <div class="stat-item"><div class="stat-value">${fmtMin(tot)}</div><div class="stat-label">今日工时</div></div>
-    <div class="stat-item"><div class="stat-value">${fmtMin(mot)}</div><div class="stat-label">本月工时</div></div>
-    <div class="stat-item"><div class="stat-value">${fmtMin(ttot)}</div><div class="stat-label">累计工时</div></div>`;
+    const ws=new Date();ws.setDate(ws.getDate()-ws.getDay()+1);ws.setHours(0,0,0,0);
+    const wRecs=allRecords.filter(r=>{const d=new Date(r.ts);return d>=ws});
+    const wdg={};wRecs.forEach(r=>{if(!wdg[r.date])wdg[r.date]=[];wdg[r.date].push(r)});
+    let wot=0;Object.entries(wdg).forEach(([date,recs])=>{wot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
+    document.getElementById('header-stats').innerHTML=`
+    <div class="stat-item"><div class="stat-value">${fmtMin(tot)}</div><div class="stat-label">今日</div></div>
+    <div class="stat-item"><div class="stat-value">${fmtMin(wot)}</div><div class="stat-label">本周</div></div>
+    <div class="stat-item"><div class="stat-value">${fmtMin(mot)}</div><div class="stat-label">本月</div></div>`;
 }
 
 // ==================== SETTINGS ====================
