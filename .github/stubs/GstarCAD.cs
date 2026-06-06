@@ -57,6 +57,7 @@ namespace GrxCAD.DatabaseServices
         public Database Wblock(ObjectId blockId) { return new Database(); }
         public Database Wblock() { return new Database(); }
         public void SaveAs(string fileName, DwgVersion version) {}
+        public string Filename { get; set; }
         public void Dispose() {}
     }
     public class TransactionManager { public Transaction StartTransaction() { return new Transaction(); } }
