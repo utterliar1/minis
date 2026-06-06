@@ -4,6 +4,6 @@ services:
     container_name: overtime-tracker
     restart: unless-stopped
     ports:
-      - "3090:80"
+      - "127.0.0.1:3090:80"
     volumes:
       - /root/overtime-tracker/data:/data
