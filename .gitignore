@@ -13,3 +13,5 @@ venv/
 
 .github/stubs/obj/
 
+
+.github/stubs/bin/
