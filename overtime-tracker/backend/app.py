@@ -1,4 +1,4 @@
-"""加班打卡助手 - 后端 API"""
+"""考勤助手 - 后端 API"""
 import os, json, hashlib, time, sqlite3, smtplib, secrets
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -48,7 +48,7 @@ def init_db():
             id INTEGER PRIMARY KEY CHECK (id=1),
             smtp_host TEXT, smtp_port INTEGER DEFAULT 465,
             smtp_user TEXT, smtp_pass TEXT, smtp_ssl INTEGER DEFAULT 1,
-            sender_name TEXT DEFAULT '加班打卡助手',
+            sender_name TEXT DEFAULT '考勤助手',
             recipients TEXT DEFAULT '[]',
             schedule_hour INTEGER DEFAULT 9, schedule_minute INTEGER DEFAULT 0,
             enabled INTEGER DEFAULT 0
@@ -115,8 +115,10 @@ def index(): return send_from_directory(app.static_folder, 'index.html')
 @app.route('/api/login', methods=['POST'])
 def api_login():
     d = request.json or {}
+    login_id = d.get('username','').strip()
     conn = get_db()
-    u = conn.execute("SELECT * FROM users WHERE username=?", (d.get('username',''),)).fetchone()
+    # 支持用姓名或用户名登录
+    u = conn.execute("SELECT * FROM users WHERE username=? OR display_name=?", (login_id, login_id)).fetchone()
     conn.close()
     if not u or hash_pw(d.get('password',''), u['salt']) != u['password_hash']:
         return jsonify(error="用户名或密码错误"), 401
@@ -210,7 +212,7 @@ def api_users():
 @admin_required
 def api_toggle_role(username):
     if username == request.user['username']: return jsonify(error="不能修改自己"), 400
-    if username == 'admin': return jsonify(error="不能修改默认管理员"), 400
+    if username == 'admin': return jsonify(error="不能修改主管理员"), 400
     conn = get_db()
     u = conn.execute("SELECT role FROM users WHERE username=?", (username,)).fetchone()
     if not u: conn.close(); return jsonify(error="用户不存在"), 404
@@ -219,11 +221,46 @@ def api_toggle_role(username):
     conn.commit(); conn.close()
     return jsonify(ok=True, role=new_role)
 
+@app.route('/api/change-password', methods=['PUT'])
+@login_required
+def api_change_password():
+    d = request.json or {}
+    old_pw = d.get('oldPassword', '')
+    new_pw = d.get('newPassword', '')
+    if len(new_pw) < 4: return jsonify(error="新密码至少4个字符"), 400
+    uid = request.user['username']
+    conn = get_db()
+    u = conn.execute("SELECT * FROM users WHERE username=?", (uid,)).fetchone()
+    if not u: conn.close(); return jsonify(error="用户不存在"), 404
+    if hash_pw(old_pw, u['salt']) != u['password_hash']:
+        conn.close(); return jsonify(error="当前密码错误"), 400
+    salt = os.urandom(16).hex()
+    h = hash_pw(new_pw, salt)
+    conn.execute("UPDATE users SET password_hash=?, salt=? WHERE username=?", (h, salt, uid))
+    conn.commit(); conn.close()
+    return jsonify(ok=True)
+
+@app.route('/api/users/<username>/password', methods=['PUT'])
+@admin_required
+def api_reset_password(username):
+    d = request.json or {}
+    new_pw = d.get('password', '')
+    if len(new_pw) < 4: return jsonify(error="密码至少4个字符"), 400
+    if username == 'admin': return jsonify(error="不能修改主管理员密码"), 400
+    conn = get_db()
+    u = conn.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone()
+    if not u: conn.close(); return jsonify(error="用户不存在"), 404
+    salt = os.urandom(16).hex()
+    h = hash_pw(new_pw, salt)
+    conn.execute("UPDATE users SET password_hash=?, salt=? WHERE username=?", (h, salt, username))
+    conn.commit(); conn.close()
+    return jsonify(ok=True)
+
 @app.route('/api/users/<username>', methods=['DELETE'])
 @admin_required
 def api_delete_user(username):
     if username == request.user['username']: return jsonify(error="不能删除自己"), 400
-    if username == 'admin': return jsonify(error="不能删除默认管理员"), 400
+    if username == 'admin': return jsonify(error="不能删除主管理员"), 400
     conn = get_db()
     conn.execute("DELETE FROM records WHERE user_id=?", (username,))
     conn.execute("DELETE FROM users WHERE username=?", (username,))
@@ -291,7 +328,7 @@ def api_update_email_config():
                     smtp_ssl=?,sender_name=?,recipients=?,schedule_hour=?,schedule_minute=?,enabled=?
                     WHERE id=1""",
                  (cur.get('smtp_host',''), cur.get('smtp_port',465), cur.get('smtp_user',''),
-                  cur.get('smtp_pass',''), cur.get('smtp_ssl',1), cur.get('sender_name','加班打卡助手'),
+                  cur.get('smtp_pass',''), cur.get('smtp_ssl',1), cur.get('sender_name','考勤助手'),
                   cur.get('recipients','[]'), cur.get('schedule_hour',9), cur.get('schedule_minute',0),
                   cur.get('enabled',0)))
     conn.commit(); conn.close()
@@ -304,7 +341,7 @@ def api_test_email():
     d = request.json or {}
     to = d.get('to','')
     if not to: return jsonify(error="请输入测试邮箱"), 400
-    ok, msg = send_email(to, "加班打卡助手 - 测试邮件", "<h3>✅ 邮件发送成功</h3><p>如果你收到这封邮件，说明配置正确。</p>")
+    ok, msg = send_email(to, "考勤助手 - 测试邮件", "<h3>✅ 邮件发送成功</h3><p>如果你收到这封邮件，说明配置正确。</p>")
     return jsonify(ok=ok, message=msg)
 
 @app.route('/api/email/send-now', methods=['POST'])
@@ -443,21 +480,30 @@ def send_email(to, subject, html_body):
         return False, "SMTP 未配置"
     try:
         msg = MIMEMultipart('alternative')
-        msg['From'] = f"{cfg.get('sender_name','加班助手')} <{cfg['smtp_user']}>"
+        msg['From'] = f"{cfg.get('sender_name','考勤助手')} <{cfg['smtp_user']}>"
         msg['To'] = to
         msg['Subject'] = subject
         msg.attach(MIMEText(html_body, 'html', 'utf-8'))
-        if cfg.get('smtp_ssl', 1):
-            server = smtplib.SMTP_SSL(cfg['smtp_host'], cfg.get('smtp_port', 465), timeout=10)
+        port = int(cfg.get('smtp_port', 465) or 465)
+        use_ssl = cfg.get('smtp_ssl', 1)
+        if use_ssl or port == 465:
+            server = smtplib.SMTP_SSL(cfg['smtp_host'], port, timeout=15)
         else:
-            server = smtplib.SMTP(cfg['smtp_host'], cfg.get('smtp_port', 587), timeout=10)
+            server = smtplib.SMTP(cfg['smtp_host'], port, timeout=15)
             server.starttls()
-        server.login(cfg['smtp_user'], cfg.get('smtp_pass',''))
+        if cfg.get('smtp_user') and cfg.get('smtp_pass'):
+            server.login(cfg['smtp_user'], cfg['smtp_pass'])
         server.sendmail(cfg['smtp_user'], [to], msg.as_string())
         server.quit()
         return True, "发送成功"
+    except smtplib.SMTPAuthenticationError:
+        return False, "邮箱认证失败，请检查发件邮箱和密码/授权码"
+    except smtplib.SMTPConnectError:
+        return False, "无法连接SMTP服务器，请检查服务器地址和端口"
+    except smtplib.SMTPServerDisconnected:
+        return False, "SMTP服务器断开连接，请检查SSL设置"
     except Exception as e:
-        return False, str(e)
+        return False, f"发送失败: {str(e)[:200]}"
 
 def send_overtime_report():
     settings = get_settings_data()
@@ -481,16 +527,16 @@ def send_overtime_report():
     if not rows_html:
         rows_html = "<tr><td colspan='2' style='padding:12px;text-align:center;color:#94A3B8'>本月暂无打卡记录</td></tr>"
     html = f"""<div style="font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto">
-        <h2 style="color:#4F46E5">📊 {now.strftime('%Y年%m月')} 加班统计报告</h2>
+        <h2 style="color:#4F46E5">📊 {now.strftime('%Y年%m月')} 工时统计报告</h2>
         <p style="color:#64748B">自动生成于 {now.strftime('%Y-%m-%d %H:%M')}</p>
         <table style="width:100%;border-collapse:collapse;margin-top:16px">
-        <tr style="background:#F8FAFC"><th style="padding:8px 12px;border:1px solid #E2E8F0;text-align:left">成员</th><th style="padding:8px 12px;border:1px solid #E2E8F0;text-align:center">本月加班</th></tr>
+        <tr style="background:#F8FAFC"><th style="padding:8px 12px;border:1px solid #E2E8F0;text-align:left">成员</th><th style="padding:8px 12px;border:1px solid #E2E8F0;text-align:center">本月工时</th></tr>
         {rows_html}
         </table>
-        <p style="color:#94A3B8;font-size:12px;margin-top:24px">— 加班打卡助手自动发送</p></div>"""
+        <p style="color:#94A3B8;font-size:12px;margin-top:24px">— 考勤助手自动发送</p></div>"""
     errors = []
     for to in recipients:
-        ok, msg = send_email(to, f"📊 {now.strftime('%Y年%m月')} 加班统计", html)
+        ok, msg = send_email(to, f"📊 {now.strftime('%Y年%m月')} 工时统计", html)
         if not ok: errors.append(f"{to}: {msg}")
     if errors:
         return False, "; ".join(errors)
