@@ -28,7 +28,6 @@ namespace ZwSoft.ZwCAD.ApplicationServices
         public DocumentLock LockDocument() { return new DocumentLock(); }
     }
     public class DocumentLock : IDisposable { public void Dispose() {} }
-    }
 }
 namespace ZwSoft.ZwCAD.DatabaseServices
 {
@@ -53,7 +52,7 @@ namespace ZwSoft.ZwCAD.DatabaseServices
         public Database(bool buildDefaultDrawing, bool noDocument) {}
         public void ReadDwgFile(string fileName, FileOpenMode mode, bool allowCPConversion, string password) {}
         public void Insert(string blockName, Database sourceDatabase, bool preserveSourceDatabase) {}
-        public Database Wblock(ObjectIdCollection ids, Point3d basePoint) { return new Database(); }
+        public Database Wblock(ObjectIdCollection ids, ZwSoft.ZwCAD.Geometry.Point3d basePoint) { return new Database(); }
         public Database Wblock(ObjectId blockId) { return new Database(); }
         public Database Wblock() { return new Database(); }
         public void SaveAs(string fileName, DwgVersion version) {}

@@ -29,7 +29,6 @@ namespace GrxCAD.ApplicationServices
         public DocumentLock LockDocument() { return new DocumentLock(); }
     }
     public class DocumentLock : IDisposable { public void Dispose() {} }
-    }
 }
 namespace GrxCAD.DatabaseServices
 {
@@ -54,7 +53,7 @@ namespace GrxCAD.DatabaseServices
         public Database(bool buildDefaultDrawing, bool noDocument) {}
         public void ReadDwgFile(string fileName, FileOpenMode mode, bool allowCPConversion, string password) {}
         public void Insert(string blockName, Database sourceDatabase, bool preserveSourceDatabase) {}
-        public Database Wblock(ObjectIdCollection ids, Point3d basePoint) { return new Database(); }
+        public Database Wblock(ObjectIdCollection ids, GrxCAD.Geometry.Point3d basePoint) { return new Database(); }
         public Database Wblock(ObjectId blockId) { return new Database(); }
         public Database Wblock() { return new Database(); }
         public void SaveAs(string fileName, DwgVersion version) {}
