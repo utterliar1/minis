@@ -1,4 +1,4 @@
-﻿// GstarCAD API stubs for CI compilation
+// GstarCAD API stubs for CI compilation
 using System;
 using System.Collections;
 using System.Collections.Generic;
