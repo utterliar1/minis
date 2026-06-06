@@ -507,17 +507,19 @@ async function doExport(){
       if(!groups[key])groups[key]={name:r.display_name||r.user_id,date:r.date,records:[]};
       groups[key].records.push(r);
     });
-    const header='姓名,日期,星期,上班,下班,类型,工时(分),工时(h)\n';
+    const header='姓名,日期,星期,上班,下班,类型,事由,工时(分),工时(h)\n';
     const rows=Object.values(groups).map(g=>{
       const d=new Date(g.date+'T12:00:00');
       const wd=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
       const sorted=g.records.sort((a,b)=>a.ts-b.ts);
       const fi=sorted.find(r=>r.type==='in');
       const lo=[...sorted].reverse().find(r=>r.type==='out');
+      // 收集上班事由
+      const reasons=sorted.filter(r=>r.type==='in'&&r.note).map(r=>r.note).filter(Boolean).join('; ');
       const isWork=isWorkingDay(d);
       const ot=calcTodayOT(sorted,d);
       const hrs=ot>=60?Math.floor(ot/60)+'h'+(ot%60?ot%60+'m':''):ot+'m';
-      return `"${g.name}","${g.date}","${wd}","${fi?(fi.time_str||'').slice(0,5):''}","${lo?(lo.time_str||'').slice(0,5):''}","${isWork?'工作日':'休息日'}",${ot},"${hrs}"`;
+      return `"${g.name}","${g.date}","${wd}","${fi?(fi.time_str||'').slice(0,5):''}","${lo?(lo.time_str||'').slice(0,5):''}","${isWork?'工作日':'休息日'}","${reasons}",${ot},"${hrs}"`;
     }).join('\n');
     downloadBlob(new Blob(['\uFEFF'+header+rows],{type:'text/csv;charset=utf-8'}),`工时报表_${scope}_${period}_${dateKey(new Date())}.csv`);
     showToast('📥 已导出');
@@ -528,10 +530,14 @@ async function doExport(){
 let currentPos=null;
 let calMonth=new Date().getMonth(),calYear=new Date().getFullYear();
 
+function bjNow(){return new Date(Date.now()+8*3600000)} // 北京时间 UTC+8
+function bjTimeStr(d){return d.toISOString().slice(11,19)}
+function bjDateStr(d){return d.toISOString().slice(0,10)}
+function bjWeekday(d){return['周日','周一','周二','周三','周四','周五','周六'][d.getUTCDay()]}
 function updateClock(){
-  const now=new Date();
-  document.getElementById('clock-time').textContent=now.toLocaleTimeString('zh-CN',{hour12:false});
-  document.getElementById('clock-date').textContent=now.toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  const now=bjNow();
+  document.getElementById('clock-time').textContent=bjTimeStr(now);
+  document.getElementById('clock-date').textContent=`${now.getUTCFullYear()}年${now.getUTCMonth()+1}月${now.getUTCDate()}日 ${bjWeekday(now)}`;
   updateClockButton();updateTodayTimeline();updateHeaderStats();
 }
 function isWithinRange(pos){if(!settings.lat||!settings.lng||!pos)return false;return haversineDistance(settings.lat,settings.lng,pos.lat,pos.lng)<=settings.radius}
@@ -562,17 +568,21 @@ async function handleClock(){
   if(btn.classList.contains('disabled')){showToast('请先满足打卡条件');return}
   if(!currentPos){showToast('正在获取位置...');return}
   if(!settings.lat){showToast('打卡地点未配置');return}
-  const last=getLastTodayRecord();let type='in',label='上班';
-  if(last&&last.type==='in'){type='out';label='下班'}
-  const reason=prompt(`请输入${label}事由（加班内容）：`);
-  if(reason===null)return;
+  const last=getLastTodayRecord();let type='in';
+  if(last&&last.type==='in')type='out';
+  // 只有上班打卡才填事由
+  let reason='';
+  if(type==='in'){
+    reason=prompt('请输入加班事由：');
+    if(reason===null)return;
+  }
   if(!isWithinRange(currentPos)){showConfirmModal('⚠️ 范围外打卡','不在范围内，是否记录？',async()=>{await doClock(type,true,reason)},()=>{});return}
   await doClock(type,false,reason);
 }
-async function doClock(type,outOfRange){
+async function doClock(type,outOfRange,note){
   try{
-    const d=await api('/clock',{method:'POST',body:JSON.stringify({type,lat:currentPos?.lat,lng:currentPos?.lng,accuracy:currentPos?.accuracy,outOfRange})});
-    allRecords.push({user_id:currentUser.username,date:d.date,time_str:d.time,ts:Date.now(),type,out_of_range:outOfRange?1:0});
+    const d=await api('/clock',{method:'POST',body:JSON.stringify({type,lat:currentPos?.lat,lng:currentPos?.lng,accuracy:currentPos?.accuracy,outOfRange,note})});
+    allRecords.push({user_id:currentUser.username,date:d.date,time_str:d.time,ts:Date.now(),type,out_of_range:outOfRange?1:0,note});
     updateClockButton();updateTodayTimeline();updateHeaderStats();renderCalendar();renderStats();
     showToast(type==='in'?'✅ 已记录上班':'✅ 已记录下班');
   }catch(e){showToast('❌ '+e.message)}
@@ -627,10 +637,10 @@ function renderStats(){
   let totalOT=0,wkOT=0,hdOT=0;
   Object.entries(dg).forEach(([date,recs])=>{const ot=calcTodayOT(recs,new Date(date+'T12:00:00'));totalOT+=ot;isWorkingDay(new Date(date+'T12:00:00'))?wkOT+=ot:hdOT+=ot});
   const days=Object.keys(dg).length;
-  const ws2=new Date();ws2.setDate(ws2.getDate()-ws2.getDay()+1);ws2.setHours(0,0,0,0);
-  let weekTotal=0,weekDays=0;
-  Object.entries(dg).forEach(([date,recs])=>{const d=new Date(date+'T12:00:00');if(d>=ws2){const ot=calcTodayOT(recs,d);weekTotal+=ot;weekDays++}});
   document.getElementById('stats-content').innerHTML=`
+    const ws2=new Date();ws2.setDate(ws2.getDate()-ws2.getDay()+1);ws2.setHours(0,0,0,0);
+    let weekTotal=0,weekDays=0;
+    Object.entries(dg).forEach(([date,recs])=>{const d=new Date(date+'T12:00:00');if(d>=ws2){const ot=calcTodayOT(recs,d);weekTotal+=ot;weekDays++}});
     <div class="summary-row"><span class="label">本周工时</span><span class="value overtime">${formatMinutes(weekTotal)}（${weekDays}天）</span></div>
     <div class="summary-row"><span class="label">本月工时</span><span class="value overtime">${formatMinutes(totalOT)}（${days}天）</span></div>
     <div class="summary-row"><span class="label">工作日工时</span><span class="value">${formatMinutes(wkOT)}</span></div>
@@ -652,11 +662,12 @@ function updateHeaderStats(){
   let mot=0;Object.entries(mdg).forEach(([date,recs])=>{mot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
   const adg={};allRecords.forEach(r=>{if(!adg[r.date])adg[r.date]=[];adg[r.date].push(r)});
   let ttot=0;Object.entries(adg).forEach(([date,recs])=>{ttot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
-  const ws=new Date();ws.setDate(ws.getDate()-ws.getDay()+1);ws.setHours(0,0,0,0);
-  const wRecs=allRecords.filter(r=>{const d=new Date(r.ts);return d>=ws});
-  const wdg={};wRecs.forEach(r=>{if(!wdg[r.date])wdg[r.date]=[];wdg[r.date].push(r)});
-  let wot=0;Object.entries(wdg).forEach(([date,recs])=>{wot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
   document.getElementById('header-stats').innerHTML=`
+    const ws=new Date();ws.setDate(ws.getDate()-ws.getDay()+1);ws.setHours(0,0,0,0);
+    const wRecs=allRecords.filter(r=>{const d=new Date(r.ts);return d>=ws});
+    const wdg={};wRecs.forEach(r=>{if(!wdg[r.date])wdg[r.date]=[];wdg[r.date].push(r)});
+    let wot=0;Object.entries(wdg).forEach(([date,recs])=>{wot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
+    document.getElementById('header-stats').innerHTML=`
     <div class="stat-item"><div class="stat-value">${fmtMin(tot)}</div><div class="stat-label">今日</div></div>
     <div class="stat-item"><div class="stat-value">${fmtMin(wot)}</div><div class="stat-label">本周</div></div>
     <div class="stat-item"><div class="stat-value">${fmtMin(mot)}</div><div class="stat-label">本月</div></div>`;
@@ -799,7 +810,7 @@ function showPage(name){
   if(name==='dashboard')loadDashboard();
 }
 function showSettingsTab(n){}
-function dateKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function dateKey(d){if(!d)d=bjNow();return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0')}
 function timeToMin(t){if(!t)return 540;const[h,m]=t.split(':');return +h*60+(+m)}
 function msToMin(ts,timeStr){if(timeStr){const p=timeStr.split(':');return(+p[0])*60+(+p[1])}const d=new Date(ts);return d.getHours()*60+d.getMinutes()}
 function formatMinutes(m){if(m<=0)return'0 分钟';const h=Math.floor(m/60),mm=m%60;return h===0?`${mm} 分钟`:mm===0?`${h} 小时`:`${h} 小时 ${mm} 分钟`}
