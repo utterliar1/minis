@@ -1,4 +1,4 @@
-@echo off
+ï»¿@echo off
 chcp 65001 >nul
 echo ========================================
 echo   CadToolkit Build
@@ -33,7 +33,7 @@ echo   ZWCAD: OK
 echo.
 echo [3/3] GstarCAD
 if exist "%BASE%src\CadToolkit\bin\Release" rmdir /s /q "%BASE%src\CadToolkit\bin\Release"
-%MSBUILD% "%BASE%src\CadToolkit\CadToolkit.GstarCAD.csproj" /p:Configuration=Release /p:Platform=x64 "/p:GstarCADDir=C:\Program Files\ºÆ³½Èí¼þ\ºÆ³½CAD2022" /t:Rebuild /v:minimal
+%MSBUILD% "%BASE%src\CadToolkit\CadToolkit.GstarCAD.csproj" /p:Configuration=Release /p:Platform=x64 "/p:GstarCADDir=C:\Program Files\æµ©è¾°è½¯ä»¶\æµ©è¾°CAD2022" /t:Rebuild /v:minimal
 copy /Y "%BASE%src\CadToolkit\bin\Release\CadToolkit.dll" "%DEPLOY%\gcad\"
 copy /Y "%BASE%src\CadToolkit.Core\bin\Release\CadToolkit.Core.dll" "%DEPLOY%\gcad\"
 copy /Y "%BASE%src\CadToolkit.UI\bin\Release\CadToolkit.UI.dll" "%DEPLOY%\gcad\"

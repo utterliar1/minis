@@ -145,6 +145,7 @@ namespace CadToolkit.UI
             ok.Click += delegate { OldName = t1.Text.Trim(); NewName = t2.Text.Trim(); };
             Controls.AddRange(new Control[] { l1, t1, l2, t2, ok, cancel });
             AcceptButton = ok; CancelButton = cancel;
+            Shown += delegate { t2.Focus(); };
         }
     }
 
@@ -223,3 +224,4 @@ namespace CadToolkit.UI
         }
     }
 }
+

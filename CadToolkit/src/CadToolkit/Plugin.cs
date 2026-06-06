@@ -50,8 +50,8 @@ namespace CadToolkit
                 System.AppDomain.CurrentDomain.AssemblyResolve += delegate(object s, System.ResolveEventArgs e)
                 {
                     string name = new System.Reflection.AssemblyName(e.Name).Name + ".dll";
-                    string path = System.IO.Path.Combine(dir, name);
-                    if (System.IO.File.Exists(path)) return System.Reflection.Assembly.LoadFrom(path);
+                    string p2 = System.IO.Path.Combine(dir, name);
+                    if (System.IO.File.Exists(p2)) return System.Reflection.Assembly.LoadFrom(p2);
                     return null;
                 };
                 Config.Init(typeof(CadPlugin).Assembly.Location);
@@ -66,6 +66,8 @@ namespace CadToolkit
     {
         static bool _initDone;
         static ObjectId[] _pendingSelection;
+        static Dictionary<string, ObjectId[]> _isoState = new Dictionary<string, ObjectId[]>();
+
         static void EnsureInit()
         {
             if (_initDone) return;
@@ -76,8 +78,8 @@ namespace CadToolkit
                 System.AppDomain.CurrentDomain.AssemblyResolve += delegate(object s, System.ResolveEventArgs e)
                 {
                     string name = new System.Reflection.AssemblyName(e.Name).Name + ".dll";
-                    string path = System.IO.Path.Combine(dir, name);
-                    if (System.IO.File.Exists(path)) return System.Reflection.Assembly.LoadFrom(path);
+                    string p2 = System.IO.Path.Combine(dir, name);
+                    if (System.IO.File.Exists(p2)) return System.Reflection.Assembly.LoadFrom(p2);
                     return null;
                 };
                 Config.Init(typeof(CadCommands).Assembly.Location);
@@ -87,7 +89,24 @@ namespace CadToolkit
 
         static Editor Ed { get { return CadApp.DocumentManager.MdiActiveDocument.Editor; } }
         static Database Db { get { return CadApp.DocumentManager.MdiActiveDocument.Database; } }
+        static string DocKey { get { var d = CadApp.DocumentManager.MdiActiveDocument; return d != null ? d.Name : ""; } }
         static string SafeStr(string s) { return s == null ? "" : s; }
+        static string PlatformName
+        {
+            get
+            {
+#if AUTOCAD
+                return "AutoCAD";
+#elif ZWCAD
+                return "ZWCAD";
+#elif GSTARCAD
+                return "GstarCAD";
+#else
+                return "CAD";
+#endif
+            }
+        }
+
         static ObjectId GetTextStyleId(Transaction tr, string name)
         {
             var tst = (TextStyleTable)tr.GetObject(Db.TextStyleTableId, OpenMode.ForRead);
@@ -113,7 +132,7 @@ namespace CadToolkit
         {
             if (CadApp.DocumentManager.MdiActiveDocument == null)
             {
-                System.Windows.Forms.MessageBox.Show("\u8BF7\u5148\u6253\u5F00\u4E00\u4E2A\u56FE\u7EBF\u6587\u4EF6\u3002", "\u63D0\u793A", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("\u8bf7\u5148\u6253\u5f00\u4e00\u4e2a\u56fe\u7ebf\u6587\u4ef6\u3002", "\u63d0\u793a", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
             return true;
@@ -136,7 +155,15 @@ namespace CadToolkit
             return Ed.GetSelection();
         }
 
-
+        static void Log(string msg)
+        {
+            try
+            {
+                string logPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "CadToolkit.log");
+                System.IO.File.AppendAllText(logPath, string.Format("[{0}] {1}\r\n", DateTime.Now.ToString("HH:mm:ss"), msg));
+            }
+            catch { }
+        }
         [CommandMethod("CT_PANEL")]
         public void ShowPanel()
         {
@@ -146,22 +173,16 @@ namespace CadToolkit
             foreach (var g in groups) totalCmds += g.Commands.Count;
             if (totalCmds == 0)
             {
-                System.Windows.Forms.MessageBox.Show(
-                    "没有配置任何命令。\n请编辑 CadToolkit.ini 的 [Commands] 段。",
-                    "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("\u6ca1\u6709\u914d\u7f6e\u4efb\u4f55\u547d\u4ee4\u3002\n\u8bf7\u7f16\u8f91 CadToolkit.ini \u7684 [Commands] \u6bb5\u3002", "\u63d0\u793a", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            // group grid: 2x2 for <=4 groups, 3x3 for 5-9, etc.
             int groupCols = groups.Count <= 4 ? 2 : (groups.Count <= 9 ? 3 : 4);
-
-            // inner button grid within each cell: 2 columns
             int innerCols = 2;
             int bw = 96, bh = 28, gap = 3;
             int headerH = 22;
             int cellPad = 6;
 
-            // find max button rows across all groups to set uniform cell height
             int maxRows = 0;
             foreach (var g in groups)
             {
@@ -172,13 +193,12 @@ namespace CadToolkit
             int cellW = cellPad + innerCols * (bw + gap) - gap + cellPad;
             int cellH = headerH + cellPad + maxRows * (bh + gap) - gap + cellPad;
             int groupGap = 6;
-
             int totalW = groupGap + groupCols * (cellW + groupGap);
             int groupRows = (int)Math.Ceiling(groups.Count / (double)groupCols);
             int totalH = groupGap + groupRows * (cellH + groupGap) + 32;
 
             var f = new Form();
-            f.Text = "CadToolkit " + Config.Version;
+            f.Text = "CadToolkit - " + PlatformName;
             f.StartPosition = FormStartPosition.CenterScreen;
             f.FormBorderStyle = FormBorderStyle.FixedToolWindow;
             f.TopMost = true;
@@ -188,7 +208,6 @@ namespace CadToolkit
             f.ClientSize = new Size(totalW, totalH);
             f.BackColor = Color.FromArgb(240, 240, 240);
 
-            // hidden cancel for ESC
             var btnCancel = new Button();
             btnCancel.DialogResult = DialogResult.Cancel;
             btnCancel.Size = new Size(0, 0);
@@ -204,14 +223,12 @@ namespace CadToolkit
                 int gx = groupGap + (gi % groupCols) * (cellW + groupGap);
                 int gy = groupGap + (gi / groupCols) * (cellH + groupGap);
 
-                // cell panel
                 var pnl = new Panel();
                 pnl.Location = new Point(gx, gy);
                 pnl.Size = new Size(cellW, cellH);
                 pnl.BackColor = Color.White;
                 pnl.BorderStyle = BorderStyle.FixedSingle;
 
-                // group name
                 var lbl = new Label();
                 lbl.Text = g.Name;
                 lbl.Left = cellPad; lbl.Top = 2;
@@ -221,7 +238,6 @@ namespace CadToolkit
                 lbl.ForeColor = Color.FromArgb(60, 60, 60);
                 pnl.Controls.Add(lbl);
 
-                // buttons
                 int btnY0 = headerH + cellPad;
                 for (int i = 0; i < g.Commands.Count; i++)
                 {
@@ -240,11 +256,9 @@ namespace CadToolkit
                     b.Click += delegate { action = "CMD:" + cmdName; f.Close(); };
                     pnl.Controls.Add(b);
                 }
-
                 f.Controls.Add(pnl);
             }
 
-            // bottom bar
             var bar = new Panel();
             bar.Location = new Point(0, totalH - 30);
             bar.Size = new Size(totalW, 30);
@@ -257,7 +271,7 @@ namespace CadToolkit
             btnAdd.BackColor = Color.White;
             btnAdd.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
             btnAdd.Size = new Size(24, 22);
-            btnAdd.Location = new Point(groupGap, 4);
+            btnAdd.Location = new Point(totalW - 56, 4);
             btnAdd.Click += delegate { action = "ADD"; f.Close(); };
 
             var btnManage = new Button();
@@ -267,38 +281,49 @@ namespace CadToolkit
             btnManage.BackColor = Color.White;
             btnManage.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
             btnManage.Size = new Size(24, 22);
-            btnManage.Location = new Point(groupGap + 30, 4);
+            btnManage.Location = new Point(totalW - 26, 4);
             btnManage.Click += delegate { action = "MANAGE"; f.Close(); };
+
+            var lblAuthor = new Label();
+            lblAuthor.Text = Config.Version + " | WLUP";
+            lblAuthor.AutoSize = false;
+            lblAuthor.Size = new Size(120, 22);
+            lblAuthor.Location = new Point(groupGap, 4);
+            lblAuthor.TextAlign = ContentAlignment.MiddleLeft;
+            lblAuthor.ForeColor = Color.FromArgb(160, 160, 160);
+            lblAuthor.Font = new System.Drawing.Font("Microsoft YaHei", 7.5f);
 
             bar.Controls.Add(btnAdd);
             bar.Controls.Add(btnManage);
+            bar.Controls.Add(lblAuthor);
             f.Controls.Add(bar);
 
             if (!CheckDoc()) return;
-            // Read pickfirst handles from file (saved by LISP CC wrapper)
+
             _pendingSelection = null;
             try
             {
-                string _pfPath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(typeof(CadCommands).Assembly.Location), "..", "pickfirst.txt");
-                if (System.IO.File.Exists(_pfPath))
+                string pfPath = System.IO.Path.Combine(
+                    System.IO.Path.GetDirectoryName(typeof(CadCommands).Assembly.Location), "..", "pickfirst.txt");
+                if (System.IO.File.Exists(pfPath))
                 {
-                    string _handleStr = System.IO.File.ReadAllText(_pfPath).Trim();
-                    try { System.IO.File.Delete(_pfPath); } catch {}
-                    if (!string.IsNullOrEmpty(_handleStr))
+                    string handleStr = System.IO.File.ReadAllText(pfPath).Trim();
+                    try { System.IO.File.Delete(pfPath); } catch {}
+                    if (!string.IsNullOrEmpty(handleStr))
                     {
-                        string[] _handles = _handleStr.Split(new char[] { ',' });
-                        var _ids = new System.Collections.Generic.List<ObjectId>();
-                        foreach (string _h in _handles)
+                        string[] handles = handleStr.Split(new char[] { ',' });
+                        var ids = new List<ObjectId>();
+                        foreach (string h in handles)
                         {
                             try
                             {
-                                long _val = long.Parse(_h.Trim(), System.Globalization.NumberStyles.HexNumber);
-                                ObjectId _oid = Db.GetObjectId(false, new Handle(_val), 0);
-                                if (_oid.IsValid) _ids.Add(_oid);
+                                long val = long.Parse(h.Trim(), System.Globalization.NumberStyles.HexNumber);
+                                ObjectId oid = Db.GetObjectId(false, new Handle(val), 0);
+                                if (oid.IsValid) ids.Add(oid);
                             }
                             catch { }
                         }
-                        if (_ids.Count > 0) _pendingSelection = _ids.ToArray();
+                        if (ids.Count > 0) _pendingSelection = ids.ToArray();
                     }
                 }
             }
@@ -311,7 +336,6 @@ namespace CadToolkit
             if (action.StartsWith("CMD:"))
             {
                 string cmdName = action.Substring(4);
-                // Defer until CAD editor is ready after dialog close
                 System.EventHandler idle = null;
                 idle = delegate(object sender, System.EventArgs ea)
                 {
@@ -332,8 +356,7 @@ namespace CadToolkit
             {
                 using (var dlg = new ManageCommandsDialog()) { dlg.ShowDialog(); }
             }
-        }
-        [CommandMethod("CT_FINDREPLACE")]
+        }        [CommandMethod("CT_FINDREPLACE")]
         public void FindReplace()
         {
             EnsureInit();
@@ -341,66 +364,79 @@ namespace CadToolkit
             using (var dlg = new FindReplaceDialog())
             {
                 if (dlg.ShowDialog() != DialogResult.OK) return;
-                if (string.IsNullOrEmpty(dlg.FindText)) { Ed.WriteMessage("\n\u67E5\u627E\u5185\u5BB9\u4E3A\u7A7A\u3002"); return; }
+                if (string.IsNullOrEmpty(dlg.FindText)) { Ed.WriteMessage("\n\u67e5\u627e\u5185\u5bb9\u4e3a\u7a7a\u3002"); return; }
                 int count = 0;
                 StringComparison cmp = dlg.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
                 using (var tr = Db.TransactionManager.StartTransaction())
                 {
                     var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForRead);
-                    foreach (ObjectId id in msBtr)
+                    count += ReplaceInBlock(tr, msBtr, dlg.FindText, dlg.ReplaceText, cmp);
+                    var bt = (BlockTable)tr.GetObject(Db.BlockTableId, OpenMode.ForRead);
+                    foreach (ObjectId btrId in bt)
                     {
-                        var obj = tr.GetObject(id, OpenMode.ForRead);
-                        if (obj is DBText)
-                        {
-                            var dt = (DBText)obj;
-                            string txt = SafeStr(dt.TextString);
-                            string ntxt = ReplaceEx(txt, dlg.FindText, dlg.ReplaceText, cmp);
-                            if (ntxt != txt) { dt.UpgradeOpen(); dt.TextString = ntxt; count++; }
-                        }
-                        else if (obj is MText)
-                        {
-                            var mt = (MText)obj;
-                            string txt = SafeStr(mt.Contents);
-                            string ntxt = ReplaceEx(txt, dlg.FindText, dlg.ReplaceText, cmp);
-                            if (ntxt != txt) { mt.UpgradeOpen(); mt.Contents = ntxt; count++; }
-                        }
-                        else if (obj is BlockReference)
-                        {
-                            var br = (BlockReference)obj;
-                            if (br.AttributeCollection.Count > 0)
-                            {
-                                foreach (ObjectId attId in br.AttributeCollection)
-                                {
-                                    var att = tr.GetObject(attId, OpenMode.ForRead) as AttributeReference;
-                                    if (att == null) continue;
-                                    string txt = SafeStr(att.TextString);
-                                    string ntxt = ReplaceEx(txt, dlg.FindText, dlg.ReplaceText, cmp);
-                                    if (ntxt != txt) { att.UpgradeOpen(); att.TextString = ntxt; count++; }
-                                }
-                            }
-                        }
+                        var btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
+                        if (btr.IsLayout || btr.Name.StartsWith("*")) continue;
+                        count += ReplaceInBlock(tr, btr, dlg.FindText, dlg.ReplaceText, cmp);
                     }
                     tr.Commit();
                 }
-                Ed.WriteMessage(string.Format("\n\u5DF2\u66FF\u6362 {0} \u5904\u3002", count));
+                Ed.WriteMessage(string.Format("\n\u5df2\u66ff\u6362 {0} \u5904\u3002", count));
             }
         }
-
-                                [CommandMethod("CT_ALIGN")]
+        static int ReplaceInBlock(Transaction tr, BlockTableRecord btr, string findText, string replaceText, StringComparison cmp)
+        {
+            int count = 0;
+            foreach (ObjectId id in btr)
+            {
+                var obj = tr.GetObject(id, OpenMode.ForRead);
+                if (obj is DBText)
+                {
+                    var dt = (DBText)obj;
+                    string txt = SafeStr(dt.TextString);
+                    string ntxt = ReplaceEx(txt, findText, replaceText, cmp);
+                    if (ntxt != txt) { dt.UpgradeOpen(); dt.TextString = ntxt; count++; }
+                }
+                else if (obj is MText)
+                {
+                    var mt = (MText)obj;
+                    string txt = SafeStr(mt.Contents);
+                    string ntxt = ReplaceEx(txt, findText, replaceText, cmp);
+                    if (ntxt != txt) { mt.UpgradeOpen(); mt.Contents = ntxt; count++; }
+                }
+                else if (obj is BlockReference)
+                {
+                    var br = (BlockReference)obj;
+                    if (br.AttributeCollection.Count > 0)
+                    {
+                        foreach (ObjectId attId in br.AttributeCollection)
+                        {
+                            var att = tr.GetObject(attId, OpenMode.ForRead) as AttributeReference;
+                            if (att == null) continue;
+                            string txt = SafeStr(att.TextString);
+                            string ntxt = ReplaceEx(txt, findText, replaceText, cmp);
+                            if (ntxt != txt) { att.UpgradeOpen(); att.TextString = ntxt; count++; }
+                        }
+                    }
+                }
+            }
+            return count;
+        }
+        [CommandMethod("CT_ALIGN")]
         public void AlignText()
         {
             EnsureInit();
             if (!CheckDoc()) return;
             var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
             using (var dlg = new AlignDialog())
             {
                 if (dlg.ShowDialog() != DialogResult.OK) return;
                 int h = dlg.HorzIndex;
                 bool useFirst = dlg.UseFirstBase;
                 double spacing = dlg.LineSpacing;
-
-                var texts = new System.Collections.Generic.List<DBText>();
+                var texts = new List<DBText>();
+                double baseX = 0;
+                double baseY = 0;
                 using (var tr = Db.TransactionManager.StartTransaction())
                 {
                     foreach (ObjectId id in psr.Value.GetObjectIds())
@@ -408,44 +444,34 @@ namespace CadToolkit
                         var ent = tr.GetObject(id, OpenMode.ForRead);
                         if (ent is DBText) texts.Add((DBText)ent);
                     }
-                    tr.Commit();
-                }
-                if (texts.Count == 0) { Ed.WriteMessage("\n未找到单行文字。"); return; }
-
-                texts.Sort(delegate(DBText a, DBText b) { return b.Position.Y.CompareTo(a.Position.Y); });
-
-                if (spacing <= 0)
-                {
-                    double maxH = 0;
-                    foreach (var t in texts) { if (t.Height > maxH) maxH = t.Height; }
-                    spacing = maxH * 1.8;
-                }
-
-                double baseX;
-                double baseY = texts[0].Position.Y;
-
-                using (var tr = Db.TransactionManager.StartTransaction())
-                {
+                    if (texts.Count == 0) { Ed.WriteMessage("\n\u672a\u627e\u5230\u5355\u884c\u6587\u5b57\u3002"); return; }
+                    texts.Sort(delegate(DBText a, DBText b) { return b.Position.Y.CompareTo(a.Position.Y); });
+                    if (spacing <= 0)
+                    {
+                        double maxH = 0;
+                        foreach (var t in texts) { if (t.Height > maxH) maxH = t.Height; }
+                        spacing = maxH * 1.8;
+                    }
                     if (useFirst)
                     {
-                        var t0 = (DBText)tr.GetObject(texts[0].ObjectId, OpenMode.ForRead);
+                        var t0 = texts[0];
                         double tw = 0;
                         try { tw = t0.WidthFactor * t0.TextString.Length * t0.Height * 0.6; } catch { }
                         if (h == 0) baseX = t0.Position.X;
                         else if (h == 1) baseX = t0.Position.X + tw / 2.0;
                         else baseX = t0.Position.X + tw;
+                        baseY = t0.Position.Y;
                     }
                     else
                     {
-                        var ppr = Ed.GetPoint("\n指定对齐基点：");
+                        var ppr = Ed.GetPoint("\n\u6307\u5b9a\u5bf9\u9f50\u57fa\u70b9\uff1a");
                         if (ppr.Status != PromptStatus.OK) return;
                         baseX = ppr.Value.X;
                         baseY = ppr.Value.Y;
                     }
-
                     for (int i = 0; i < texts.Count; i++)
                     {
-                        var dt = (DBText)tr.GetObject(texts[i].ObjectId, OpenMode.ForWrite);
+                        var dt = texts[i];
                         double tw = 0;
                         try { tw = dt.WidthFactor * dt.TextString.Length * dt.Height * 0.6; } catch { }
                         double nx = baseX;
@@ -453,20 +479,19 @@ namespace CadToolkit
                         else if (h == 2) nx = baseX - tw;
                         double ny = baseY - i * spacing;
                         dt.UpgradeOpen();
-                dt.Position = new Point3d(nx, ny, 0);
+                        dt.Position = new Point3d(nx, ny, 0);
                     }
                     tr.Commit();
                 }
-                Ed.WriteMessage(string.Format("\n已对齐 {0} 个文字。", texts.Count));
+                Ed.WriteMessage(string.Format("\n\u5df2\u5bf9\u9f50 {0} \u4e2a\u6587\u5b57\u3002", texts.Count));
             }
-        }
-[CommandMethod("CT_UNDERLINE")]
+        }        [CommandMethod("CT_UNDERLINE")]
         public void UnderlineText()
         {
             EnsureInit();
             if (!CheckDoc()) return;
             var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672A\u9009\u62E9\u5BF9\u8C61\u3002"); return; }
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
             bool keep = Config.KeepOriginal;
             int count = 0;
             using (var tr = Db.TransactionManager.StartTransaction())
@@ -492,38 +517,50 @@ namespace CadToolkit
                 }
                 tr.Commit();
             }
-            Ed.WriteMessage(string.Format("\n\u5DF2\u8F6C\u6362 {0} \u4E2A\u6587\u5B57\u4E3A\u5E26\u4E0B\u5212\u7EBF MText\u3002", count));
+            Ed.WriteMessage(string.Format("\n\u5df2\u8f6c\u6362 {0} \u4e2a\u6587\u5b57\u4e3a\u5e26\u4e0b\u5212\u7ebf MText\u3002", count));
         }
-
         [CommandMethod("CT_RENAMEBLOCK")]
         public void RenameBlock()
         {
             EnsureInit();
             if (!CheckDoc()) return;
-
-            // pick a block reference
-            var peo = new PromptEntityOptions("\n选择要重命名的块：");
-            peo.SetRejectMessage("\n只能选择块参照。");
-            peo.AddAllowedClass(typeof(BlockReference), true);
-            var per = Ed.GetEntity(peo);
-            if (per.Status != PromptStatus.OK) return;
-
+            var psr = GetPendingOrSelection();
+            ObjectId pickedId = ObjectId.Null;
+            if (psr.Status == PromptStatus.OK && psr.Value != null && psr.Value.Count > 0)
+            {
+                using (var tr = Db.TransactionManager.StartTransaction())
+                {
+                    foreach (ObjectId id in psr.Value.GetObjectIds())
+                    {
+                        var ent = tr.GetObject(id, OpenMode.ForRead);
+                        if (ent is BlockReference) { pickedId = id; break; }
+                    }
+                    tr.Commit();
+                }
+            }
+            if (pickedId.IsNull)
+            {
+                var peo = new PromptEntityOptions("\n\u9009\u62e9\u8981\u91cd\u547d\u540d\u7684\u5757\uff1a");
+                peo.SetRejectMessage("\n\u53ea\u80fd\u9009\u62e9\u5757\u53c2\u7167\u3002");
+                peo.AddAllowedClass(typeof(BlockReference), true);
+                var per = Ed.GetEntity(peo);
+                if (per.Status != PromptStatus.OK) return;
+                pickedId = per.ObjectId;
+            }
             string oldName = "";
             using (var tr = Db.TransactionManager.StartTransaction())
             {
-                var br = (BlockReference)tr.GetObject(per.ObjectId, OpenMode.ForRead);
+                var br = (BlockReference)tr.GetObject(pickedId, OpenMode.ForRead);
                 var btr = (BlockTableRecord)tr.GetObject(br.BlockTableRecord, OpenMode.ForRead);
                 oldName = btr.Name;
                 tr.Commit();
             }
-
-            // show dialog: old name is read-only, user only types new name
             using (var dlg = new RenameBlockDialog(oldName))
             {
                 if (dlg.ShowDialog() != DialogResult.OK) return;
                 if (string.IsNullOrEmpty(dlg.NewName))
                 {
-                    Ed.WriteMessage("\n新名称不能为空。");
+                    Ed.WriteMessage("\n\u65b0\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a\u3002");
                     return;
                 }
                 using (var tr = Db.TransactionManager.StartTransaction())
@@ -531,24 +568,24 @@ namespace CadToolkit
                     var bt = (BlockTable)tr.GetObject(Db.BlockTableId, OpenMode.ForRead);
                     if (bt.Has(dlg.NewName))
                     {
-                        Ed.WriteMessage(string.Format("\n块 \"{0}\" 已存在。", dlg.NewName));
+                        Ed.WriteMessage(string.Format("\n\u5757 \"{0}\" \u5df2\u5b58\u5728\u3002", dlg.NewName));
                         return;
                     }
                     var btr = (BlockTableRecord)tr.GetObject(bt[oldName], OpenMode.ForWrite);
                     btr.Name = dlg.NewName;
                     tr.Commit();
-                    Ed.WriteMessage(string.Format("\n已将块 \"{0}\" 重命名为 \"{1}\"。", oldName, dlg.NewName));
+                    Ed.WriteMessage(string.Format("\n\u5df2\u5c06\u5757 \"{0}\" \u91cd\u547d\u540d\u4e3a \"{1}\"\u3002", oldName, dlg.NewName));
                 }
             }
         }
-[CommandMethod("CT_QUICKBLOCK")]
+        [CommandMethod("CT_QUICKBLOCK")]
         public void QuickBlock()
         {
             EnsureInit();
             if (!CheckDoc()) return;
             var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672A\u9009\u62E9\u5BF9\u8C61\u3002"); return; }
-            var ppr = Ed.GetPoint("\n\u6307\u5B9A\u5757\u57FA\u70B9\uFF1A");
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
+            var ppr = Ed.GetPoint("\n\u6307\u5b9a\u5757\u57fa\u70b9\uff1a");
             if (ppr.Status != PromptStatus.OK) return;
             string prefix = Config.Prefix;
             bool del = Config.DeleteOriginal;
@@ -578,17 +615,15 @@ namespace CadToolkit
                     }
                 }
                 tr.Commit();
-                Ed.WriteMessage(string.Format("\n\u5DF2\u521B\u5EFA\u5757 \"{0}\"\uFF0C\u5305\u542B {1} \u4E2A\u5BF9\u8C61\u3002", name, ids.Count));
+                Ed.WriteMessage(string.Format("\n\u5df2\u521b\u5efa\u5757 \"{0}\" \uff0c\u5305\u542b {1} \u4e2a\u5bf9\u8c61\u3002", name, ids.Count));
             }
-        }
-
-        [CommandMethod("CT_SETLAYER0")]
+        }        [CommandMethod("CT_SETLAYER0")]
         public void SetLayer0()
         {
             EnsureInit();
             if (!CheckDoc()) return;
             var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
             int count = 0;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
@@ -608,15 +643,12 @@ namespace CadToolkit
                     if (ent is BlockReference)
                     {
                         var br = (BlockReference)ent;
-                        var btrId = br.BlockTableRecord;
-                        if (btrId.IsValid)
-                        {
-                            count += SetBlockLayer0(tr, btrId);
                         br.UpgradeOpen();
                         br.Layer = "0";
                         br.ColorIndex = 256;
                         count++;
-                        }
+                        if (br.BlockTableRecord.IsValid)
+                            count += SetBlockLayer0(tr, br.BlockTableRecord);
                     }
                     else
                     {
@@ -628,9 +660,8 @@ namespace CadToolkit
                 }
                 tr.Commit();
             }
-            Ed.WriteMessage(string.Format("\n已将 {0} 个对象改到 0 层。", count));
+            Ed.WriteMessage(string.Format("\n\u5df2\u5c06 {0} \u4e2a\u5bf9\u8c61\u6539\u5230 0 \u5c42\u3002", count));
         }
-
         static int SetBlockLayer0(Transaction tr, ObjectId btrId)
         {
             int count = 0;
@@ -643,16 +674,19 @@ namespace CadToolkit
                 if (ent is BlockReference)
                 {
                     var innerBr = (BlockReference)ent;
+                    innerBr.UpgradeOpen();
+                    innerBr.Layer = "0";
+                    innerBr.ColorIndex = 256;
+                    count++;
                     if (innerBr.BlockTableRecord.IsValid)
-                    {
                         count += SetBlockLayer0(tr, innerBr.BlockTableRecord);
-                    }
                 }
                 else
                 {
                     ent.UpgradeOpen();
                     ent.Layer = "0";
                     ent.ColorIndex = 256;
+                    count++;
                 }
             }
             return count;
@@ -663,9 +697,7 @@ namespace CadToolkit
             EnsureInit();
             if (!CheckDoc()) return;
             var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
-
-            // try load CENTER linetype
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
             string ltName = "Continuous";
             using (var tr = Db.TransactionManager.StartTransaction())
             {
@@ -681,16 +713,13 @@ namespace CadToolkit
                         Db.LoadLineTypeFile("CENTER", "zwcad.lin");
 #elif GSTARCAD
                         Db.LoadLineTypeFile("CENTER", "gcad.lin");
-#else
-                        Db.LoadLineTypeFile("CENTER", "acad.lin");
 #endif
                         ltName = "CENTER";
                     }
-                    catch { }
+                    catch { Ed.WriteMessage("\n\u8b66\u544a\uff1a\u65e0\u6cd5\u52a0\u8f7d CENTER \u7ebf\u578b\uff0c\u5c06\u4f7f\u7528 Continuous\u3002"); }
                 }
                 tr.Commit();
             }
-
             int count = 0;
             double extRatio = 0.25;
             using (var tr = Db.TransactionManager.StartTransaction())
@@ -702,15 +731,13 @@ namespace CadToolkit
                     Point3d center = Point3d.Origin;
                     double halfX = 0, halfY = 0;
                     bool ok = false;
-
                     if (ent is Circle)
                     {
                         var ci = (Circle)ent;
                         center = ci.Center;
                         double r = ci.Radius;
                         double ext = r * extRatio;
-                        halfX = r + ext;
-                        halfY = r + ext;
+                        halfX = r + ext; halfY = r + ext;
                         ok = true;
                     }
                     else if (ent is Polyline)
@@ -718,76 +745,53 @@ namespace CadToolkit
                         var pl = (Polyline)ent;
                         if (pl.Closed && pl.NumberOfVertices == 4)
                         {
-                            double minX = double.MaxValue, minY = double.MaxValue;
-                            double maxX = double.MinValue, maxY = double.MinValue;
+                            double mnx = double.MaxValue, mny = double.MaxValue;
+                            double mxx = double.MinValue, mxy = double.MinValue;
                             for (int i = 0; i < 4; i++)
                             {
                                 Point3d pt = pl.GetPoint3dAt(i);
-                                if (pt.X < minX) minX = pt.X;
-                                if (pt.Y < minY) minY = pt.Y;
-                                if (pt.X > maxX) maxX = pt.X;
-                                if (pt.Y > maxY) maxY = pt.Y;
+                                if (pt.X < mnx) mnx = pt.X; if (pt.Y < mny) mny = pt.Y;
+                                if (pt.X > mxx) mxx = pt.X; if (pt.Y > mxy) mxy = pt.Y;
                             }
-                            center = new Point3d((minX + maxX) / 2.0, (minY + maxY) / 2.0, 0);
-                            halfX = (maxX - minX) / 2.0 * (1.0 + extRatio);
-                            halfY = (maxY - minY) / 2.0 * (1.0 + extRatio);
+                            center = new Point3d((mnx + mxx) / 2.0, (mny + mxy) / 2.0, 0);
+                            halfX = (mxx - mnx) / 2.0 * (1.0 + extRatio);
+                            halfY = (mxy - mny) / 2.0 * (1.0 + extRatio);
                             ok = true;
                         }
                     }
                     else if (ent is Hatch || ent is Solid3d)
                     {
-                        // try bounding box
                         Extents3d ext3d;
                         var e2 = (Entity)ent; try { ext3d = e2.GeometricExtents; } catch { continue; }
-                        center = new Point3d(
-                            (ext3d.MinPoint.X + ext3d.MaxPoint.X) / 2.0,
-                            (ext3d.MinPoint.Y + ext3d.MaxPoint.Y) / 2.0, 0);
+                        center = new Point3d((ext3d.MinPoint.X + ext3d.MaxPoint.X) / 2.0, (ext3d.MinPoint.Y + ext3d.MaxPoint.Y) / 2.0, 0);
                         halfX = (ext3d.MaxPoint.X - ext3d.MinPoint.X) / 2.0 * (1.0 + extRatio);
                         halfY = (ext3d.MaxPoint.Y - ext3d.MinPoint.Y) / 2.0 * (1.0 + extRatio);
                         ok = true;
                     }
-
                     if (!ok) continue;
-
-                    // horizontal centerline
-                    var l1 = new Line(
-                        new Point3d(center.X - halfX, center.Y, 0),
-                        new Point3d(center.X + halfX, center.Y, 0));
-                    l1.UpgradeOpen();
-                    l1.Layer = "0";
-                    l1.ColorIndex = 1;
+                    var l1 = new Line(new Point3d(center.X - halfX, center.Y, 0), new Point3d(center.X + halfX, center.Y, 0));
+                    l1.Layer = "0"; l1.ColorIndex = 1;
                     try { l1.Linetype = ltName; } catch { }
                     l1.LinetypeScale = 1.0;
-                    msBtr.AppendEntity(l1);
-                    tr.AddNewlyCreatedDBObject(l1, true);
-
-                    // vertical centerline
-                    var l2 = new Line(
-                        new Point3d(center.X, center.Y - halfY, 0),
-                        new Point3d(center.X, center.Y + halfY, 0));
-                    l2.UpgradeOpen();
-                    l2.Layer = "0";
-                    l2.ColorIndex = 1;
+                    msBtr.AppendEntity(l1); tr.AddNewlyCreatedDBObject(l1, true);
+                    var l2 = new Line(new Point3d(center.X, center.Y - halfY, 0), new Point3d(center.X, center.Y + halfY, 0));
+                    l2.Layer = "0"; l2.ColorIndex = 1;
                     try { l2.Linetype = ltName; } catch { }
                     l2.LinetypeScale = 1.0;
-                    msBtr.AppendEntity(l2);
-                    tr.AddNewlyCreatedDBObject(l2, true);
-
+                    msBtr.AppendEntity(l2); tr.AddNewlyCreatedDBObject(l2, true);
                     count++;
                 }
                 tr.Commit();
             }
-            Ed.WriteMessage(string.Format("\n已为 {0} 个对象绘制中心线。", count));
-        }
-        [CommandMethod("CT_SELECTBYLAYER")]
+            Ed.WriteMessage(string.Format("\n\u5df2\u4e3a {0} \u4e2a\u5bf9\u8c61\u7ed8\u5236\u4e2d\u5fc3\u7ebf\u3002", count));
+        }        [CommandMethod("CT_SELECTBYLAYER")]
         public void SelectByLayer()
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            var peo = new PromptEntityOptions("\n选择一个对象以按图层选择：");
+            var peo = new PromptEntityOptions("\n\u9009\u62e9\u4e00\u4e2a\u5bf9\u8c61\u4ee5\u6309\u56fe\u5c42\u9009\u62e9\uff1a");
             var per = Ed.GetEntity(peo);
             if (per.Status != PromptStatus.OK) return;
-
             string layerName;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
@@ -795,26 +799,21 @@ namespace CadToolkit
                 layerName = ent.Layer;
                 tr.Commit();
             }
-
             var filter = new TypedValue[] { new TypedValue(8, layerName) };
             var sf = new SelectionFilter(filter);
             var psr = Ed.GetSelection(sf);
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
-
-            // highlight and set as current selection
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
             Ed.SetImpliedSelection(psr.Value.GetObjectIds());
-            Ed.WriteMessage(string.Format("\n已选择图层 \"{0}\" 上的 {1} 个对象。", layerName, psr.Value.Count));
+            Ed.WriteMessage(string.Format("\n\u5df2\u9009\u62e9\u56fe\u5c42 \"{0}\" \u4e0a\u7684 {1} \u4e2a\u5bf9\u8c61\u3002", layerName, psr.Value.Count));
         }
-
         [CommandMethod("CT_SELECTBYCOLOR")]
         public void SelectByColor()
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            var peo = new PromptEntityOptions("\n选择一个对象以按颜色选择：");
+            var peo = new PromptEntityOptions("\n\u9009\u62e9\u4e00\u4e2a\u5bf9\u8c61\u4ee5\u6309\u989c\u8272\u9009\u62e9\uff1a");
             var per = Ed.GetEntity(peo);
             if (per.Status != PromptStatus.OK) return;
-
             int colorIndex;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
@@ -822,28 +821,24 @@ namespace CadToolkit
                 colorIndex = ent.ColorIndex;
                 tr.Commit();
             }
-
             var filter = new TypedValue[] { new TypedValue(62, colorIndex) };
             var sf = new SelectionFilter(filter);
             var psr = Ed.GetSelection(sf);
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
-
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
             Ed.SetImpliedSelection(psr.Value.GetObjectIds());
             string colorName = colorIndex == 256 ? "ByLayer" : (colorIndex == 0 ? "ByBlock" : colorIndex.ToString());
-            Ed.WriteMessage(string.Format("\n已选择颜色 {0} 的 {1} 个对象。", colorName, psr.Value.Count));
+            Ed.WriteMessage(string.Format("\n\u5df2\u9009\u62e9\u989c\u8272 {0} \u7684 {1} \u4e2a\u5bf9\u8c61\u3002", colorName, psr.Value.Count));
         }
-
         [CommandMethod("CT_SELECTBYBLOCK")]
         public void SelectByBlock()
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            var peo = new PromptEntityOptions("\n选择一个块参照以按块名选择：");
-            peo.SetRejectMessage("\n只能选择块参照。");
+            var peo = new PromptEntityOptions("\n\u9009\u62e9\u4e00\u4e2a\u5757\u53c2\u7167\u4ee5\u6309\u5757\u540d\u9009\u62e9\uff1a");
+            peo.SetRejectMessage("\n\u53ea\u80fd\u9009\u62e9\u5757\u53c2\u7167\u3002");
             peo.AddAllowedClass(typeof(BlockReference), true);
             var per = Ed.GetEntity(peo);
             if (per.Status != PromptStatus.OK) return;
-
             string blockName;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
@@ -852,30 +847,23 @@ namespace CadToolkit
                 blockName = btr.Name;
                 tr.Commit();
             }
-
             var filter = new TypedValue[] { new TypedValue(0, "INSERT"), new TypedValue(2, blockName) };
             var sf = new SelectionFilter(filter);
             var psr = Ed.GetSelection(sf);
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
-
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
             Ed.SetImpliedSelection(psr.Value.GetObjectIds());
-            Ed.WriteMessage(string.Format("\n已选择块 \"{0}\" 的 {1} 个参照。", blockName, psr.Value.Count));
-        }
-
-        // ========== 文字刷 ==========
-        [CommandMethod("CT_TEXTBRUSH")]
+            Ed.WriteMessage(string.Format("\n\u5df2\u9009\u62e9\u5757 \"{0}\" \u7684 {1} \u4e2a\u53c2\u7167\u3002", blockName, psr.Value.Count));
+        }        [CommandMethod("CT_TEXTBRUSH")]
         public void TextBrush()
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            // pick source text
-            var peo1 = new PromptEntityOptions("\n选择源文字（单行/多行）：");
-            peo1.SetRejectMessage("\n只能选择文字对象。");
+            var peo1 = new PromptEntityOptions("\n\u9009\u62e9\u6e90\u6587\u5b57\uff08\u5355\u884c/\u591a\u884c\uff09\uff1a");
+            peo1.SetRejectMessage("\n\u53ea\u80fd\u9009\u62e9\u6587\u5b57\u5bf9\u8c61\u3002");
             peo1.AddAllowedClass(typeof(DBText), true);
             peo1.AddAllowedClass(typeof(MText), true);
             var per1 = Ed.GetEntity(peo1);
             if (per1.Status != PromptStatus.OK) return;
-
             string srcLayer; int srcColor; double srcHeight; string srcStyle;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
@@ -884,108 +872,88 @@ namespace CadToolkit
                 else { var mt = (MText)ent; srcLayer = mt.Layer; srcColor = mt.ColorIndex; srcHeight = mt.TextHeight; srcStyle = mt.TextStyleName; }
                 tr.Commit();
             }
-
-            // pick target texts
-            var psr = Ed.GetSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择目标文字。"); return; }
+            var psr = GetPendingOrSelection();
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u76ee\u6807\u6587\u5b57\u3002"); return; }
             int count = 0;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
                 foreach (ObjectId id in psr.Value.GetObjectIds())
                 {
                     var ent = tr.GetObject(id, OpenMode.ForWrite);
-                    if (ent is DBText) { var dt = (DBText)ent; dt.UpgradeOpen(); dt.Layer = srcLayer; dt.ColorIndex = srcColor; dt.Height = srcHeight; dt.TextStyleId = GetTextStyleId(tr, srcStyle); count++; }
-                    else if (ent is MText) { var mt = (MText)ent; mt.UpgradeOpen(); mt.Layer = srcLayer; mt.ColorIndex = srcColor; mt.TextHeight = srcHeight; mt.TextStyleId = GetTextStyleId(tr, srcStyle); count++; }
+                    if (ent is DBText) { var dt = (DBText)ent; dt.Layer = srcLayer; dt.ColorIndex = srcColor; dt.Height = srcHeight; dt.TextStyleId = GetTextStyleId(tr, srcStyle); count++; }
+                    else if (ent is MText) { var mt = (MText)ent; mt.Layer = srcLayer; mt.ColorIndex = srcColor; mt.TextHeight = srcHeight; mt.TextStyleId = GetTextStyleId(tr, srcStyle); count++; }
                 }
                 tr.Commit();
             }
-            Ed.WriteMessage(string.Format("\n已刷 {0} 个文字对象。", count));
+            Ed.WriteMessage(string.Format("\n\u5df2\u590d\u5236\u683c\u5f0f\u5230 {0} \u4e2a\u6587\u5b57\u3002", count));
         }
-
-        // ========== 文字合并 ==========
         [CommandMethod("CT_TEXTMERGE")]
         public void TextMerge()
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            var psr = Ed.GetSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
-
+            var psr = GetPendingOrSelection();
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
             var texts = new List<KeyValuePair<double, string>>();
+            double maxHeight = 0;
+            double posX = 0;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
                 foreach (ObjectId id in psr.Value.GetObjectIds())
                 {
                     var ent = tr.GetObject(id, OpenMode.ForRead);
-                    string txt = null; double y = 0;
-                    if (ent is DBText) { var dt = (DBText)ent; txt = SafeStr(dt.TextString); y = dt.Position.Y; }
-                    else if (ent is MText) { var mt = (MText)ent; txt = SafeStr(mt.Contents); y = mt.Location.Y; }
-                    if (txt != null) texts.Add(new KeyValuePair<double, string>(y, txt));
+                    string txt = null; double y = 0; double h = 0;
+                    if (ent is DBText) { var dt = (DBText)ent; txt = SafeStr(dt.TextString); y = dt.Position.Y; h = dt.Height; posX = dt.Position.X; }
+                    else if (ent is MText) { var mt = (MText)ent; txt = SafeStr(mt.Contents); y = mt.Location.Y; h = mt.TextHeight; posX = mt.Location.X; }
+                    if (txt != null) { texts.Add(new KeyValuePair<double, string>(y, txt)); if (h > maxHeight) maxHeight = h; }
                 }
                 tr.Commit();
             }
-            if (texts.Count < 2) { Ed.WriteMessage("\n需要至少两个文字对象。"); return; }
-
-            // sort by Y descending (top to bottom)
+            if (texts.Count < 2) { Ed.WriteMessage("\n\u9700\u8981\u81f3\u5c11\u4e24\u4e2a\u6587\u5b57\u5bf9\u8c61\u3002"); return; }
             texts.Sort(delegate(KeyValuePair<double, string> a, KeyValuePair<double, string> b) { return b.Key.CompareTo(a.Key); });
             var sb = new StringBuilder();
             for (int i = 0; i < texts.Count; i++) { if (i > 0) sb.Append("\\P"); sb.Append(texts[i].Value); }
-
-            // insert MText at the position of the first (topmost) text
-            double mx = 0, my = texts[0].Key;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
-                var first = tr.GetObject(psr.Value.GetObjectIds()[0], OpenMode.ForRead);
-                if (first is DBText) mx = ((DBText)first).Position.X;
-                else if (first is MText) mx = ((MText)first).Location.X;
-
                 var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
                 var mt = new MText();
                 mt.Contents = sb.ToString();
-                mt.Location = new Point3d(mx, my, 0);
-                mt.TextHeight = 3.0;
+                mt.Location = new Point3d(posX, texts[0].Key, 0);
+                mt.TextHeight = maxHeight > 0 ? maxHeight : 3.0;
                 msBtr.AppendEntity(mt);
                 tr.AddNewlyCreatedDBObject(mt, true);
                 tr.Commit();
             }
-            Ed.WriteMessage(string.Format("\n已合并 {0} 个文字为多行文字。", texts.Count));
-        }
-
-        // ========== 文字编号 ==========
-        [CommandMethod("CT_TEXTNUMBER")]
+            Ed.WriteMessage(string.Format("\n\u5df2\u5408\u5e76 {0} \u4e2a\u6587\u5b57\u4e3a\u591a\u884c\u6587\u5b57\u3002", texts.Count));
+        }        [CommandMethod("CT_TEXTNUMBER")]
         public void TextNumber()
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            var psr = Ed.GetSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
-
-            // ask prefix via dialog
+            var psr = GetPendingOrSelection();
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
             var f = new Form();
-            f.Text = "文字编号";
+            f.Text = "\u6587\u5b57\u7f16\u53f7";
             f.StartPosition = FormStartPosition.CenterParent;
             f.FormBorderStyle = FormBorderStyle.FixedDialog;
             f.MaximizeBox = false; f.MinimizeBox = false; f.ShowInTaskbar = false;
             f.ClientSize = new Size(300, 120);
-
-            var l1 = new Label(); l1.Text = "前缀："; l1.Left = 16; l1.Top = 16; l1.AutoSize = true; l1.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var l1 = new Label(); l1.Text = "\u524d\u7f00\uff1a"; l1.Left = 16; l1.Top = 16; l1.AutoSize = true; l1.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
             var t1 = new TextBox(); t1.Left = 76; t1.Top = 12; t1.Width = 60; t1.Text = ""; t1.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            var l2 = new Label(); l2.Text = "后缀："; l2.Left = 150; l2.Top = 16; l2.AutoSize = true; l2.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var l2 = new Label(); l2.Text = "\u540e\u7f00\uff1a"; l2.Left = 150; l2.Top = 16; l2.AutoSize = true; l2.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
             var t2 = new TextBox(); t2.Left = 210; t2.Top = 12; t2.Width = 60; t2.Text = ""; t2.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            var l3 = new Label(); l3.Text = "起始号："; l3.Left = 16; l3.Top = 52; l3.AutoSize = true; l3.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var l3 = new Label(); l3.Text = "\u8d77\u59cb\u53f7\uff1a"; l3.Left = 16; l3.Top = 52; l3.AutoSize = true; l3.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
             var t3 = new TextBox(); t3.Left = 76; t3.Top = 48; t3.Width = 60; t3.Text = "1"; t3.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            var chkReplace = new CheckBox(); chkReplace.Text = "替换（用编号替换原文）"; chkReplace.Left = 150; chkReplace.Top = 50; chkReplace.AutoSize = true; chkReplace.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            var ok = new Button(); ok.Text = "确定"; ok.DialogResult = DialogResult.OK; ok.Left = 120; ok.Top = 82; ok.Width = 80; ok.FlatStyle = FlatStyle.System;
-            var cancel = new Button(); cancel.Text = "取消"; cancel.DialogResult = DialogResult.Cancel; cancel.Left = 210; cancel.Top = 82; cancel.Width = 76; cancel.FlatStyle = FlatStyle.System;
+            var chkReplace = new CheckBox(); chkReplace.Text = "\u66ff\u6362\uff08\u7528\u7f16\u53f7\u66ff\u6362\u539f\u6587\uff09"; chkReplace.Left = 150; chkReplace.Top = 50; chkReplace.AutoSize = true; chkReplace.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            var ok = new Button(); ok.Text = "\u786e\u5b9a"; ok.DialogResult = DialogResult.OK; ok.Left = 120; ok.Top = 82; ok.Width = 80; ok.FlatStyle = FlatStyle.System;
+            var cancel = new Button(); cancel.Text = "\u53d6\u6d88"; cancel.DialogResult = DialogResult.Cancel; cancel.Left = 210; cancel.Top = 82; cancel.Width = 76; cancel.FlatStyle = FlatStyle.System;
             f.Controls.AddRange(new Control[] { l1, t1, l2, t2, l3, t3, chkReplace, ok, cancel });
             f.AcceptButton = ok; f.CancelButton = cancel;
+            f.Shown += delegate { t1.Focus(); };
             if (f.ShowDialog() != DialogResult.OK) return;
-
             string prefix = t1.Text.Trim();
             string suffix = t2.Text.Trim();
             int startNum = 1; int.TryParse(t3.Text.Trim(), out startNum);
-
-            // sort by Y desc then X asc
             var items = new List<KeyValuePair<Point3d, ObjectId>>();
             using (var tr = Db.TransactionManager.StartTransaction())
             {
@@ -1006,7 +974,6 @@ namespace CadToolkit
                 if (cmp != 0) return cmp;
                 return a.Key.X.CompareTo(b.Key.X);
             });
-
             int count = 0;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
@@ -1016,51 +983,44 @@ namespace CadToolkit
                     string numStr = prefix + (startNum + i).ToString() + suffix;
                     if (chkReplace.Checked)
                     {
-                        if (ent is DBText) { var _dt = (DBText)ent; _dt.UpgradeOpen(); _dt.TextString = numStr; count++; }
-                        else if (ent is MText) { var _mt = (MText)ent; _mt.UpgradeOpen(); _mt.Contents = numStr; count++; }
+                        if (ent is DBText) { var _dt = (DBText)ent; _dt.TextString = numStr; count++; }
+                        else if (ent is MText) { var _mt = (MText)ent; _mt.Contents = numStr; count++; }
                     }
                     else
                     {
-                        if (ent is DBText) { var _dt2 = (DBText)ent; _dt2.UpgradeOpen(); _dt2.TextString = numStr + _dt2.TextString; count++; }
-                        else if (ent is MText) { var _mt2 = (MText)ent; _mt2.UpgradeOpen(); _mt2.Contents = numStr + _mt2.Contents; count++; }
+                        if (ent is DBText) { var _dt2 = (DBText)ent; _dt2.TextString = numStr + _dt2.TextString; count++; }
+                        else if (ent is MText) { var _mt2 = (MText)ent; _mt2.Contents = numStr + _mt2.Contents; count++; }
                     }
                 }
                 tr.Commit();
             }
-            Ed.WriteMessage(string.Format("\n已编号 {0} 个文字对象。", count));
-        }
-
-        // ========== 孤立图层 ==========
-        static ObjectId[] _frozenLayers;
-        [CommandMethod("CT_ISOLAYER")]
+            Ed.WriteMessage(string.Format("\n\u5df2\u7f16\u53f7 {0} \u4e2a\u6587\u5b57\u5bf9\u8c61\u3002", count));
+        }        [CommandMethod("CT_ISOLAYER")]
         public void IsoLayer()
         {
             EnsureInit();
             if (!CheckDoc()) return;
-
-            // if already isolated, restore
-            if (_frozenLayers != null)
+            string dk = DocKey;
+            if (_isoState.ContainsKey(dk))
             {
+                var frozen = _isoState[dk];
                 using (var tr = Db.TransactionManager.StartTransaction())
                 {
                     var lt = (LayerTable)tr.GetObject(Db.LayerTableId, OpenMode.ForRead);
-                    foreach (var lid in _frozenLayers)
+                    foreach (var lid in frozen)
                     {
                         if (!lid.IsValid) continue;
-                        var ltr = (LayerTableRecord)tr.GetObject(lid, OpenMode.ForWrite);
-                        ltr.IsFrozen = false;
+                        try { var ltr = (LayerTableRecord)tr.GetObject(lid, OpenMode.ForWrite); ltr.IsFrozen = false; } catch { }
                     }
                     tr.Commit();
                 }
-                _frozenLayers = null;
-                Ed.WriteMessage("\n已恢复所有图层。");
+                _isoState.Remove(dk);
+                Ed.WriteMessage("\n\u5df2\u6062\u590d\u6240\u6709\u56fe\u5c42\u3002");
                 return;
             }
-
-            var peo = new PromptEntityOptions("\n选择要孤立的对象（其余图层将冻结）：");
+            var peo = new PromptEntityOptions("\n\u9009\u62e9\u8981\u5b64\u7acb\u7684\u5bf9\u8c61\uff08\u5176\u4f59\u56fe\u5c42\u5c06\u51bb\u7ed3\uff09\uff1a");
             var per = Ed.GetEntity(peo);
             if (per.Status != PromptStatus.OK) return;
-
             string targetLayer;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
@@ -1068,49 +1028,41 @@ namespace CadToolkit
                 targetLayer = ent.Layer;
                 tr.Commit();
             }
-
-            var toFreeze = new List<ObjectId>();
+            var frozenList = new List<ObjectId>();
             using (var tr = Db.TransactionManager.StartTransaction())
             {
                 var lt = (LayerTable)tr.GetObject(Db.LayerTableId, OpenMode.ForRead);
                 foreach (ObjectId lid in lt)
                 {
                     var ltr = (LayerTableRecord)tr.GetObject(lid, OpenMode.ForRead);
-                    if (ltr.Name == targetLayer || ltr.Name == "0" || ltr.Name == "Defpoints") continue;
-                    if (ltr.IsFrozen) continue;
-                    toFreeze.Add(lid);
-                }
-                // freeze
-                foreach (var lid in toFreeze)
-                {
-                    var ltr = (LayerTableRecord)tr.GetObject(lid, OpenMode.ForWrite);
+                    if (ltr.Name == targetLayer || ltr.IsFrozen) continue;
+                    ltr.UpgradeOpen();
                     ltr.IsFrozen = true;
+                    frozenList.Add(lid);
                 }
                 tr.Commit();
             }
-            _frozenLayers = toFreeze.ToArray();
-            Ed.WriteMessage(string.Format("\n已冻结 {0} 个图层，仅显示 \"{1}\"。再次执行恢复。", toFreeze.Count, targetLayer));
+            _isoState[dk] = frozenList.ToArray();
+            Ed.WriteMessage(string.Format("\n\u5df2\u5b64\u7acb\u56fe\u5c42 \"{0}\" \uff0c\u51bb\u7ed3 {1} \u4e2a\u56fe\u5c42\u3002", targetLayer, frozenList.Count));
         }
-
-        // ========== 快速标注 ==========
         [CommandMethod("CT_QUICKDIM")]
         public void QuickDim()
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            var psr = Ed.GetSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
-
+            var psr = GetPendingOrSelection();
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
             double minX = double.MaxValue, minY = double.MaxValue;
             double maxX = double.MinValue, maxY = double.MinValue;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
                 foreach (ObjectId id in psr.Value.GetObjectIds())
                 {
-                    var ent = tr.GetObject(id, OpenMode.ForRead);
+                    var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                    if (ent == null) continue;
                     try
                     {
-                        var ext = ((Entity)ent).GeometricExtents;
+                        Extents3d ext = ent.GeometricExtents;
                         if (ext.MinPoint.X < minX) minX = ext.MinPoint.X;
                         if (ext.MinPoint.Y < minY) minY = ext.MinPoint.Y;
                         if (ext.MaxPoint.X > maxX) maxX = ext.MaxPoint.X;
@@ -1120,63 +1072,48 @@ namespace CadToolkit
                 }
                 tr.Commit();
             }
-            if (minX >= maxX || minY >= maxY) { Ed.WriteMessage("\n无法计算包围盒。"); return; }
-
+            if (minX >= maxX || minY >= maxY) { Ed.WriteMessage("\n\u65e0\u6cd5\u8ba1\u7b97\u5305\u56f4\u76d2\u3002"); return; }
             double offset = (maxY - minY) * 0.15;
             if (offset < 5) offset = 5;
-
             using (var tr = Db.TransactionManager.StartTransaction())
             {
                 var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
-                // horizontal dim (width)
                 var dimH = new AlignedDimension();
                 dimH.XLine1Point = new Point3d(minX, minY - offset, 0);
                 dimH.XLine2Point = new Point3d(maxX, minY - offset, 0);
                 dimH.DimLinePoint = new Point3d((minX + maxX) / 2.0, minY - offset * 2, 0);
                 dimH.DimensionStyle = Db.Dimstyle;
-                msBtr.AppendEntity(dimH);
-                tr.AddNewlyCreatedDBObject(dimH, true);
-
-                // vertical dim (height)
+                msBtr.AppendEntity(dimH); tr.AddNewlyCreatedDBObject(dimH, true);
                 var dimV = new AlignedDimension();
                 dimV.XLine1Point = new Point3d(maxX + offset, minY, 0);
                 dimV.XLine2Point = new Point3d(maxX + offset, maxY, 0);
                 dimV.DimLinePoint = new Point3d(maxX + offset * 2, (minY + maxY) / 2.0, 0);
                 dimV.DimensionStyle = Db.Dimstyle;
-                msBtr.AppendEntity(dimV);
-                tr.AddNewlyCreatedDBObject(dimV, true);
-
+                msBtr.AppendEntity(dimV); tr.AddNewlyCreatedDBObject(dimV, true);
                 tr.Commit();
             }
-            Ed.WriteMessage(string.Format("\n已创建快速标注: {0:F1} x {1:F1}", maxX - minX, maxY - minY));
+            Ed.WriteMessage(string.Format("\n\u5df2\u521b\u5efa\u5feb\u901f\u6807\u6ce8: {0:F1} x {1:F1}", maxX - minX, maxY - minY));
         }
-
-        // ========== 递增复制 ==========
         [CommandMethod("CT_INCCOPY")]
         public void IncCopy()
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            var psr = Ed.GetSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
-
-            // find the text to increment and its anchor point
+            var psr = GetPendingOrSelection();
+            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
             string baseText = null;
             Point3d anchor = Point3d.Origin;
-            foreach (ObjectId id in psr.Value.GetObjectIds())
+            using (var tr = Db.TransactionManager.StartTransaction())
             {
-                using (var tr = Db.TransactionManager.StartTransaction())
+                foreach (ObjectId id in psr.Value.GetObjectIds())
                 {
                     var ent = tr.GetObject(id, OpenMode.ForRead);
-                    if (ent is DBText) { baseText = ((DBText)ent).TextString; anchor = ((DBText)ent).Position; }
-                    else if (ent is MText) { baseText = ((MText)ent).Contents; anchor = ((MText)ent).Location; }
-                    tr.Commit();
+                    if (ent is DBText) { baseText = ((DBText)ent).TextString; anchor = ((DBText)ent).Position; break; }
+                    else if (ent is MText) { baseText = ((MText)ent).Contents; anchor = ((MText)ent).Location; break; }
                 }
-                if (baseText != null) break;
+                tr.Commit();
             }
-            if (baseText == null) { Ed.WriteMessage("\n选择的对象中没有文字。"); return; }
-
-            // extract trailing number
+            if (baseText == null) { Ed.WriteMessage("\n\u9009\u62e9\u7684\u5bf9\u8c61\u4e2d\u6ca1\u6709\u6587\u5b57\u3002"); return; }
             int numEnd = baseText.Length;
             int numStart = numEnd;
             while (numStart > 0 && char.IsDigit(baseText[numStart - 1])) numStart--;
@@ -1185,20 +1122,17 @@ namespace CadToolkit
             if (numStart < numEnd) int.TryParse(baseText.Substring(numStart), out num);
             int numLen = numEnd - numStart;
             if (numLen == 0) { numLen = 1; num = 1; }
-
             int copyCount = 0;
             while (true)
             {
-                var ppr = Ed.GetPoint(string.Format("\n指定复制基点（当前: {0}，回车结束）：", prefix + num.ToString().PadLeft(numLen, '0')));
+                string curText = prefix + num.ToString().PadLeft(numLen, '0');
+                var ppr = Ed.GetPoint(string.Format("\n\u6307\u5b9a\u590d\u5236\u57fa\u70b9\uff08\u5f53\u524d: {0} \uff0c\u56de\u8f66\u7ed3\u675f\uff09\uff1a", curText));
                 if (ppr.Status != PromptStatus.OK) break;
-
                 num++;
                 string newText = prefix + num.ToString().PadLeft(numLen, '0');
-
                 double dx = ppr.Value.X - anchor.X;
                 double dy = ppr.Value.Y - anchor.Y;
                 var transform = Matrix3d.Displacement(new Vector3d(dx, dy, 0));
-
                 using (var tr = Db.TransactionManager.StartTransaction())
                 {
                     var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
@@ -1217,7 +1151,10 @@ namespace CadToolkit
                 }
                 copyCount++;
             }
-            Ed.WriteMessage(string.Format("\n已递增复制 {0} 次。", copyCount));
+            Ed.WriteMessage(string.Format("\n\u5df2\u9012\u589e\u590d\u5236 {0} \u6b21\u3002", copyCount));
         }
     }
 }
+
+
+

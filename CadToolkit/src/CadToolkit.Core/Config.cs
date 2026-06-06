@@ -24,6 +24,20 @@ namespace CadToolkit.Core
             string platDir = Path.GetDirectoryName(assemblyPath);
             _dir = Path.GetDirectoryName(platDir);
             if (string.IsNullOrEmpty(_dir)) _dir = platDir;
+            EnsureConfig();
+        }
+
+        static void EnsureConfig()
+        {
+            try
+            {
+                if (!File.Exists(IniPath))
+                {
+                    string def = "# CadToolkit \u914D\u7F6E\u6587\u4EF6\r\nVersion=v1.21\r\n\r\n# \u5FEB\u6377\u5EFA\u5757\r\nQuickBlockPrefix=BK\r\nDeleteOriginal=true\r\nKeepOriginal=false\r\n\r\n[Commands]\r\n# \u6587\u5B57\u7F16\u8F91\r\n\u67E5\u627E\u66FF\u6362=CT_FINDREPLACE\r\n\u6587\u5B57\u5BF9\u9F50=CT_ALIGN\r\n\u52A0\u4E0B\u5212\u7EBF=CT_UNDERLINE\r\n\u683C\u5F0F\u590D\u5236=CT_TEXTBRUSH\r\n\u6587\u5B57\u5408\u5E76=CT_TEXTMERGE\r\n\u6587\u5B57\u7F16\u53F7=CT_TEXTNUMBER\r\n# \u56FE\u5C42\u7BA1\u7406\r\n\u56FE\u5C42\u5F52\u96F6=CT_SETLAYER0\r\n\u5B64\u7ACB\u56FE\u5C42=CT_ISOLAYER\r\n\u6309\u5C42\u9009\u62E9=CT_SELECTBYLAYER\r\n\u6309\u8272\u9009\u62E9=CT_SELECTBYCOLOR\r\n\u6309\u5757\u9009\u62E9=CT_SELECTBYBLOCK\r\n# \u56FE\u5757\u64CD\u4F5C\r\n\u91CD\u547D\u540D\u5757=CT_RENAMEBLOCK\r\n\u5FEB\u6377\u5EFA\u5757=CT_QUICKBLOCK\r\n# \u7ED8\u56FE\u6807\u6CE8\r\n\u753B\u4E2D\u5FC3\u7EBF=CT_CENTERLINE\r\n\u5FEB\u901F\u6807\u6CE8=CT_QUICKDIM\r\n\u9012\u589E\u590D\u5236=CT_INCCOPY\r\n";
+                    File.WriteAllText(IniPath, def, Encoding.UTF8);
+                }
+            }
+            catch { }
         }
 
         static string IniPath { get { return Path.Combine(_dir ?? ".", "CadToolkit.ini"); } }

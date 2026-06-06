@@ -19,15 +19,18 @@
         (T "gcad")
       )
     )
+
     (if _ct-plat
       (progn
         (setq _ct-dll (strcat _ct-dir "\\" _ct-plat "\\CadToolkit.dll"))
         (if (vl-file-systime _ct-dll)
           (progn
+            (setvar "CMDECHO" 0)
             (vl-cmdf "NETLOAD" _ct-dll)
-            (princ (strcat "\n[CadToolkit] loaded from " _ct-dll))
+            (setvar "CMDECHO" 1)
+            (princ "\nCadToolkit v1.22 已就绪，输入 CC 启动。")
           )
-          (princ (strcat "\n[CadToolkit] Not found: " _ct-dll))
+          (princ (strcat "\n[CadToolkit] DLL not found: " _ct-dll))
         )
       )
     )
