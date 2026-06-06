@@ -2,6 +2,7 @@
 import os, json, hashlib, time, sqlite3, smtplib, secrets
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr
 from datetime import datetime, timedelta
 from functools import wraps
 from threading import Timer
@@ -480,7 +481,7 @@ def send_email(to, subject, html_body):
         return False, "SMTP 未配置"
     try:
         msg = MIMEMultipart('alternative')
-        msg['From'] = f"{cfg.get('sender_name','考勤助手')} <{cfg['smtp_user']}>"
+        msg['From'] = formataddr((cfg.get('sender_name',''), cfg['smtp_user']), 'utf-8')
         msg['To'] = to
         msg['Subject'] = subject
         msg.attach(MIMEText(html_body, 'html', 'utf-8'))
