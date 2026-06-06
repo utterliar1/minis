@@ -1,5 +1,6 @@
 """考勤助手 - 后端 API"""
-import os, json, hashlib, time, sqlite3, smtplib, secrets
+import os, json, hashlib, time, sqlite3, smtplib, secrets, math
+from html import escape
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
@@ -14,8 +15,9 @@ from flask_cors import CORS
 import jwt
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
-CORS(app)
-SECRET = os.environ.get('JWT_SECRET', 'ot-tracker-2026')
+if os.environ.get('CORS_ORIGINS'):
+    CORS(app, resources={r"/api/*": {"origins": [o.strip() for o in os.environ['CORS_ORIGINS'].split(',') if o.strip()]}})
+SECRET = os.environ.get('JWT_SECRET') or secrets.token_hex(32)
 DB_PATH = os.environ.get('DB_PATH', '/data/overtime.db')
 
 # ==================== Database ====================
@@ -98,7 +100,13 @@ def login_required(f):
     def w(*a, **kw):
         token = request.headers.get('Authorization','').replace('Bearer ','')
         if not token: return jsonify(error="未登录"), 401
-        try: request.user = jwt.decode(token, SECRET, algorithms=["HS256"])
+        try:
+            payload = jwt.decode(token, SECRET, algorithms=["HS256"])
+            conn = get_db()
+            u = conn.execute("SELECT username,display_name,role FROM users WHERE username=?", (payload.get('username'),)).fetchone()
+            conn.close()
+            if not u: return jsonify(error="登录已失效"), 401
+            request.user = {"username":u["username"],"role":u["role"],"dn":u["display_name"]}
         except: return jsonify(error="登录已过期"), 401
         return f(*a, **kw)
     return w
@@ -156,22 +164,61 @@ def api_register():
     conn.commit(); conn.close()
     return jsonify(ok=True)
 
+def load_settings_from_conn(conn):
+    row = conn.execute("SELECT data FROM settings WHERE id=1").fetchone()
+    return json.loads(row['data']) if row else {}
+
+def to_float(v):
+    try: return float(v)
+    except (TypeError, ValueError): return None
+
+def distance_m(lat1, lng1, lat2, lng2):
+    r = 6371000
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lng2 - lng1)
+    a = math.sin(dp/2)**2 + math.cos(p1) * math.cos(p2) * math.sin(dl/2)**2
+    return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
 # ==================== Clock API ====================
 @app.route('/api/clock', methods=['POST'])
 @login_required
 def api_clock():
     d = request.json or {}
     uid = request.user['username']
+    clock_type = d.get('type', 'in')
+    if clock_type not in ('in', 'out'):
+        return jsonify(error="打卡类型无效"), 400
     now = time.time()
     dt = bj_from_ts(now)
     date_str = dt.strftime('%Y-%m-%d')
     time_str = dt.strftime('%H:%M:%S')
     conn = get_db()
+    settings = load_settings_from_conn(conn)
+    lat = to_float(d.get('lat'))
+    lng = to_float(d.get('lng'))
+    accuracy = to_float(d.get('accuracy'))
+    if settings.get('lat') is None or settings.get('lng') is None:
+        conn.close(); return jsonify(error="打卡地点未配置"), 400
+    if lat is None or lng is None:
+        conn.close(); return jsonify(error="定位信息无效"), 400
+    max_accuracy = float(settings.get('gpsAccuracy') or 100)
+    if accuracy is not None and accuracy > max_accuracy:
+        conn.close(); return jsonify(error=f"GPS精度不足（{round(accuracy)}m）"), 400
+    dist = distance_m(lat, lng, float(settings['lat']), float(settings['lng']))
+    out_of_range = dist > float(settings.get('radius') or 500)
+    if out_of_range and not d.get('outOfRange'):
+        conn.close(); return jsonify(error=f"不在打卡范围内（{round(dist)}m）"), 400
+    last = conn.execute("SELECT type FROM records WHERE user_id=? AND date=? ORDER BY ts DESC LIMIT 1", (uid, date_str)).fetchone()
+    expected = 'out' if last and last['type'] == 'in' else 'in'
+    if clock_type != expected:
+        conn.close(); return jsonify(error="打卡顺序无效，请刷新后重试"), 400
+    note = (d.get('note') or '')[:500]
     conn.execute("INSERT INTO records (user_id,date,time_str,ts,type,lat,lng,accuracy,out_of_range,note) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                 (uid, date_str, time_str, int(now*1000), d.get('type','in'),
-                  d.get('lat'), d.get('lng'), d.get('accuracy'), 1 if d.get('outOfRange') else 0, d.get('note','')))
+                 (uid, date_str, time_str, int(now*1000), clock_type,
+                  lat, lng, accuracy, 1 if out_of_range else 0, note))
     conn.commit(); conn.close()
-    return jsonify(ok=True, date=date_str, time=time_str, type=d.get('type','in'))
+    return jsonify(ok=True, date=date_str, time=time_str, type=clock_type, outOfRange=out_of_range, distance=round(dist))
 
 @app.route('/api/records')
 @login_required
@@ -197,9 +244,8 @@ def api_records_all():
 @app.route('/api/records/all', methods=['DELETE'])
 @admin_required
 def api_delete_all_records():
-    uid = request.user['username']
     conn = get_db()
-    conn.execute("DELETE FROM records WHERE user_id=?", (uid,))
+    conn.execute("DELETE FROM records")
     conn.commit(); conn.close()
     return jsonify(ok=True)
 
@@ -401,6 +447,10 @@ def api_export():
     elif period == 'today':
         date_from = date_to = str(today)
         date_range = True
+    elif period == 'week':
+        date_from = str(today - timedelta(days=today.weekday()))
+        date_to = str(today)
+        date_range = True
     elif period == 'month':
         date_from = today.strftime('%Y-%m-01')
         date_to = today.strftime('%Y-%m-31')
@@ -428,9 +478,30 @@ def get_settings_data():
     conn.close()
     return json.loads(row['data']) if row else {}
 
-def calc_user_ot(user_id, settings):
+def paired_records(recs):
+    pairs = []
+    open_in = None
+    for r in sorted(recs, key=lambda x: x['ts']):
+        if r['type'] == 'in':
+            if open_in is None:
+                open_in = r
+        elif r['type'] == 'out' and open_in is not None:
+            pairs.append((open_in, r))
+            open_in = None
+    return pairs
+
+def record_minute(r):
+    if r.get('time_str'):
+        return time_to_min(r['time_str'])
+    dt = bj_from_ts(r['ts'] / 1000)
+    return dt.hour * 60 + dt.minute
+
+def calc_user_ot(user_id, settings, month=None):
     conn = get_db()
-    rows = conn.execute("SELECT * FROM records WHERE user_id=? ORDER BY ts", (user_id,)).fetchall()
+    if month:
+        rows = conn.execute("SELECT * FROM records WHERE user_id=? AND date LIKE ? ORDER BY ts", (user_id, month + '%')).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM records WHERE user_id=? ORDER BY ts", (user_id,)).fetchall()
     conn.close()
     if not rows: return 0
     date_groups = {}
@@ -444,44 +515,32 @@ def calc_user_ot(user_id, settings):
         is_workday = is_working_day(dt, settings)
         if is_workday:
             work_ms = 0
-            sorted_recs = sorted(recs, key=lambda x: x['ts'])
-            for i, r in enumerate(sorted_recs):
-                if r['type'] == 'in':
-                    next_out = None
-                    for j in range(i+1, len(sorted_recs)):
-                        if sorted_recs[j]['type'] == 'out':
-                            next_out = sorted_recs[j]; break
-                    if next_out:
-                        dur = next_out['ts'] - r['ts']
-                        in_min = datetime.fromtimestamp(r['ts']/1000).hour*60 + datetime.fromtimestamp(r['ts']/1000).minute
-                        out_min = datetime.fromtimestamp(next_out['ts']/1000).hour*60 + datetime.fromtimestamp(next_out['ts']/1000).minute
-                        l_s = time_to_min(settings.get('lunchStart','12:00'))
-                        l_e = time_to_min(settings.get('lunchEnd','13:00'))
-                        if in_min < l_s and out_min > l_e: dur -= (l_e - l_s) * 60000
-                        work_ms += dur
+            for r, next_out in paired_records(recs):
+                dur = max(0, next_out['ts'] - r['ts'])
+                in_min = record_minute(r)
+                out_min = record_minute(next_out)
+                l_s = time_to_min(settings.get('lunchStart','12:00'))
+                l_e = time_to_min(settings.get('lunchEnd','13:00'))
+                if in_min < l_s and out_min > l_e: dur -= (l_e - l_s) * 60000
+                work_ms += max(0, dur)
             work_min = get_work_minutes(settings)
             total += max(0, round((work_ms - work_min * 60000) / 60000))
         else:
-            sorted_recs = sorted(recs, key=lambda x: x['ts'])
-            for i, r in enumerate(sorted_recs):
-                if r['type'] == 'in':
-                    next_out = None
-                    for j in range(i+1, len(sorted_recs)):
-                        if sorted_recs[j]['type'] == 'out':
-                            next_out = sorted_recs[j]; break
-                    if next_out:
-                        total += round((next_out['ts'] - r['ts']) / 60000)
+            for r, next_out in paired_records(recs):
+                total += round(max(0, next_out['ts'] - r['ts']) / 60000)
     return total
 
 def is_working_day(dt, settings):
     dk = dt.strftime('%Y-%m-%d')
     if dk in settings.get('holidays', []): return False
     if dk in settings.get('workdays', []): return True
-    return dt.weekday() in settings.get('weekdays', [0,1,2,3,4])
+    js_weekday = (dt.weekday() + 1) % 7
+    return js_weekday in settings.get('weekdays', [1,2,3,4,5])
 
 def time_to_min(t):
     if not t: return 720
-    h, m = t.split(':'); return int(h)*60 + int(m)
+    parts = t.split(':')
+    return int(parts[0])*60 + int(parts[1])
 
 def get_work_minutes(s):
     return time_to_min(s.get('workEnd','18:00')) - time_to_min(s.get('workStart','09:00')) - (time_to_min(s.get('lunchEnd','13:00')) - time_to_min(s.get('lunchStart','12:00')))
@@ -543,9 +602,9 @@ def send_overtime_report():
     month_str = now.strftime('%Y-%m')
     rows_html = ""
     for u in users:
-        ot = calc_user_ot(u['username'], settings)
+        ot = calc_user_ot(u['username'], settings, month_str)
         color = "#DC2626" if ot > 0 else "#16A34A"
-        rows_html += f"<tr><td style='padding:8px 12px;border:1px solid #E2E8F0'>{u['display_name']}</td><td style='padding:8px 12px;border:1px solid #E2E8F0;color:{color};font-weight:600;text-align:center'>{format_min(ot)}</td></tr>"
+        rows_html += f"<tr><td style='padding:8px 12px;border:1px solid #E2E8F0'>{escape(u['display_name'])}</td><td style='padding:8px 12px;border:1px solid #E2E8F0;color:{color};font-weight:600;text-align:center'>{format_min(ot)}</td></tr>"
     if not rows_html:
         rows_html = "<tr><td colspan='2' style='padding:12px;text-align:center;color:#94A3B8'>本月暂无打卡记录</td></tr>"
     html = f"""<div style="font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto">

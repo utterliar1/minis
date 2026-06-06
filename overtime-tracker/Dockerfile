@@ -10,7 +10,7 @@ COPY backend/app.py /app/app.py
 COPY frontend/ /app/frontend/
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY start.sh /app/start.sh
-RUN chmod +x /app/start.sh
+RUN sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh
 
 RUN mkdir -p /data /run/nginx
 
