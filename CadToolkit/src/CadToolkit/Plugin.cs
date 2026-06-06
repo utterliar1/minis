@@ -89,7 +89,7 @@ namespace CadToolkit
 
         static Editor Ed { get { return CadApp.DocumentManager.MdiActiveDocument.Editor; } }
         static Database Db { get { return CadApp.DocumentManager.MdiActiveDocument.Database; } }
-        static string DocKey { get { var d = CadApp.DocumentManager.MdiActiveDocument; return d != null ? d.GetHashCode().ToString() : ""; } }
+        static string DocKey { get { var d = CadApp.DocumentManager.MdiActiveDocument; if (d == null) return ""; try { return d.Database.Filename; } catch { return d.GetHashCode().ToString(); } } }
         static string SafeStr(string s) { return s == null ? "" : s; }
         static string PlatformName
         {
@@ -375,7 +375,7 @@ namespace CadToolkit
                     foreach (ObjectId btrId in bt)
                     {
                         var btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
-                        if (btr.Name.StartsWith("*") || btr.Name.Equals("Model_Space") || btr.Name.StartsWith("Paper_Space")) continue;
+                        if (btr.Name.StartsWith("*")) continue;
                         count += ReplaceInBlock(tr, btr, dlg.FindText, dlg.ReplaceText, cmp);
                     }
                     tr.Commit();
@@ -625,6 +625,7 @@ namespace CadToolkit
             var psr = GetPendingOrSelection();
             if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
             int count = 0;
+            bool hasBlocks = false;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
                 var lt = (LayerTable)tr.GetObject(Db.LayerTableId, OpenMode.ForRead);
@@ -648,7 +649,10 @@ namespace CadToolkit
                         br.ColorIndex = 256;
                         count++;
                         if (br.BlockTableRecord.IsValid)
-                            count += SetBlockLayer0(tr, br.BlockTableRecord);
+                        {
+                            SetBlockLayer0(tr, br.BlockTableRecord);
+                            hasBlocks = true;
+                        }
                     }
                     else
                     {
@@ -661,12 +665,13 @@ namespace CadToolkit
                 tr.Commit();
             }
             Ed.WriteMessage(string.Format("\n\u5df2\u5c06 {0} \u4e2a\u5bf9\u8c61\u6539\u5230 0 \u5c42\u3002", count));
+            if (hasBlocks) Ed.WriteMessage("\n\u6ce8\u610f\uff1a\u5757\u5b9a\u4e49\u5185\u7684\u5bf9\u8c61\u4e5f\u5df2\u5f52\u96f6\uff0c\u5c06\u5f71\u54cd\u6240\u6709\u540c\u540d\u5757\u5b9e\u4f8b\u3002");
         }
-        static int SetBlockLayer0(Transaction tr, ObjectId btrId)
+        static void SetBlockLayer0(Transaction tr, ObjectId btrId)
         {
             int count = 0;
             var btr = tr.GetObject(btrId, OpenMode.ForWrite) as BlockTableRecord;
-            if (btr == null) return 0;
+            if (btr == null) return;
             foreach (ObjectId entId in btr)
             {
                 var ent = tr.GetObject(entId, OpenMode.ForRead) as Entity;
@@ -679,7 +684,7 @@ namespace CadToolkit
                     innerBr.ColorIndex = 256;
                     count++;
                     if (innerBr.BlockTableRecord.IsValid)
-                        count += SetBlockLayer0(tr, innerBr.BlockTableRecord);
+                        SetBlockLayer0(tr, innerBr.BlockTableRecord);
                 }
                 else
                 {
@@ -689,7 +694,7 @@ namespace CadToolkit
                     count++;
                 }
             }
-            return count;
+            return;
         }
         [CommandMethod("CT_CENTERLINE")]
         public void DrawCenterLine()
