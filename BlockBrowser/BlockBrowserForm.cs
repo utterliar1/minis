@@ -47,11 +47,13 @@ namespace BlockBrowser
 
         private void InitializeComponent()
         {
-            Text = "块浏览器 v" + BlockLibrary.AppVersion + " - " + BlockLibrary.PlatformName;
+            Text = "块浏览器 - " + BlockLibrary.PlatformName;
             Size = new Size(BlockLibrary.FormWidth, BlockLibrary.FormHeight);
             MinimumSize = new Size(700, 450);
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.FromArgb(245, 245, 248);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            ShowInTaskbar = false;
             Font = new Font("Microsoft YaHei", 9f);
             KeyPreview = true;
             KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) this.Close(); };
@@ -145,7 +147,7 @@ namespace BlockBrowser
 
             // Status bar
             _statusBar = new StatusStrip();
-            var lblAuthor = new ToolStripLabel(BlockLibrary.AppVersion + " | 制作人：WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
+            var lblAuthor = new ToolStripLabel("v" + BlockLibrary.AppVersion + " | WLUP") { ForeColor = Color.FromArgb(130, 130, 140) };
             _lblStatus = new ToolStripStatusLabel("就绪") { Spring = true, TextAlign = ContentAlignment.MiddleLeft };
             _lblCount = new ToolStripStatusLabel("0") { TextAlign = ContentAlignment.MiddleRight };
             _statusBar.Items.AddRange(new ToolStripItem[] { lblAuthor, _lblStatus, _lblCount });
@@ -257,6 +259,7 @@ namespace BlockBrowser
                         _selectedBlock = b;
                         foreach (var c2 in _cards) c2.IsSelected = (c2 == s);
                         _flowBlocks.Invalidate(true);
+                        ShowBlockInfo(b);
                     };
                     card.BlockDoubleClicked += (s, b) => { _selectedBlock = b; DoInsert(); };
                     string ck = (block.FilePath ?? "") + "_" + _thumbSize;
@@ -365,7 +368,8 @@ namespace BlockBrowser
                 var card = _cards[i];
                 if (card.IsDisposed) continue;
                 bool match = showAll ||
-                    card.Block.Name.ToLowerInvariant().Contains(kw);
+                    card.Block.Name.ToLowerInvariant().Contains(kw) ||
+                    card.Block.Category.ToLowerInvariant().Contains(kw);
                 card.Visible = match;
                 if (match) visible++;
             }
@@ -398,8 +402,17 @@ namespace BlockBrowser
                 catch (IOException) { MessageBox.Show("文件被占用，请关闭CAD中打开的此文件后重试。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 // Delete thumbnail cache
                 BlockLibrary.RefreshThumbnail(_selectedBlock);
-                // Delete the DWG file
-                File.Delete(filePath);
+                // Delete the DWG file (移到回收站)
+                try
+                {
+                    Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(filePath,
+                        Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+                        Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                }
+                catch
+                {
+                    File.Delete(filePath);
+                }
                 // Remove from UI
                 BlockThumbnailCard cardToRemove = null;
                 foreach (var card in _cards)
@@ -506,6 +519,25 @@ namespace BlockBrowser
             this.Close();
         }
 
+        private void ShowBlockInfo(BlockInfo block)
+        {
+            if (block == null || !File.Exists(block.FilePath))
+            {
+                _lblStatus.Text = "就绪";
+                return;
+            }
+            try
+            {
+                var fi = new System.IO.FileInfo(block.FilePath);
+                string sizeStr = fi.Length < 1024 ? fi.Length + " B"
+                    : fi.Length < 1024 * 1024 ? (fi.Length / 1024.0).ToString("F1") + " KB"
+                    : (fi.Length / 1024.0 / 1024.0).ToString("F1") + " MB";
+                _lblStatus.Text = string.Format("{0}  |  {1}  |  修改: {2}",
+                    block.Name, sizeStr, fi.LastWriteTime.ToString("yyyy-MM-dd HH:mm"));
+            }
+            catch { _lblStatus.Text = block.Name; }
+        }
+
         private string ShowInputDialog(string prompt)
         {
             using (var form = new Form())
@@ -514,6 +546,7 @@ namespace BlockBrowser
                 form.Size = new Size(350, 150);
                 form.StartPosition = FormStartPosition.CenterParent;
                 form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.ShowInTaskbar = false;
                 form.MaximizeBox = false; form.MinimizeBox = false;
                 var txt = new TextBox { Location = new Point(15, 20), Width = 300 };
                 var btnOk = new Button { Text = "确定", DialogResult = DialogResult.OK, Location = new Point(160, 70) };
@@ -532,6 +565,7 @@ namespace BlockBrowser
                 form.Size = new Size(350, 150);
                 form.StartPosition = FormStartPosition.CenterParent;
                 form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.ShowInTaskbar = false;
                 form.MaximizeBox = false; form.MinimizeBox = false;
                 var txt = new TextBox { Text = defaultValue, Location = new Point(15, 20), Width = 300 };
                 txt.SelectAll();
@@ -549,7 +583,9 @@ namespace BlockBrowser
             {
                 form.Text = title; form.Size = new Size(350, 180);
                 form.StartPosition = FormStartPosition.CenterParent;
-                form.FormBorderStyle = FormBorderStyle.FixedDialog; form.MaximizeBox = false;
+                form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.ShowInTaskbar = false;
+                form.MaximizeBox = false;
                 var lbl = new Label { Text = "选择或输入分类:", Location = new Point(15, 15), AutoSize = true };
                 var cmb = new ComboBox { Location = new Point(15, 40), Width = 300, DropDownStyle = ComboBoxStyle.DropDown };
                 cmb.Items.AddRange(categories.ToArray());
@@ -570,6 +606,7 @@ namespace BlockBrowser
                 form.Size = new Size(450, 260);
                 form.StartPosition = FormStartPosition.CenterParent;
                 form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.ShowInTaskbar = false;
                 form.MaximizeBox = false; form.MinimizeBox = false;
 
                 var lbl = new Label { Text = "块库路径:", Location = new Point(15, 20), AutoSize = true };

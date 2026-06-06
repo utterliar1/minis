@@ -52,7 +52,7 @@ namespace BlockBrowser
     public static class BlockLibrary
     {
         public static string LibraryPath { get; set; }
-        public const string AppVersion = "1.23";
+        public const string AppVersion = "1.25";
         public static string PlatformName { get; set; }
         public static int ThumbSize { get; set; }
         public static double InsertScale { get; set; }
@@ -74,6 +74,18 @@ namespace BlockBrowser
         }
 
         public static string ThumbnailCachePath { get { return Path.Combine(LibraryPath, ".thumbs"); } }
+
+        private static List<string> _recentBlocks = new List<string>();
+        private const int MAX_RECENT = 20;
+
+        public static void AddRecentBlock(string filePath)
+        {
+            _recentBlocks.Remove(filePath);
+            _recentBlocks.Insert(0, filePath);
+            if (_recentBlocks.Count > MAX_RECENT)
+                _recentBlocks.RemoveRange(MAX_RECENT, _recentBlocks.Count - MAX_RECENT);
+            SaveConfig();
+        }
 
         private static string ConfigPath
         {
@@ -104,6 +116,26 @@ namespace BlockBrowser
                     else if (key.Equals("InsertRotation", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { double dr; if (double.TryParse(val, out dr)) InsertRotation = dr * Math.PI / 180.0; }
                     else if (key.Equals("FormWidth", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { int fw; if (int.TryParse(val, out fw) && fw >= 400) FormWidth = fw; }
                     else if (key.Equals("FormHeight", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { int fh; if (int.TryParse(val, out fh) && fh >= 300) FormHeight = fh; }
+                    else if (key.Equals("RecentBlocks", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val))
+                    {
+                        _recentBlocks.Clear();
+                        foreach (var rp in val.Split('|'))
+                        {
+                            string t = rp.Trim();
+                            if (!string.IsNullOrEmpty(t) && !_recentBlocks.Contains(t))
+                                _recentBlocks.Add(t);
+                        }
+                    }
+                    else if (key.Equals("RecentBlocks", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val))
+                    {
+                        _recentBlocks.Clear();
+                        foreach (var rp in val.Split('|'))
+                        {
+                            string t = rp.Trim();
+                            if (!string.IsNullOrEmpty(t) && !_recentBlocks.Contains(t))
+                                _recentBlocks.Add(t);
+                        }
+                    }
                     else if (key.Equals("LibraryPath", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val))
                     {
                         if (Path.IsPathRooted(val))
@@ -135,6 +167,8 @@ namespace BlockBrowser
                 lines.Add("InsertRotation=" + (InsertRotation * 180.0 / Math.PI).ToString("G"));
                 lines.Add("FormWidth=" + FormWidth);
                 lines.Add("FormHeight=" + FormHeight);
+                if (_recentBlocks.Count > 0)
+                    lines.Add("RecentBlocks=" + string.Join("|", _recentBlocks.ToArray()));
                 File.WriteAllLines(cfgPath, lines, System.Text.Encoding.UTF8);
             }
             catch { }
@@ -143,12 +177,16 @@ namespace BlockBrowser
         public static List<string> GetCategories()
         {
             if (!Directory.Exists(LibraryPath)) Directory.CreateDirectory(LibraryPath);
-            var c = new List<string> { "全部" };
+            var c = new List<string> { "全部", "最近" };
+            var dirs = new List<string>();
             foreach (var d in Directory.GetDirectories(LibraryPath))
             {
                 string n = Path.GetFileName(d);
-                if (!n.StartsWith(".")) c.Add(n);
+                if (!n.StartsWith(".") && Directory.GetFiles(d, "*.dwg").Length > 0)
+                    dirs.Add(n);
             }
+            dirs.Sort(StringComparer.OrdinalIgnoreCase);
+            c.AddRange(dirs);
             return c;
         }
 
@@ -156,6 +194,17 @@ namespace BlockBrowser
         {
             if (!Directory.Exists(LibraryPath)) Directory.CreateDirectory(LibraryPath);
             var blocks = new List<BlockInfo>();
+
+            if (category == "最近")
+            {
+                foreach (var rp in _recentBlocks)
+                {
+                    if (File.Exists(rp))
+                        blocks.Add(new BlockInfo { FilePath = rp, Category = "最近" });
+                }
+                return blocks;
+            }
+
             var paths = new List<string>();
             if (string.IsNullOrEmpty(category) || category == "全部")
             {
@@ -618,6 +667,39 @@ namespace BlockBrowser
             if (File.Exists(cp)) File.Delete(cp);
         }
 
+        public static void CleanupDiskCache()
+        {
+            try
+            {
+                string cp = ThumbnailCachePath;
+                if (!Directory.Exists(cp)) return;
+                var cutoff = DateTime.Now.AddDays(-30);
+                long total = 0;
+                var infos = new List<System.IO.FileInfo>();
+                foreach (var f in Directory.GetFiles(cp, "*.png"))
+                {
+                    try
+                    {
+                        var fi = new System.IO.FileInfo(f);
+                        infos.Add(fi);
+                        total += fi.Length;
+                        if (fi.LastWriteTime < cutoff) { fi.Delete(); total -= fi.Length; }
+                    }
+                    catch { }
+                }
+                if (total > 100L * 1024 * 1024)
+                {
+                    infos.Sort((a, b) => a.LastWriteTime.CompareTo(b.LastWriteTime));
+                    foreach (var fi in infos)
+                    {
+                        if (total <= 80L * 1024 * 1024) break;
+                        try { total -= fi.Length; fi.Delete(); } catch { }
+                    }
+                }
+            }
+            catch { }
+        }
+
         public static bool RenameBlock(BlockInfo block, string newName)
         {
             if (block == null || string.IsNullOrEmpty(newName)) return false;
@@ -660,17 +742,20 @@ namespace BlockBrowser
                 string bname = block.Name;
                 using (DocumentLock dl = doc.LockDocument())
                 {
-                    // 导入块定义
+                    // 导入块定义（同名则生成唯一名称）
                     using (Transaction tr = db.TransactionManager.StartTransaction())
                     {
                         BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForWrite);
-                        if (!bt.Has(bname))
+                        if (bt.Has(bname))
                         {
-                            using (Database extDb = new Database(false, true))
-                            {
-                                extDb.ReadDwgFile(block.FilePath, FileOpenMode.OpenForReadAndAllShare, true, "");
-                                db.Insert(bname, extDb, true);
-                            }
+                            int suffix = 2;
+                            while (bt.Has(bname + "_" + suffix)) suffix++;
+                            bname = bname + "_" + suffix;
+                        }
+                        using (Database extDb = new Database(false, true))
+                        {
+                            extDb.ReadDwgFile(block.FilePath, FileOpenMode.OpenForReadAndAllShare, true, "");
+                            db.Insert(bname, extDb, true);
                         }
                         tr.Commit();
                     }
@@ -693,6 +778,7 @@ namespace BlockBrowser
                         tr.Commit();
                     }
                 }
+                AddRecentBlock(block.FilePath);
                 ed.WriteMessage("\n已插入: " + bname);
             }
             catch (System.Exception ex)
@@ -711,16 +797,25 @@ namespace BlockBrowser
             string catDir = Path.Combine(LibraryPath, category);
             if (!Directory.Exists(catDir)) Directory.CreateDirectory(catDir);
             string outPath = Path.Combine(catDir, blockName + ".dwg");
+            // 覆盖确认
+            if (File.Exists(outPath))
+            {
+                var ow = ed.GetString("\n文件已存在，覆盖？[Y/N] <N>: ");
+                if (ow.Status != PromptStatus.OK || !ow.StringResult.Trim().ToUpperInvariant().StartsWith("Y"))
+                {
+                    ed.WriteMessage("\n取消。");
+                    return false;
+                }
+            }
             try
             {
                 using (DocumentLock dl = doc.LockDocument())
                 {
                     Database db = doc.Database;
-                    // 将选中的对象复制到新数据库，以basePt为基点
                     ObjectIdCollection ids = new ObjectIdCollection(sr.Value.GetObjectIds());
                     using (Database newDb = db.Wblock(ids, basePt))
                     {
-newDb.SaveAs(outPath, DwgVersion.Current);
+                        newDb.SaveAs(outPath, DwgVersion.Current);
                     }
                 }
                 RefreshThumbnail(new BlockInfo { FilePath = outPath, Category = category });
@@ -742,6 +837,16 @@ newDb.SaveAs(outPath, DwgVersion.Current);
             string catDir = Path.Combine(LibraryPath, category);
             if (!Directory.Exists(catDir)) Directory.CreateDirectory(catDir);
             string outPath = Path.Combine(catDir, blockName + ".dwg");
+            // 覆盖确认
+            if (File.Exists(outPath))
+            {
+                var ow2 = ed.GetString("\n文件已存在，覆盖？[Y/N] <N>: ");
+                if (ow2.Status != PromptStatus.OK || !ow2.StringResult.Trim().ToUpperInvariant().StartsWith("Y"))
+                {
+                    ed.WriteMessage("\n取消。");
+                    return false;
+                }
+            }
             try
             {
                 using (DocumentLock dl = doc.LockDocument())
@@ -783,14 +888,15 @@ newDb.SaveAs(outPath, DwgVersion.Current);
             try
             {
 #if GSTARCAD
-                BlockLibrary.PlatformName = "浩辰CAD";
+                BlockLibrary.PlatformName = "GstarCAD";
 #elif AUTOCAD
                 BlockLibrary.PlatformName = "AutoCAD";
 #elif ZWCAD
-                BlockLibrary.PlatformName = "中望CAD";
+                BlockLibrary.PlatformName = "ZWCAD";
 #endif
                 BlockLibrary.LoadConfig();
                 if (!Directory.Exists(BlockLibrary.LibraryPath)) Directory.CreateDirectory(BlockLibrary.LibraryPath);
+                BlockLibrary.CleanupDiskCache();
             }
             catch { }
         }
@@ -832,6 +938,8 @@ newDb.SaveAs(outPath, DwgVersion.Current);
         {
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
             try {
+            var sr = ed.GetSelection();
+            if (sr.Status != PromptStatus.OK) { ed.WriteMessage("\n未选择对象，取消。"); return; }
             var pr = ed.GetPoint("\n指定块基点（回车用原点）: ");
             Point3d basePt;
             if (pr.Status == PromptStatus.OK)
@@ -840,8 +948,6 @@ newDb.SaveAs(outPath, DwgVersion.Current);
                 basePt = new Point3d(0, 0, 0);
             else
                 { ed.WriteMessage("\n取消。"); return; }
-            var sr = ed.GetSelection();
-            if (sr.Status != PromptStatus.OK) { ed.WriteMessage("\n未选择对象，取消。"); return; }
             BlockLibrary.SaveSelectionAsBlockWithSelection(sr, blockName, category, basePt);
             } catch (System.Exception ex) { ed.WriteMessage("\n添加失败: " + ex.Message); }
         }
@@ -884,6 +990,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
                 form.Size = new Size(400, 480);
                 form.StartPosition = FormStartPosition.CenterScreen;
                 form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.ShowInTaskbar = false;
                 form.MaximizeBox = false; form.MinimizeBox = false;
 
                 var lblSearch = new Label { Text = "搜索:", Location = new Point(15, 12), AutoSize = true };
@@ -958,16 +1065,7 @@ newDb.SaveAs(outPath, DwgVersion.Current);
         [CommandMethod("BBEXPORT", CommandFlags.Session)]
         public void ExportBlockToLibrary()
         {
-            var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
-            try {
-            ed.WriteMessage("\n块库: " + BlockLibrary.LibraryPath);
-            var cr = ed.GetString("\n分类 [常用]: ");
-            string cat = "常用";
-            if (cr.Status == PromptStatus.OK && !string.IsNullOrEmpty(cr.StringResult)) cat = cr.StringResult.Trim();
-            var nr = ed.GetString("\n块名称: ");
-            if (nr.Status != PromptStatus.OK || string.IsNullOrEmpty(nr.StringResult)) { ed.WriteMessage("\n取消。"); return; }
-            BlockLibrary.ExportBlockFromCurrentDrawing(nr.StringResult.Trim(), cat);
-            } catch (System.Exception ex) { ed.WriteMessage("\n导出失败: " + ex.Message); }
+            DoExportBlock();
         }
         [CommandMethod("BBTHUMB", CommandFlags.Session)]
         public void RefreshThumbnails()

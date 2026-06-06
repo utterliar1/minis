@@ -26,6 +26,7 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="ZwDatabaseMgd">
       <HintPath>$(ZWCADDir)\ZwDatabaseMgd.dll</HintPath>
       <Private>False</Private>
