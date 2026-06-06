@@ -89,7 +89,7 @@ namespace CadToolkit
 
         static Editor Ed { get { return CadApp.DocumentManager.MdiActiveDocument.Editor; } }
         static Database Db { get { return CadApp.DocumentManager.MdiActiveDocument.Database; } }
-        static string DocKey { get { var d = CadApp.DocumentManager.MdiActiveDocument; if (d == null) return ""; try { return d.Name; } catch { try { return d.Database.Filename; } catch { return d.GetHashCode().ToString(); } } } }
+        static string DocKey { get { var d = CadApp.DocumentManager.MdiActiveDocument; return d != null ? d.GetHashCode().ToString() : ""; } }
         static string SafeStr(string s) { return s == null ? "" : s; }
         static string PlatformName
         {
@@ -1155,6 +1155,7 @@ namespace CadToolkit
         }
     }
 }
+
 
 
 
