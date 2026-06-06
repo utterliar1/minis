@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>考勤助手</title>
+<style>
+  :root {
+    --primary:#4F46E5;--primary-light:#818CF8;--primary-dark:#3730A3;
+    --accent:#F59E0B;--success:#10B981;--danger:#EF4444;
+    --bg:#F8FAFC;--card:#FFF;--text:#1E293B;--text-sec:#64748B;
+    --border:#E2E8F0;--radius:12px;--shadow:0 1px 3px rgba(0,0,0,.08);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  
+  /* Auth */
+  .auth-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(160deg,var(--primary),var(--primary-dark))}
+  .auth-card{background:var(--card);border-radius:20px;padding:32px 24px;width:100%;max-width:380px;box-shadow:0 12px 40px rgba(0,0,0,.2)}
+  .auth-logo{text-align:center;margin-bottom:24px}.auth-logo .icon{font-size:48px}.auth-logo h2{font-size:22px;margin-top:8px}.auth-logo p{font-size:13px;color:var(--text-sec);margin-top:4px}
+  .auth-tabs{display:flex;margin-bottom:20px;background:#F1F5F9;border-radius:10px;padding:3px}
+  .auth-tab{flex:1;text-align:center;padding:8px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--text-sec);transition:all .2s}
+  .auth-tab.active{background:var(--card);color:var(--primary);box-shadow:var(--shadow)}
+  .auth-form{display:none}.auth-form.active{display:block}
+  .auth-field{margin-bottom:14px}.auth-field label{display:block;font-size:13px;font-weight:600;color:var(--text-sec);margin-bottom:6px}
+  .auth-field input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;outline:none}
+  .auth-field input:focus{border-color:var(--primary)}
+  .auth-error{font-size:12px;color:var(--danger);margin-top:-8px;margin-bottom:12px;min-height:18px}
+  .btn{padding:11px 20px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;width:100%}.btn:active{opacity:.8}
+  .btn-primary{background:var(--primary);color:#fff}.btn-outline{background:transparent;border:1.5px solid var(--primary);color:var(--primary)}.btn-danger{background:var(--danger);color:#fff}
+  .btn-sm{padding:7px 14px;font-size:12px}.btn-block{width:100%}
+
+  /* App */
+  .app-shell{display:none}
+  .header{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:20px 16px 24px;position:sticky;top:0;z-index:100}
+  .header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .header h1{font-size:20px;font-weight:700}.header-btns{display:flex;gap:8px}
+  .header-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .user-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.18);border-radius:16px;padding:3px 10px;font-size:12px;font-weight:600;margin-bottom:10px}
+  .role-dot{width:7px;height:7px;border-radius:50%}.role-admin{background:var(--accent)}.role-user{background:var(--success)}
+  .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .stat-item{background:rgba(255,255,255,.12);border-radius:10px;padding:10px 8px;text-align:center}.stat-value{font-size:22px;font-weight:700}.stat-label{font-size:11px;opacity:.8;margin-top:2px}
+
+  /* Tab */
+  .tab-nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+  .tab-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 0;font-size:10px;color:var(--text-sec);cursor:pointer;background:none;border:none}
+  .tab-item.active{color:var(--primary)}.tab-item svg{width:22px;height:22px;margin-bottom:3px}
+  .page{display:none;padding:16px;padding-bottom:90px}.page.active{display:block}
+  .card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:12px}
+  .card-title{font-size:14px;font-weight:600;color:var(--text-sec);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+
+  /* Clock */
+  .clock-area{text-align:center;padding:20px 0}
+  .clock-btn{width:140px;height:140px;border-radius:50%;border:none;font-size:18px;font-weight:700;color:#fff;cursor:pointer;transition:all .3s;box-shadow:0 6px 20px rgba(79,70,229,.35)}
+  .clock-btn.check-in{background:linear-gradient(135deg,var(--primary),var(--primary-light))}.clock-btn.check-out{background:linear-gradient(135deg,var(--danger),#F87171)}
+  .clock-btn.disabled{background:#CBD5E1;box-shadow:none;cursor:not-allowed}.clock-btn:active:not(.disabled){transform:scale(.95)}
+  .clock-status{margin-top:12px;font-size:13px;color:var(--text-sec)}.clock-status .in-range{color:var(--success);font-weight:600}.clock-status .out-range{color:var(--danger);font-weight:600}
+  .clock-time-display{margin-top:8px;font-size:28px;font-weight:700;color:var(--primary);font-variant-numeric:tabular-nums}.clock-date-display{font-size:13px;color:var(--text-sec);margin-top:2px}
+
+  /* Timeline */
+  .timeline{padding:0 0 0 16px;border-left:2px solid var(--border)}.timeline-item{position:relative;padding:8px 0 16px 16px}
+  .timeline-item::before{content:'';position:absolute;left:-7px;top:12px;width:12px;height:12px;border-radius:50%;background:var(--primary);border:2px solid #fff}.timeline-item.out::before{background:var(--danger)}
+  .timeline-label{font-size:12px;color:var(--text-sec)}.timeline-time{font-size:16px;font-weight:600;margin-top:2px}
+
+  /* Dashboard */
+  .dash-table{width:100%;border-collapse:collapse;font-size:13px}
+  .dash-table th,.dash-table td{padding:10px 8px;text-align:left;border-bottom:1px solid var(--border)}
+  .dash-table th{font-size:12px;color:var(--text-sec);font-weight:600;background:#F8FAFC;position:sticky;top:0}
+  .dash-table tr:last-child td{border-bottom:none}
+  .ot-positive{color:var(--danger);font-weight:600}.ot-zero{color:var(--success)}
+  .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+  .status-in{background:var(--success)}.status-out{background:var(--text-sec)}.status-none{background:var(--border)}
+  .dash-section{margin-bottom:16px}
+
+  /* Records */
+  .record-card{background:var(--card);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+  .record-date{font-size:15px;font-weight:600}.record-weekday{font-size:12px;color:var(--text-sec);margin-left:6px}.record-times{font-size:12px;color:var(--text-sec);margin-top:4px}
+  .record-overtime{font-size:18px;font-weight:700;color:var(--accent)}
+  .badge{font-size:10px;padding:2px 6px;border-radius:4px;margin-top:4px;display:inline-block}.badge-holiday{background:#FEF3C7;color:#D97706}.badge-workday{background:#DBEAFE;color:#2563EB}
+
+  /* Calendar */
+  .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+  .cal-header{font-size:12px;color:var(--text-sec);padding:4px 0;font-weight:600}
+  .cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;position:relative}
+  .cal-day.today{background:var(--primary);color:#fff;font-weight:700}.cal-day.has-record::after{content:'';position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:var(--accent)}
+  .cal-day.has-record.today::after{background:#fff}
+  .cal-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.cal-nav-btn{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-sec);padding:4px 8px}.cal-month{font-size:15px;font-weight:600}
+
+  /* Settings */
+  .setting-group{background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin-bottom:16px}
+  .setting-group-title{font-size:13px;font-weight:600;color:var(--text-sec);padding:16px 16px 8px}
+  .setting-item{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);min-height:48px}.setting-item:last-child{border-bottom:none}
+  .setting-label{font-size:15px;flex:1}.setting-value{font-size:14px;color:var(--text-sec);text-align:right;max-width:50%}
+  .setting-input{font-size:14px;text-align:right;border:none;background:transparent;color:var(--text);outline:none;width:100%;max-width:120px;font-family:inherit}
+  .setting-select{font-size:14px;text-align:right;border:none;background:transparent;color:var(--text-sec);outline:none;font-family:inherit;-webkit-appearance:none}
+  .toggle{width:48px;height:28px;background:#CBD5E1;border-radius:14px;position:relative;cursor:pointer;border:none;flex-shrink:0;transition:background .2s}.toggle.on{background:var(--primary)}
+  .toggle::after{content:'';position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}.toggle.on::after{transform:translateX(20px)}
+  .summary-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px}.summary-row:last-child{border-bottom:none}
+  .summary-row .label{color:var(--text-sec)}.summary-row .value{font-weight:600}.summary-row .value.overtime{color:var(--accent)}
+  .weekday-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .weekday-chip{padding:5px 10px;border-radius:6px;font-size:12px;border:1.5px solid var(--border);cursor:pointer;background:#fff;font-family:inherit;transition:all .2s}
+  .weekday-chip.on{border-color:var(--primary);background:#EEF2FF;color:var(--primary);font-weight:600}
+  .holiday-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+  .holiday-tag{font-size:12px;background:#FEF3C7;color:#D97706;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+  .holiday-tag button{background:none;border:none;color:#D97706;font-size:14px;cursor:pointer;line-height:1}
+  .workday-tag{font-size:12px;background:#DBEAFE;color:#2563EB;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+  .workday-tag button{background:none;border:none;color:#2563EB;font-size:14px;cursor:pointer;line-height:1}
+  .sync-spin{display:inline-block;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+  .sync-row{display:flex;align-items:center;gap:12px;width:100%}.sync-info{flex:1;min-width:0}.sync-info .setting-label{margin-bottom:2px}
+  .settings-tab-bar{display:flex;background:#F1F5F9;border-radius:12px;padding:3px;margin-bottom:16px;position:sticky;top:0;z-index:10}
+  .settings-tab{flex:1;text-align:center;padding:9px 4px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--text-sec);transition:all .2s;font-family:inherit}
+  .settings-tab.active{background:var(--card);color:var(--primary);box-shadow:var(--shadow)}
+  .settings-panel{display:none}.settings-panel.active{display:block}
+  .wl-card{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--card)}.wl-card:last-child{border-bottom:none}
+  .wl-name{font-size:15px;font-weight:600}
+  .wl-status{font-size:12px;padding:3px 8px;border-radius:4px}.wl-status-unused{background:#DBEAFE;color:#2563EB}.wl-status-used{background:#D1FAE5;color:#059669}
+  .user-card{background:var(--card);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+  .user-card-info{display:flex;align-items:center;gap:10px}
+  .user-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff}
+  .avatar-admin{background:var(--accent)}.avatar-user{background:var(--primary-light)}
+  .user-name{font-size:15px;font-weight:600}.user-meta{font-size:12px;color:var(--text-sec)}
+  .user-actions{display:flex;gap:6px}.user-actions button{border:none;background:#F1F5F9;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px}
+  .btn-group{display:flex;gap:8px;margin-top:12px}.note-text{font-size:12px;color:var(--text-sec);margin-top:8px;line-height:1.5}
+  .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:200;align-items:flex-end;justify-content:center}
+  .modal-overlay.show{display:flex}.modal-content{background:var(--card);border-radius:16px 16px 0 0;width:100%;max-height:80vh;overflow-y:auto;padding:20px;animation:slideUp .3s ease}
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .modal-title{font-size:17px;font-weight:700;margin-bottom:16px;text-align:center}
+  .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.75);color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none}.toast.show{opacity:1}
+  .empty-state{text-align:center;padding:40px 20px;color:var(--text-sec)}.empty-state .icon{font-size:48px;margin-bottom:12px}.empty-state .text{font-size:14px}
+  .export-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .export-bar select,.export-bar input{border:1.5px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;font-family:inherit;background:#fff}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo"><div class="icon">⏱</div><h2>考勤助手</h2><p>GPS定位 · 团队管理 · 自动计算</p></div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">登录</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">注册</button>
+    </div>
+    <div class="auth-form active" id="form-login">
+      <div class="auth-field"><label>用户名</label><input type="text" id="login-user" placeholder="请输入用户名"></div>
+      <div class="auth-field"><label>密码</label><input type="password" id="login-pass" placeholder="请输入密码"></div>
+      <div class="auth-error" id="login-error"></div>
+      <button class="btn btn-primary" onclick="doLogin()">登 录</button>
+      <p class="note-text" style="text-align:center;margin-top:16px">管理员请使用管理员账号登录<br>成员需管理员添加后方可注册</p>
+    </div>
+    <div class="auth-form" id="form-register">
+      <div class="auth-field"><label>姓名</label><input type="text" id="reg-name" placeholder="管理员添加的姓名"></div>
+      <div class="auth-field"><label>密码</label><input type="password" id="reg-pass" placeholder="设置密码（至少4位）"></div>
+      <div class="auth-field"><label>确认密码</label><input type="password" id="reg-pass2" placeholder="再次输入密码"></div>
+      <div class="auth-error" id="reg-error"></div>
+      <button class="btn btn-primary" onclick="doRegister()">注 册</button>
+      <p class="note-text" style="text-align:center;margin-top:12px">姓名需经管理员添加后方可注册</p>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app-shell" id="app-shell">
+  <div class="header">
+    <div class="header-top">
+      <h1>⏱ 考勤助手</h1>
+      <div class="header-btns"><button class="header-btn" onclick="doLogout()">⏻</button></div>
+    </div>
+    <div class="user-badge" id="user-badge"><span class="role-dot role-admin"></span><span id="user-badge-text"></span></div>
+    <div class="stats-row" id="header-stats"></div>
+  </div>
+
+  <!-- ===== ADMIN: Dashboard ===== -->
+  <div class="page active" id="page-dashboard">
+    <div class="card">
+      <div class="card-title">📊 团队工时概览</div>
+      <div id="dash-content"><div class="empty-state"><span class="note-text">加载中...</span></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📤 导出工时报表</div>
+      <div class="export-bar">
+        <select id="export-scope"><option value="all">所有人</option></select>
+        <select id="export-period"><option value="month">本月</option><option value="today">今日</option><option value="all">全部</option></select>
+        <button class="btn btn-primary btn-sm" onclick="doExport()" style="width:auto">📥 导出 CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ADMIN: Members ===== -->
+  <div class="page" id="page-members">
+    <div class="card">
+      <div class="card-title">📋 成员管理</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+        <input type="text" id="wl-name-input" placeholder="输入成员姓名" style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:10px;font-size:14px;font-family:inherit">
+        <button class="btn btn-primary btn-sm" onclick="addWhitelist()" style="width:auto;flex-shrink:0">+ 添加</button>
+      </div>
+      <div class="note-text">添加后对方输入姓名即可注册</div>
+    </div>
+    <div id="wl-list-container"></div>
+    <div class="card" style="margin-top:16px"><div class="card-title">👤 已注册成员</div></div>
+    <div id="user-list-container"></div>
+  </div>
+
+  <!-- ===== ADMIN: Settings ===== -->
+  <div class="page" id="page-settings">
+    <div class="setting-group-title">📍 打卡位置</div>
+    <div class="setting-group">
+      <div class="setting-item"><span class="setting-label">打卡地点</span><span class="setting-value" id="set-location-name">未设置</span></div>
+      <div class="setting-item"><button class="btn btn-primary btn-block" onclick="setCurrentLocation()" style="width:auto;flex:1">📍 使用当前位置作为打卡点</button></div>
+      <div class="setting-item"><span class="setting-label">打卡范围</span><select class="setting-select" id="set-radius"><option value="100">100m</option><option value="200">200m</option><option value="300">300m</option><option value="500" selected>500m</option><option value="1000">1000m</option></select></div>
+    </div>
+    <div class="setting-group-title">⏰ 工作时间</div>
+    <div class="setting-group">
+      <div class="setting-item"><span class="setting-label">上班</span><input class="setting-input" type="time" id="set-work-start" value="09:00"></div>
+      <div class="setting-item"><span class="setting-label">下班</span><input class="setting-input" type="time" id="set-work-end" value="18:00"></div>
+      <div class="setting-item"><span class="setting-label">午休开始</span><input class="setting-input" type="time" id="set-lunch-start" value="12:00"></div>
+      <div class="setting-item"><span class="setting-label">午休结束</span><input class="setting-input" type="time" id="set-lunch-end" value="13:00"></div>
+      <div class="setting-item" style="flex-direction:column;align-items:flex-start"><span class="setting-label">工作日</span><div class="weekday-row" id="set-weekdays"></div></div>
+    </div>
+    <div class="setting-group-title">🎌 法定节假日</div>
+    <div class="setting-group">
+      <div class="setting-item" style="flex-direction:column;align-items:flex-start;gap:8px">
+        <div class="sync-row"><div class="sync-info"><div class="setting-label" style="font-weight:600">自动同步</div><div class="note-text" id="sync-status" style="margin-top:2px">同步当年节假日和调休</div></div>
+          <button class="btn btn-primary btn-sm" id="sync-btn" onclick="syncHolidays()" style="white-space:nowrap;flex-shrink:0;width:auto">📥 同步</button></div>
+      </div>
+    </div>
+    <div class="setting-group" id="holiday-synced-group" style="display:none">
+      <div class="setting-item" style="flex-direction:column;align-items:flex-start;gap:4px">
+        <div style="display:flex;justify-content:space-between;width:100%"><span class="setting-label" style="font-weight:600">🔴 节假日</span><span class="note-text" id="holiday-count"></span></div>
+        <div class="holiday-tags" id="holiday-tags"></div>
+      </div>
+      <div class="setting-item" style="flex-direction:column;align-items:flex-start;gap:4px">
+        <div style="display:flex;justify-content:space-between;width:100%"><span class="setting-label" style="font-weight:600">🔵 调休补班</span><span class="note-text" id="workday-count"></span></div>
+        <div class="holiday-tags" id="workday-tags"></div>
+      </div>
+      <div class="setting-item" style="gap:6px">
+        <input type="date" id="holiday-input" style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;min-width:0">
+        <select id="holiday-type-select" style="border:1.5px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:#fff"><option value="holiday">节假日</option><option value="workday">调休</option></select>
+        <button class="btn btn-primary btn-sm" onclick="addHolidayManual()" style="width:auto;flex-shrink:0">+</button>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="saveSettings()">💾 保存通用设置</button>
+    <div class="setting-group-title" style="margin-top:20px">🔐 修改密码</div>
+    <div class="setting-group">
+      <div class="setting-item"><span class="setting-label">当前密码</span><input class="setting-input" type="password" id="change-old-pw" placeholder="••••••" style="max-width:150px"></div>
+      <div class="setting-item"><span class="setting-label">新密码</span><input class="setting-input" type="password" id="change-new-pw" placeholder="至少4位" style="max-width:150px"></div>
+      <div class="setting-item"><span class="setting-label">确认新密码</span><input class="setting-input" type="password" id="change-new-pw2" placeholder="再次输入" style="max-width:150px"></div>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="changeMyPassword()">🔑 修改密码</button>
+  </div>
+
+  <!-- ===== ADMIN: Email ===== -->
+  <div class="page" id="page-email">
+    <div class="setting-group-title">📧 SMTP 配置</div>
+    <div class="setting-group">
+      <div class="setting-item"><span class="setting-label">SMTP 服务器</span><input class="setting-input" type="text" id="email-host" placeholder="smtp.qq.com" style="max-width:150px"></div>
+      <div class="setting-item"><span class="setting-label">端口</span><input class="setting-input" type="number" id="email-port" value="465" style="max-width:70px"></div>
+      <div class="setting-item"><span class="setting-label">发件邮箱</span><input class="setting-input" type="email" id="email-user" placeholder="your@email.com" style="max-width:180px"></div>
+      <div class="setting-item"><span class="setting-label">密码/授权码</span><input class="setting-input" type="password" id="email-pass" placeholder="••••••" style="max-width:150px"></div>
+      <div class="setting-item"><span class="setting-label">发件人名称</span><input class="setting-input" type="text" id="email-sender" value="考勤助手" style="max-width:150px"></div>
+    </div>
+    <div class="setting-group-title">📬 收件人</div>
+    <div class="setting-group">
+      <div class="setting-item" style="flex-direction:column;align-items:flex-start;gap:8px">
+        <textarea id="email-recipients" rows="3" placeholder="每行一个邮箱" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="setting-group-title">⏰ 定时发送</div>
+    <div class="setting-group">
+      <div class="setting-item"><span class="setting-label">发送时间</span><div style="display:flex;align-items:center;gap:4px"><input class="setting-input" type="number" id="email-hour" value="9" min="0" max="23" style="max-width:50px;text-align:center"><span>:</span><input class="setting-input" type="number" id="email-min" value="0" min="0" max="59" style="max-width:50px;text-align:center"><button class="toggle" id="set-email-enabled" onclick="toggleEmailEnabled()" style="margin-left:6px"></button></div></div>
+    </div>
+    <div class="btn-group" style="margin-top:12px">
+      <button class="btn btn-primary" onclick="saveEmailConfig()">💾 保存邮件</button>
+      <button class="btn btn-outline" onclick="testEmail()">📧 测试</button>
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="sendReportNow()">🚀 立即发送本月报告</button>
+  </div>
+
+  <!-- ===== USER: Clock ===== -->
+  <div class="page" id="page-clock">
+    <div class="card"><div class="clock-area">
+      <div class="clock-date-display" id="clock-date"></div>
+      <div class="clock-time-display" id="clock-time">--:--:--</div>
+      <button class="clock-btn check-in" id="clock-btn" onclick="handleClock()"><span id="clock-btn-text">打卡上班</span></button>
+      <div class="clock-status" id="clock-status">正在获取位置...</div>
+    </div></div>
+    <div class="card" id="today-card" style="display:none">
+      <div class="card-title">📋 今日打卡</div>
+      <div class="timeline" id="today-timeline"></div>
+      <div style="padding-left:16px;margin-top:8px"><div class="summary-row"><span class="label">今日工时</span><span class="value overtime" id="today-overtime">0 分钟</span></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">ℹ️ 考勤规则</div>
+      <div class="summary-row"><span class="label">工作时间</span><span class="value" id="info-worktime">09:00 - 18:00</span></div>
+      <div class="summary-row"><span class="label">午休时间</span><span class="value" id="info-lunch">12:00 - 13:00</span></div>
+      <div class="summary-row"><span class="label">打卡范围</span><span class="value" id="info-radius">500 米</span></div>
+    </div>
+  </div>
+
+  <!-- ===== USER: Records ===== -->
+  <div class="page" id="page-records">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0">📅 我的记录</div>
+        <button class="btn btn-outline btn-sm" onclick="exportMyRecords()">📤 导出</button>
+      </div>
+      <div class="summary-row"><span class="label">本月统计</span><span class="value" id="summary-month-info"></span></div>
+    </div>
+    <div class="card">
+      <div class="cal-nav">
+        <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+        <span class="cal-month" id="cal-month-label"></span>
+        <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+      </div>
+      <div class="calendar-grid" id="calendar-grid"></div>
+    </div>
+    <div id="records-list"></div>
+  </div>
+
+  <!-- ===== USER: Stats ===== -->
+  <div class="page" id="page-stats">
+    <div class="card"><div class="card-title">📊 我的工时统计</div><div id="stats-content"></div></div>
+    <div class="card"><div class="card-title">🏆 月度趋势</div><div id="stats-bar-chart"></div></div>
+  </div>
+
+  <!-- Tab Nav (dynamic) -->
+  <div class="tab-nav" id="tab-nav"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="modal-overlay" id="modal" onclick="closeModal(event)"><div class="modal-content" id="modal-body" onclick="event.stopPropagation()"></div></div>
+
+<script>
+// ==================== API ====================
+let API_BASE = location.origin;
+let token = localStorage.getItem('ot_token') || null;
+let currentUser = JSON.parse(localStorage.getItem('ot_user') || 'null');
+let settings = {};
+let allRecords = [];
+async function api(path, opts={}) {
+  const headers = {'Content-Type':'application/json', ...(opts.headers||{})};
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const resp = await fetch(API_BASE+'/api'+path, {...opts, headers});
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.error||'请求失败');
+  return data;
+}
+
+// ==================== AUTH ====================
+function switchAuthTab(t){document.querySelectorAll('.auth-tab').forEach((x,i)=>x.classList.toggle('active',t==='login'?i===0:i===1));document.getElementById('form-login').classList.toggle('active',t==='login');document.getElementById('form-register').classList.toggle('active',t==='register');document.getElementById('login-error').textContent='';document.getElementById('reg-error').textContent=''}
+async function doLogin(){
+  const u=document.getElementById('login-user').value.trim(),p=document.getElementById('login-pass').value,err=document.getElementById('login-error');
+  if(!u||!p){err.textContent='请输入用户名和密码';return}
+  try{const d=await api('/login',{method:'POST',body:JSON.stringify({username:u,password:p})});token=d.token;currentUser=d.user;localStorage.setItem('ot_token',token);localStorage.setItem('ot_user',JSON.stringify(currentUser));enterApp()}catch(e){err.textContent=e.message}
+}
+async function doRegister(){
+  const name=document.getElementById('reg-name').value.trim(),p=document.getElementById('reg-pass').value,p2=document.getElementById('reg-pass2').value,err=document.getElementById('reg-error');
+  if(!name){err.textContent='请输入姓名';return}if(!p||p.length<4){err.textContent='密码至少4个字符';return}if(p!==p2){err.textContent='两次密码不一致';return}
+  try{await api('/register',{method:'POST',body:JSON.stringify({displayName:name,password:p})});err.style.color='var(--success)';err.textContent='✅ 注册成功，请登录';setTimeout(()=>{err.style.color='';switchAuthTab('login')},2000)}catch(e){err.textContent=e.message}
+}
+function doLogout(){if(clockIntervalId){clearInterval(clockIntervalId);clockIntervalId=null}token=null;currentUser=null;localStorage.removeItem('ot_token');localStorage.removeItem('ot_user');document.getElementById('app-shell').style.display='none';document.getElementById('auth-screen').style.display='flex'}
+
+// ==================== ENTER APP ====================
+let clockIntervalId=null;
+async function enterApp(){
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app-shell').style.display='block';
+  buildTabNav();
+  applyRoleAccess();
+  try{const d=await api('/settings');settings=d.settings||{}}catch(e){settings={}}
+  if(currentUser.role==='admin'){showPage('dashboard');loadDashboard()}
+  else{showPage('clock');startGeoWatch();updateClock();loadAllRecords().then(()=>{renderCalendar();renderStats();updateHeaderStats()});if(clockIntervalId)clearInterval(clockIntervalId);clockIntervalId=setInterval(updateClock,1000)}
+  renderSettings();
+}
+function buildTabNav(){
+  const nav=document.getElementById('tab-nav');
+  if(currentUser.role==='admin'){
+    nav.innerHTML=`
+      <button class="tab-item active" data-page="dashboard" onclick="showPage('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>概览</button>
+      <button class="tab-item" data-page="members" onclick="showPage('members')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>成员</button>
+      <button class="tab-item" data-page="email" onclick="showPage('email')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>邮件</button>
+      <button class="tab-item" data-page="settings" onclick="showPage('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>设置</button>`;
+  } else {
+    nav.innerHTML=`
+      <button class="tab-item active" data-page="clock" onclick="showPage('clock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>打卡</button>
+      <button class="tab-item" data-page="records" onclick="showPage('records')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>记录</button>
+      <button class="tab-item" data-page="stats" onclick="showPage('stats')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>统计</button>`;
+  }
+}
+function applyRoleAccess(){
+  if(!currentUser)return;
+  const isAdmin=currentUser.role==='admin';
+  document.getElementById('user-badge').innerHTML=`<span class="role-dot ${isAdmin?'role-admin':'role-user'}"></span><span>${currentUser.displayName}（${isAdmin?'管理员':'成员'}）</span>`;
+}
+
+// ==================== ADMIN DASHBOARD ====================
+async function loadDashboard(){
+  try{
+    const [recsData, usersData]=await Promise.all([api('/records/all'),api('/users')]);
+    const records=recsData.records||[];
+    const users=usersData.users||[];
+    const today=dateKey(new Date());
+    const thisMonth=today.slice(0,7);
+    const todayRecs=records.filter(r=>r.date===today);
+    const monthRecs=records.filter(r=>r.date.startsWith(thisMonth));
+    
+    // Build table
+    const uList=users.filter(u=>u.username!=='admin');
+    let rows='';
+    for(const u of uList){
+      const uToday=todayRecs.filter(r=>r.user_id===u.username);
+      const uMonth=monthRecs.filter(r=>r.user_id===u.username);
+      const lastRec=uToday.sort((a,b)=>a.ts-b.ts).pop();
+      let statusText='<span class="status-dot status-none"></span>未打卡';
+      if(lastRec){
+        if(lastRec.type==='in')statusText='<span class="status-dot status-in"></span>上班中';
+        else statusText='<span class="status-dot status-out"></span>已下班';
+      }
+      const todayOT=calcTodayOT(uToday,new Date());
+      const monthDateG={};uMonth.forEach(r=>{if(!monthDateG[r.date])monthDateG[r.date]=[];monthDateG[r.date].push(r)});
+      let monthOT=0;Object.entries(monthDateG).forEach(([d,recs])=>{monthOT+=calcTodayOT(recs,new Date(d+'T12:00:00'))});
+      rows+=`<tr><td style="font-weight:600">${u.display_name}</td><td>${statusText}</td><td class="${todayOT>0?'ot-positive':'ot-zero'}">${fmtMin(todayOT)}</td><td class="${monthOT>0?'ot-positive':'ot-zero'}" style="font-weight:600">${fmtMin(monthOT)}</td></tr>`;
+    }
+    if(!rows)rows='<tr><td colspan="4" style="text-align:center;color:var(--text-sec);padding:20px">暂无成员</td></tr>';
+    
+    // Summary
+    let totalTodayOT=0,totalMonthOT=0;
+    uList.forEach(u=>{
+      const uToday=todayRecs.filter(r=>r.user_id===u.username);
+      const uMonth=monthRecs.filter(r=>r.user_id===u.username);
+      totalTodayOT+=calcTodayOT(uToday,new Date());
+      const mdg={};uMonth.forEach(r=>{if(!mdg[r.date])mdg[r.date]=[];mdg[r.date].push(r)});
+      Object.entries(mdg).forEach(([d,recs])=>{totalMonthOT+=calcTodayOT(recs,new Date(d+'T12:00:00'))});
+    });
+    document.getElementById('header-stats').innerHTML=`
+      <div class="stat-item"><div class="stat-value">${uList.length}</div><div class="stat-label">成员数</div></div>
+      <div class="stat-item"><div class="stat-value">${fmtMin(totalTodayOT)}</div><div class="stat-label">今日团队工时</div></div>
+      <div class="stat-item"><div class="stat-value">${fmtMin(totalMonthOT)}</div><div class="stat-label">本月团队工时</div></div>`;
+    document.getElementById('dash-content').innerHTML=`<table class="dash-table"><thead><tr><th>成员</th><th>状态</th><th>今日工时</th><th>本月工时</th></tr></thead><tbody>${rows}</tbody></table>`;
+    
+    // Export dropdown
+    const sel=document.getElementById('export-scope');
+    sel.innerHTML='<option value="all">所有人</option>'+uList.map(u=>`<option value="${u.username}">${u.display_name}</option>`).join('');
+  }catch(e){document.getElementById('dash-content').innerHTML='<div class="empty-state"><span class="note-text">加载失败</span></div>'}
+}
+
+// ==================== EXPORT ====================
+async function doExport(){
+  const scope=document.getElementById('export-scope').value;
+  const period=document.getElementById('export-period').value;
+  try{
+    let url='/export?';
+    if(scope!=='all')url+=`uid=${scope}&`;
+    if(period!=='all')url+=`period=${period}`;
+    const data=await api(url);
+    const recs=data.records||[];
+    if(!recs.length){showToast('暂无数据');return}
+    // Group by (display_name, date)
+    const groups={};
+    recs.forEach(r=>{
+      const key=(r.display_name||r.user_id)+'|'+r.date;
+      if(!groups[key])groups[key]={name:r.display_name||r.user_id,date:r.date,records:[]};
+      groups[key].records.push(r);
+    });
+    const header='姓名,日期,星期,上班,下班,类型,工时\n';
+    const rows=Object.values(groups).map(g=>{
+      const d=new Date(g.date+'T12:00:00');
+      const wd=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+      const sorted=g.records.sort((a,b)=>a.ts-b.ts);
+      const fi=sorted.find(r=>r.type==='in');
+      const lo=[...sorted].reverse().find(r=>r.type==='out');
+      const isWork=isWorkingDay(d);
+      const ot=calcTodayOT(sorted,d);
+      return `"${g.name}","${g.date}","${wd}","${fi?(fi.time_str||'').slice(0,5):''}","${lo?(lo.time_str||'').slice(0,5):''}","${isWork?'工作日':'休息日'}",${ot}`;
+    }).join('\n');
+    downloadBlob(new Blob(['\uFEFF'+header+rows],{type:'text/csv;charset=utf-8'}),`工时报表_${scope}_${period}_${dateKey(new Date())}.csv`);
+    showToast('📥 已导出');
+  }catch(e){showToast('❌ '+e.message)}
+}
+
+// ==================== CLOCK ====================
+let currentPos=null;
+let calMonth=new Date().getMonth(),calYear=new Date().getFullYear();
+
+function updateClock(){
+  const now=new Date();
+  document.getElementById('clock-time').textContent=now.toLocaleTimeString('zh-CN',{hour12:false});
+  document.getElementById('clock-date').textContent=now.toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  updateClockButton();updateTodayTimeline();updateHeaderStats();
+}
+function isWithinRange(pos){if(!settings.lat||!settings.lng||!pos)return false;return haversineDistance(settings.lat,settings.lng,pos.lat,pos.lng)<=settings.radius}
+function haversineDistance(a,b,c,d){const R=6371000,e=(c-a)*Math.PI/180,f=(d-b)*Math.PI/180,g=Math.sin(e/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(f/2)**2;return R*2*Math.atan2(Math.sqrt(g),Math.sqrt(1-g))}
+function startGeoWatch(){
+  if(!navigator.geolocation){document.getElementById('clock-status').innerHTML='⚠️ 不支持定位';return}
+  navigator.geolocation.watchPosition(p=>{currentPos={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy};updateGeoStatus()},e=>{document.getElementById('clock-status').innerHTML='⚠️ '+e.message},{enableHighAccuracy:true,maximumAge:10000,timeout:15000});
+}
+function updateGeoStatus(){
+  if(!currentPos)return;const el=document.getElementById('clock-status');
+  if(!settings.lat){el.innerHTML='⚠️ 未设置打卡地点';return}
+  const dist=Math.round(haversineDistance(settings.lat,settings.lng,currentPos.lat,currentPos.lng)),acc=Math.round(currentPos.accuracy);
+  if(acc>(settings.gpsAccuracy||100))el.innerHTML=`📍 GPS精度: ${acc}m，不足`;
+  else if(isWithinRange(currentPos))el.innerHTML=`<span class="in-range">✅ 范围内</span>（${dist}m）`;
+  else el.innerHTML=`<span class="out-range">❌ 范围外</span>（${dist}m）`;
+}
+function updateClockButton(){
+  const btn=document.getElementById('clock-btn'),txt=document.getElementById('clock-btn-text'),last=getLastTodayRecord();
+  if(!settings.lat&&!currentPos){btn.className='clock-btn disabled';txt.textContent='请等待管理员配置';return}
+  if(currentPos&&currentPos.accuracy>(settings.gpsAccuracy||100)){btn.className='clock-btn disabled';txt.textContent='GPS精度不足';return}
+  if(!last){btn.className='clock-btn check-in';txt.textContent='打卡上班'}
+  else if(last.type==='in'){btn.className='clock-btn check-out';txt.textContent='打卡下班'}
+  else{btn.className='clock-btn check-in';txt.textContent='再次打卡'}
+}
+function getLastTodayRecord(){const t=dateKey(new Date());const r=allRecords.filter(x=>x.date===t).sort((a,b)=>a.ts-b.ts);return r.length?r[r.length-1]:null}
+async function handleClock(){
+  const btn=document.getElementById('clock-btn');
+  if(btn.classList.contains('disabled')){showToast('请先满足打卡条件');return}
+  if(!currentPos){showToast('正在获取位置...');return}
+  if(!settings.lat){showToast('打卡地点未配置');return}
+  const last=getLastTodayRecord();let type='in';
+  if(last&&last.type==='in')type='out';
+  if(!isWithinRange(currentPos)){showConfirmModal('⚠️ 范围外打卡','不在范围内，是否记录？',async()=>{await doClock(type,true)},()=>{});return}
+  await doClock(type,false);
+}
+async function doClock(type,outOfRange){
+  try{
+    const d=await api('/clock',{method:'POST',body:JSON.stringify({type,lat:currentPos?.lat,lng:currentPos?.lng,accuracy:currentPos?.accuracy,outOfRange})});
+    allRecords.push({user_id:currentUser.username,date:d.date,time_str:d.time,ts:Date.now(),type,out_of_range:outOfRange?1:0});
+    updateClockButton();updateTodayTimeline();updateHeaderStats();renderCalendar();renderStats();
+    showToast(type==='in'?'✅ 已记录上班':'✅ 已记录下班');
+  }catch(e){showToast('❌ '+e.message)}
+}
+function updateTodayTimeline(){
+  const t=dateKey(new Date()),recs=allRecords.filter(r=>r.date===t).sort((a,b)=>a.ts-b.ts),card=document.getElementById('today-card'),tl=document.getElementById('today-timeline');
+  if(!recs.length){card.style.display='none';return}
+  card.style.display='block';
+  tl.innerHTML=recs.map(r=>`<div class="timeline-item ${r.type==='out'?'out':''}"><div class="timeline-label">${r.type==='in'?'上班打卡':'下班打卡'}</div><div class="timeline-time">${r.time_str||''}</div></div>`).join('');
+  document.getElementById('today-overtime').textContent=formatMinutes(calcTodayOT(recs,new Date()));
+}
+
+// ==================== OVERTIME CALC ====================
+function calcTodayOT(recs,date){
+  if(!recs.length)return 0;const wk=isWorkingDay(date);
+  if(wk){let ms=0;const s=[...recs].sort((a,b)=>a.ts-b.ts);for(let i=0;i<s.length;i++){if(s[i].type==='in'){const nx=s.slice(i).find((r,j)=>j>0&&r.type==='out');if(nx){let d=nx.ts-s[i].ts;const im=msToMin(s[i].ts,s[i].time_str),om=msToMin(nx.ts,nx.time_str),ls=timeToMin(settings.lunchStart||'12:00'),le=timeToMin(settings.lunchEnd||'13:00');if(im<ls&&om>le)d-=(le-ls)*60000;ms+=d}}}return Math.max(0,Math.round((ms-getWorkMinutes()*60000)/60000))}
+  else{let ms=0;const s=[...recs].sort((a,b)=>a.ts-b.ts);for(let i=0;i<s.length;i++){if(s[i].type==='in'){const nx=s.slice(i).find((r,j)=>j>0&&r.type==='out');ms+=nx?nx.ts-s[i].ts:Date.now()-s[i].ts}}return Math.round(ms/60000)}
+}
+function isWorkingDay(d){const dk=dateKey(d);if((settings.holidays||[]).includes(dk))return false;if((settings.workdays||[]).includes(dk))return true;return(settings.weekdays||[1,2,3,4,5]).includes(d.getDay())}
+function getWorkMinutes(){return timeToMin(settings.workEnd||'18:00')-timeToMin(settings.workStart||'09:00')-(timeToMin(settings.lunchEnd||'13:00')-timeToMin(settings.lunchStart||'12:00'))}
+
+// ==================== RECORDS & STATS (User) ====================
+async function loadAllRecords(){try{const d=await api('/records');allRecords=d.records||[]}catch(e){allRecords=[]}}
+function renderCalendar(){
+  const grid=document.getElementById('calendar-grid'),label=document.getElementById('cal-month-label');
+  label.textContent=`${calYear}年${calMonth+1}月`;
+  const fd=new Date(calYear,calMonth,1).getDay(),dim=new Date(calYear,calMonth+1,0).getDate(),today=new Date();
+  let html=['日','一','二','三','四','五','六'].map(d=>`<div class="cal-header">${d}</div>`).join('');
+  const rd=new Set();allRecords.forEach(r=>{const d=new Date(r.ts);if(d.getMonth()===calMonth&&d.getFullYear()===calYear)rd.add(d.getDate())});
+  for(let i=0;i<fd;i++)html+=`<div class="cal-day" style="visibility:hidden"></div>`;
+  for(let d=1;d<=dim;d++){const it=d===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear();html+=`<div class="cal-day ${it?'today':''} ${rd.has(d)?'has-record':''}">${d}</div>`}
+  grid.innerHTML=html;
+  // Month summary
+  const dg={};allRecords.forEach(r=>{const d=new Date(r.ts);if(d.getMonth()===calMonth&&d.getFullYear()===calYear){if(!dg[r.date])dg[r.date]=[];dg[r.date].push(r)}});
+  let ot=0;Object.entries(dg).forEach(([date,recs])=>{ot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
+  document.getElementById('summary-month-info').textContent=`${Object.keys(dg).length} 天打卡，工时 ${formatMinutes(ot)}`;
+  renderRecordsList(dg);
+}
+function changeMonth(d){calMonth+=d;if(calMonth>11){calMonth=0;calYear++}if(calMonth<0){calMonth=11;calYear--}renderCalendar()}
+function renderRecordsList(dg){
+  const c=document.getElementById('records-list'),sorted=Object.keys(dg).sort().reverse();
+  if(!sorted.length){c.innerHTML='<div class="empty-state"><div class="icon">📭</div><div class="text">暂无记录</div></div>';return}
+  c.innerHTML=sorted.map(date=>{
+    const d=new Date(date+'T12:00:00'),recs=dg[date].sort((a,b)=>a.ts-b.ts),ot=calcTodayOT(recs,d),wd=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+    const fi=recs.find(r=>r.type==='in'),lo=[...recs].reverse().find(r=>r.type==='out');
+    const badge=isWorkingDay(d)?'<span class="badge badge-workday">工作日</span>':'<span class="badge badge-holiday">休息日</span>';
+    return`<div class="record-card"><div><div><span class="record-date">${d.getMonth()+1}月${d.getDate()}日</span><span class="record-weekday">${wd}</span></div><div class="record-times">${fi?(fi.time_str||'').slice(0,5):'--:--'} → ${lo?(lo.time_str||'').slice(0,5):'进行中'}</div>${badge}</div><div><div class="record-overtime">+${formatMinutes(ot)}</div></div></div>`;
+  }).join('');
+}
+function renderStats(){
+  const dg={};allRecords.forEach(r=>{if(!dg[r.date])dg[r.date]=[];dg[r.date].push(r)});
+  let totalOT=0,wkOT=0,hdOT=0;
+  Object.entries(dg).forEach(([date,recs])=>{const ot=calcTodayOT(recs,new Date(date+'T12:00:00'));totalOT+=ot;isWorkingDay(new Date(date+'T12:00:00'))?wkOT+=ot:hdOT+=ot});
+  const days=Object.keys(dg).length;
+  document.getElementById('stats-content').innerHTML=`
+    <div class="summary-row"><span class="label">累计工时</span><span class="value overtime">${formatMinutes(totalOT)}</span></div>
+    <div class="summary-row"><span class="label">工作日工时</span><span class="value">${formatMinutes(wkOT)}</span></div>
+    <div class="summary-row"><span class="label">休息日工时</span><span class="value">${formatMinutes(hdOT)}</span></div>
+    <div class="summary-row"><span class="label">打卡天数</span><span class="value">${days} 天</span></div>
+    <div class="summary-row"><span class="label">平均工时</span><span class="value">${days?formatMinutes(Math.round(totalOT/days)):'0 分钟'}</span></div>`;
+  // Monthly bar
+  const mn={};allRecords.forEach(r=>{const d=new Date(r.ts);const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;if(!mn[k])mn[k]={s:new Set(),m:0};mn[k].s.add(r.date)});
+  Object.keys(mn).forEach(k=>{let ot=0;const[y,m]=k.split('-').map(Number);Object.entries(dg).forEach(([date,recs])=>{const d=new Date(date+'T12:00:00');if(d.getFullYear()===y&&d.getMonth()===m-1)ot+=calcTodayOT(recs,d)});mn[k].m=ot});
+  const sm=Object.keys(mn).sort().reverse().slice(0,6);
+  if(sm.length){const mx=Math.max(...sm.map(k=>mn[k].m),1);document.getElementById('stats-bar-chart').innerHTML=sm.map(m=>`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${m}（${mn[m].s.size}天）</span><span style="font-weight:600;color:var(--accent)">${formatMinutes(mn[m].m)}</span></div><div style="height:20px;background:#F1F5F9;border-radius:4px;overflow:hidden"><div style="height:100%;width:${(mn[m].m/mx*100).toFixed(1)}%;background:linear-gradient(90deg,var(--primary),var(--primary-light));border-radius:4px"></div></div></div>`).join('')}
+  else document.getElementById('stats-bar-chart').innerHTML='<div class="empty-state"><div class="text">暂无数据</div></div>';
+}
+function updateHeaderStats(){
+  if(currentUser.role==='admin')return;
+  const now=new Date(),tk=dateKey(now);
+  const tr=allRecords.filter(r=>r.date===tk),tot=calcTodayOT(tr,now);
+  const mr=allRecords.filter(r=>{const d=new Date(r.ts);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()});
+  const mdg={};mr.forEach(r=>{if(!mdg[r.date])mdg[r.date]=[];mdg[r.date].push(r)});
+  let mot=0;Object.entries(mdg).forEach(([date,recs])=>{mot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
+  const adg={};allRecords.forEach(r=>{if(!adg[r.date])adg[r.date]=[];adg[r.date].push(r)});
+  let ttot=0;Object.entries(adg).forEach(([date,recs])=>{ttot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
+  document.getElementById('header-stats').innerHTML=`
+    <div class="stat-item"><div class="stat-value">${fmtMin(tot)}</div><div class="stat-label">今日工时</div></div>
+    <div class="stat-item"><div class="stat-value">${fmtMin(mot)}</div><div class="stat-label">本月工时</div></div>
+    <div class="stat-item"><div class="stat-value">${fmtMin(ttot)}</div><div class="stat-label">累计工时</div></div>`;
+}
+
+// ==================== SETTINGS ====================
+function renderSettings(){
+  document.getElementById('set-location-name').textContent=settings.locationName||'未设置';
+  document.getElementById('set-radius').value=settings.radius||500;
+  document.getElementById('set-work-start').value=settings.workStart||'09:00';
+  document.getElementById('set-work-end').value=settings.workEnd||'18:00';
+  document.getElementById('set-lunch-start').value=settings.lunchStart||'12:00';
+  document.getElementById('set-lunch-end').value=settings.lunchEnd||'13:00';
+  const dn=['日','一','二','三','四','五','六'];
+  document.getElementById('set-weekdays').innerHTML=[0,1,2,3,4,5,6].map(d=>`<button class="weekday-chip ${(settings.weekdays||[1,2,3,4,5]).includes(d)?'on':''}" onclick="toggleWeekday(${d})">${dn[d]}</button>`).join('');
+  renderHolidayTags();
+  document.getElementById('info-worktime').textContent=`${settings.workStart||'09:00'} - ${settings.workEnd||'18:00'}`;
+  document.getElementById('info-lunch').textContent=`${settings.lunchStart||'12:00'} - ${settings.lunchEnd||'13:00'}`;
+  document.getElementById('info-radius').textContent=`${settings.radius||500} 米`;
+  if(currentUser&&currentUser.role==='admin'){loadWhitelist();loadUserList();loadEmailConfig()}
+}
+function toggleWeekday(d){if(!settings.weekdays)settings.weekdays=[1,2,3,4,5];const i=settings.weekdays.indexOf(d);if(i>=0)settings.weekdays.splice(i,1);else settings.weekdays.push(d);settings.weekdays.sort()}
+async function saveSettings(){
+  settings.radius=+document.getElementById('set-radius').value;settings.workStart=document.getElementById('set-work-start').value;settings.workEnd=document.getElementById('set-work-end').value;settings.lunchStart=document.getElementById('set-lunch-start').value;settings.lunchEnd=document.getElementById('set-lunch-end').value;
+  try{await api('/settings',{method:'PUT',body:JSON.stringify(settings)});showToast('✅ 设置已保存')}catch(e){showToast('❌ 保存失败')}
+}
+async function changeMyPassword(){
+  const old=document.getElementById('change-old-pw').value,nw=document.getElementById('change-new-pw').value,nw2=document.getElementById('change-new-pw2').value;
+  if(!old){showToast('请输入当前密码');return}if(!nw||nw.length<4){showToast('新密码至少4位');return}if(nw!==nw2){showToast('两次密码不一致');return}
+  try{await api('/change-password',{method:'PUT',body:JSON.stringify({oldPassword:old,newPassword:nw})});showToast('✅ 密码已修改');document.getElementById('change-old-pw').value='';document.getElementById('change-new-pw').value='';document.getElementById('change-new-pw2').value=''}catch(e){showToast('❌ '+e.message)}
+}
+
+// ==================== WHITELIST ====================
+async function loadWhitelist(){
+  const c=document.getElementById('wl-list-container');
+  try{const d=await api('/whitelist');if(!d.items.length){c.innerHTML='<div class="setting-item"><span class="note-text" style="color:var(--text-sec)">暂无成员</span></div>';return}
+    c.innerHTML='<div class="setting-group" style="margin:0">'+d.items.map(i=>{const st=i.used?'<span class="wl-status wl-status-used">已注册</span>':'<span class="wl-status wl-status-unused">未注册</span>';const del=!i.used?`<button onclick="deleteWL('${i.name}')" style="border:none;background:none;color:var(--danger);font-size:16px;cursor:pointer;padding:4px 8px">✕</button>`:'';return`<div class="wl-card"><span class="wl-name">${i.name}</span><div style="display:flex;align-items:center;gap:8px">${st}${del}</div></div>`}).join('')+'</div>';
+  }catch(e){c.innerHTML='<div class="setting-item"><span class="note-text">加载失败</span></div>'}
+}
+async function addWhitelist(){
+  const n=document.getElementById('wl-name-input').value.trim();if(!n){showToast('请输入姓名');return}
+  try{await api('/whitelist',{method:'POST',body:JSON.stringify({name:n})});document.getElementById('wl-name-input').value='';loadWhitelist();showToast(`✅ 已添加「${n}」`)}catch(e){showToast('❌ '+e.message)}
+}
+async function deleteWL(n){showConfirmModal('移除成员',`确认移除「${n}」？`,async()=>{try{await api('/whitelist/'+encodeURIComponent(n),{method:'DELETE'});loadWhitelist();showToast('已移除')}catch(e){showToast('❌ '+e.message)}})}
+async function loadUserList(){
+  const c=document.getElementById('user-list-container');
+  try{const d=await api('/users');c.innerHTML=d.users.filter(u=>u.username!=='admin').map(u=>{const isSelf=u.username===currentUser.username;return`<div class="user-card"><div class="user-card-info"><div class="user-avatar ${u.role==='admin'?'avatar-admin':'avatar-user'}">${(u.display_name||u.username)[0]}</div><div><div class="user-name">${u.display_name}${isSelf?' <span style="color:var(--success);font-size:12px">（我）</span>':''}</div><div class="user-meta">@${u.username} · ${u.role==='admin'?'管理员':'成员'}</div></div></div><div class="user-actions">${!isSelf?`<button onclick="toggleRole('${u.username}')" title="切换角色">${u.role==='admin'?'👤':'⭐'}</button><button onclick="resetPwd('${u.display_name}','${u.username}')" title="重置密码" style="color:var(--accent)">🔑</button><button onclick="delUser('${u.username}')" title="删除" style="color:var(--danger)">🗑</button>`:''}</div></div>`}).join('')||'<div class="setting-item"><span class="note-text" style="color:var(--text-sec)">暂无注册用户</span></div>';
+  }catch(e){c.innerHTML=''}
+}
+async function toggleRole(u){try{await api(`/users/${u}/role`,{method:'PUT'});loadUserList();showToast('✅ 已切换')}catch(e){showToast('❌ '+e.message)}}
+function resetPwd(name,username){
+  const newPwd=prompt(`重置「${name}」的密码\n输入新密码（至少4位）：`);
+  if(!newPwd)return;
+  if(newPwd.length<4){showToast('密码至少4个字符');return}
+  showConfirmModal('重置密码',`确认将「${name}」的密码重置？`,async()=>{try{await api(`/users/${username}/password`,{method:'PUT',body:JSON.stringify({password:newPwd})});showToast(`✅ 「${name}」密码已重置`)}catch(e){showToast('❌ '+e.message)}})
+}
+async function delUser(u){showConfirmModal('删除用户',`确认删除「${u}」及其记录？`,async()=>{try{await api(`/users/${u}`,{method:'DELETE'});loadUserList();showToast('已删除')}catch(e){showToast('❌ '+e.message)}})}
+
+// ==================== EMAIL ====================
+async function loadEmailConfig(){try{const d=await api('/email-config');const c=d.config||{};document.getElementById('email-host').value=c.smtp_host||'';document.getElementById('email-port').value=c.smtp_port||465;document.getElementById('email-user').value=c.smtp_user||'';document.getElementById('email-pass').value='';document.getElementById('email-sender').value=c.sender_name||'考勤助手';document.getElementById('email-recipients').value=(c.recipients||[]).join('\n');document.getElementById('email-hour').value=c.schedule_hour??9;document.getElementById('email-min').value=c.schedule_minute??0;document.getElementById('set-email-enabled').className='toggle'+(c.enabled?' on':'')}catch(e){}}
+function toggleEmailEnabled(){document.getElementById('set-email-enabled').classList.toggle('on')}
+async function saveEmailConfig(){
+  const rc=document.getElementById('email-recipients').value.split('\n').map(s=>s.trim()).filter(Boolean),pass=document.getElementById('email-pass').value;
+  const body={smtp_host:document.getElementById('email-host').value,smtp_port:+document.getElementById('email-port').value,smtp_user:document.getElementById('email-user').value,sender_name:document.getElementById('email-sender').value,recipients:rc,schedule_hour:+document.getElementById('email-hour').value,schedule_minute:+document.getElementById('email-min').value,enabled:document.getElementById('set-email-enabled').classList.contains('on')?1:0};
+  if(pass&&pass!=='••••••')body.smtp_pass=pass;
+  try{await api('/email-config',{method:'PUT',body:JSON.stringify(body)});showToast('✅ 邮件配置已保存');loadEmailConfig()}catch(e){showToast('❌ '+e.message)}
+}
+async function testEmail(){const to=prompt('输入测试收件邮箱：');if(!to)return;try{showToast('⏳ 发送中...');const d=await api('/email-config/test',{method:'POST',body:JSON.stringify({to})});showToast(d.ok?'✅ 已发送':'❌ '+d.message)}catch(e){showToast('❌ '+e.message)}}
+async function sendReportNow(){try{showToast('⏳ 生成中...');const d=await api('/email/send-now',{method:'POST'});showToast(d.ok?'✅ '+d.message:'❌ '+d.message)}catch(e){showToast('❌ '+e.message)}}
+
+// ==================== LOCATION ====================
+async function setCurrentLocation(){
+  showToast('📍 正在获取位置...');
+  try{
+    const pos=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:10000}));
+    const lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
+    showModal(`<div class="modal-title">📍 确认打卡位置</div>
+      <p style="font-size:14px;color:var(--text-sec);text-align:center;margin-bottom:16px">纬度: ${lat.toFixed(6)}<br>经度: ${lng.toFixed(6)}<br>精度: ${acc}m</p>
+      <div class="auth-field"><label>地点名称</label><input type="text" id="loc-name-input" placeholder="如：公司/办公室" value="${settings.locationName||''}"></div>
+      <button class="btn btn-primary" onclick="confirmLoc(${lat},${lng})">✅ 确认设置</button>`);
+  }catch(e){showToast('❌ 获取位置失败: '+e.message)}
+}
+async function confirmLoc(lat,lng){
+  settings.lat=lat;settings.lng=lng;settings.locationName=document.getElementById('loc-name-input').value||'打卡点';
+  try{await api('/settings',{method:'PUT',body:JSON.stringify(settings)});closeModalDirect();renderSettings();showToast('✅ 打卡位置已设置')}catch(e){showToast('❌ 保存失败')}
+}
+
+// ==================== HOLIDAY SYNC ====================
+async function syncHolidays(){
+  const btn=document.getElementById('sync-btn'),st=document.getElementById('sync-status'),year=new Date().getFullYear();
+  btn.innerHTML='<span class="sync-spin">⏳</span>';btn.disabled=true;st.textContent='同步中...';
+  const urls=[`https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/${year}.json`,`https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn@master/${year}.json`];
+  let data=null;for(const u of urls){try{const r=await fetch(u+'?_='+Date.now(),{cache:'no-store'});if(r.ok){data=await r.json();break}}catch(e){continue}}
+  if(!data){for(const u of urls){try{const r=await fetch(u.replace(`/${year}.json`,`/${year-1}.json`)+'?_='+Date.now(),{cache:'no-store'});if(r.ok){data=await r.json();break}}catch(e){continue}}}
+  if(!data||!data.days){btn.innerHTML='📥 同步';btn.disabled=false;st.textContent='❌ 同步失败';showToast('❌ 同步失败');return}
+  const sH=[],sW=[];data.days.forEach(d=>{if(d.isOffDay===true)sH.push(d.date);else if(d.isOffDay===false)sW.push(d.date)});
+  const all=new Set([...sH,...sW]);const mH=(settings.holidays||[]).filter(h=>!all.has(h)),mW=(settings.workdays||[]).filter(w=>!all.has(w));
+  settings.holidays=[...sH,...mH].sort();settings.workdays=[...sW,...mW].sort();settings.holidaySyncTime=Date.now();
+  try{await api('/settings',{method:'PUT',body:JSON.stringify(settings)})}catch(e){}
+  btn.innerHTML='📥 同步';btn.disabled=false;
+  st.innerHTML=`✅ ${new Date().toLocaleDateString('zh-CN')}（${year}年）`;
+  renderHolidayTags();showToast(`✅ ${sH.length} 节假日 + ${sW.length} 调休`);
+}
+function renderHolidayTags(){
+  const ht=document.getElementById('holiday-tags'),wt=document.getElementById('workday-tags'),sg=document.getElementById('holiday-synced-group');
+  if(!ht)return;const has=(settings.holidays&&settings.holidays.length)||(settings.workdays&&settings.workdays.length);
+  if(sg)sg.style.display=has?'':'none';
+  ht.innerHTML=(settings.holidays||[]).map((h,i)=>{const d=new Date(h+'T12:00:00');return`<span class="holiday-tag">${d.getMonth()+1}/${d.getDate()}<button onclick="rmHoliday('holiday',${i})">×</button></span>`}).join('')||'<span class="note-text">暂无</span>';
+  const hc=document.getElementById('holiday-count');if(hc)hc.textContent=settings.holidays?settings.holidays.length+' 天':'';
+  if(wt){wt.innerHTML=(settings.workdays||[]).map((w,i)=>{const d=new Date(w+'T12:00:00');return`<span class="workday-tag">${d.getMonth()+1}/${d.getDate()}<button onclick="rmHoliday('workday',${i})">×</button></span>`}).join('')||'<span class="note-text">暂无</span>';
+  const wc=document.getElementById('workday-count');if(wc)wc.textContent=settings.workdays?settings.workdays.length+' 天':''}
+  const sts=document.getElementById('sync-status');if(sts&&settings.holidaySyncTime)sts.innerHTML=`✅ ${new Date(settings.holidaySyncTime).toLocaleDateString('zh-CN')}`;
+}
+async function rmHoliday(t,i){if(t==='holiday')settings.holidays.splice(i,1);else settings.workdays.splice(i,1);try{await api('/settings',{method:'PUT',body:JSON.stringify(settings)})}catch(e){}renderHolidayTags()}
+async function addHolidayManual(){const inp=document.getElementById('holiday-input'),sel=document.getElementById('holiday-type-select');if(!inp.value)return;if(sel.value==='holiday'){if(!settings.holidays)settings.holidays=[];if(!settings.holidays.includes(inp.value))settings.holidays.push(inp.value)}else{if(!settings.workdays)settings.workdays=[];if(!settings.workdays.includes(inp.value))settings.workdays.push(inp.value)}try{await api('/settings',{method:'PUT',body:JSON.stringify(settings)})}catch(e){}renderHolidayTags();inp.value=''}
+
+// ==================== EXPORT MY RECORDS (User) ====================
+async function exportMyRecords(){
+  try{const d=await api('/records');const recs=d.records||[];if(!recs.length){showToast('暂无数据');return}
+    const dg={};recs.forEach(r=>{if(!dg[r.date])dg[r.date]=[];dg[r.date].push(r)});
+    let csv='日期,上班,下班,类型,工时(分)\n';
+    Object.keys(dg).sort().reverse().forEach(date=>{
+      const recs=dg[date],d=new Date(date+'T12:00:00'),fi=recs.find(r=>r.type==='in'),lo=[...recs].reverse().find(r=>r.type==='out'),ot=calcTodayOT(recs,d),wk=isWorkingDay(d)?'工作日':'休息日';
+      csv+=`${date},${fi?(fi.time_str||'').slice(0,5):''},${lo?(lo.time_str||'').slice(0,5):''},${wk},${ot}\n`;
+    });
+    downloadBlob(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}),`我的工时记录_${dateKey(new Date())}.csv`);showToast('📤 已导出');
+  }catch(e){showToast('导出失败')}
+}
+
+// ==================== HELPERS ====================
+function showPage(name){
+  if(name==='settings'&&(!currentUser||currentUser.role!=='admin'))name='clock';
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const el=document.getElementById('page-'+name);if(el)el.classList.add('active');
+  document.querySelectorAll('#tab-nav .tab-item').forEach(t=>t.classList.toggle('active',t.dataset.page===name));
+  if(name==='records')renderCalendar();if(name==='stats')renderStats();
+  if(name==='settings')renderSettings()
+  if(name==='email')loadEmailConfig()
+  if(name==='members'){loadWhitelist();loadUserList()}
+  if(name==='dashboard')loadDashboard();
+}
+function showSettingsTab(n){}
+function dateKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function timeToMin(t){if(!t)return 540;const[h,m]=t.split(':');return +h*60+(+m)}
+function msToMin(ts,timeStr){if(timeStr){const p=timeStr.split(':');return(+p[0])*60+(+p[1])}const d=new Date(ts);return d.getHours()*60+d.getMinutes()}
+function formatMinutes(m){if(m<=0)return'0 分钟';const h=Math.floor(m/60),mm=m%60;return h===0?`${mm} 分钟`:mm===0?`${h} 小时`:`${h} 小时 ${mm} 分钟`}
+function fmtMin(m){if(m<=0)return'0h';const h=Math.floor(m/60),mm=m%60;return mm===0?`${h}h`:`${h}h${mm}m`}
+function downloadBlob(b,n){const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=n;a.click();URL.revokeObjectURL(u)}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
+function showModal(html){document.getElementById('modal-body').innerHTML=html;document.getElementById('modal').classList.add('show')}
+function closeModal(e){if(e.target===document.getElementById('modal'))document.getElementById('modal').classList.remove('show')}
+function closeModalDirect(){document.getElementById('modal').classList.remove('show')}
+function showConfirmModal(title,msg,onOk){showModal(`<div class="modal-title">${title}</div><p style="text-align:center;color:var(--text-sec);margin-bottom:16px;white-space:pre-line">${msg}</p><div class="btn-group"><button class="btn btn-outline" onclick="closeModalDirect()">取消</button><button class="btn btn-primary" id="modal-ok-btn">确认</button></div>`);document.getElementById('modal-ok-btn').onclick=()=>{closeModalDirect();onOk()}}
+
+if(token&&currentUser)enterApp();
+</script>
+</body>
+</html>

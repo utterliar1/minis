@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>加班打卡助手</title>
+<style>
+  :root {
+    --primary: #4F46E5; --primary-light: #818CF8; --primary-dark: #3730A3;
+    --accent: #F59E0B; --success: #10B981; --danger: #EF4444;
+    --bg: #F8FAFC; --card: #FFFFFF; --text: #1E293B; --text-sec: #64748B;
+    --border: #E2E8F0; --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+  /* ===== Login / Register ===== */
+  .auth-screen { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; background:linear-gradient(160deg,var(--primary),var(--primary-dark)); }
+  .auth-card { background:var(--card); border-radius:20px; padding:32px 24px; width:100%; max-width:380px; box-shadow:0 12px 40px rgba(0,0,0,0.2); }
+  .auth-logo { text-align:center; margin-bottom:24px; }
+  .auth-logo .icon { font-size:48px; }
+  .auth-logo h2 { font-size:22px; margin-top:8px; }
+  .auth-logo p { font-size:13px; color:var(--text-sec); margin-top:4px; }
+  .auth-tabs { display:flex; margin-bottom:20px; background:#F1F5F9; border-radius:10px; padding:3px; }
+  .auth-tab { flex:1; text-align:center; padding:8px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; border:none; background:transparent; color:var(--text-sec); transition:all 0.2s; }
+  .auth-tab.active { background:var(--card); color:var(--primary); box-shadow:var(--shadow); }
+  .auth-form { display:none; }
+  .auth-form.active { display:block; }
+  .auth-field { margin-bottom:14px; }
+  .auth-field label { display:block; font-size:13px; font-weight:600; color:var(--text-sec); margin-bottom:6px; }
+  .auth-field input { width:100%; padding:11px 14px; border:1.5px solid var(--border); border-radius:10px; font-size:15px; font-family:inherit; outline:none; transition:border-color 0.2s; }
+  .auth-field input:focus { border-color:var(--primary); }
+  .auth-field select { width:100%; padding:11px 14px; border:1.5px solid var(--border); border-radius:10px; font-size:15px; font-family:inherit; outline:none; background:white; -webkit-appearance:none; }
+  .auth-field select:focus { border-color:var(--primary); }
+  .auth-error { font-size:12px; color:var(--danger); margin-top:-8px; margin-bottom:12px; min-height:18px; }
+  .btn { padding:11px 20px; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; font-family:inherit; transition:opacity 0.2s; width:100%; }
+  .btn:active { opacity:0.8; }
+  .btn-primary { background:var(--primary); color:white; }
+  .btn-outline { background:transparent; border:1.5px solid var(--primary); color:var(--primary); }
+  .btn-danger { background:var(--danger); color:white; }
+  .btn-sm { padding:7px 14px; font-size:12px; }
+  .btn-block { width:100%; }
+
+  /* ===== App Shell ===== */
+  .app-shell { display:none; }
+  .header { background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; padding:20px 16px 24px; position:sticky; top:0; z-index:100; }
+  .header-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .header h1 { font-size:20px; font-weight:700; }
+  .header-btns { display:flex; gap:8px; }
+  .header-btn { background:rgba(255,255,255,0.15); border:none; color:white; width:36px; height:36px; border-radius:50%; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .header-btn:hover { background:rgba(255,255,255,0.25); }
+  .user-badge { display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,0.18); border-radius:16px; padding:3px 10px; font-size:12px; font-weight:600; margin-bottom:10px; }
+  .user-badge .role-dot { width:7px; height:7px; border-radius:50%; }
+  .role-admin { background:var(--accent); }
+  .role-user { background:var(--success); }
+  .stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .stat-item { background:rgba(255,255,255,0.12); border-radius:10px; padding:10px 8px; text-align:center; }
+  .stat-value { font-size:22px; font-weight:700; }
+  .stat-label { font-size:11px; opacity:0.8; margin-top:2px; }
+
+  /* Tab Nav */
+  .tab-nav { position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--border); display:flex; z-index:100; padding-bottom:env(safe-area-inset-bottom); }
+  .tab-item { flex:1; display:flex; flex-direction:column; align-items:center; padding:8px 0; font-size:10px; color:var(--text-sec); cursor:pointer; background:none; border:none; }
+  .tab-item.active { color:var(--primary); }
+  .tab-item svg { width:22px; height:22px; margin-bottom:3px; }
+  .tab-item .tab-badge { position:absolute; top:2px; right:calc(50% - 18px); width:8px; height:8px; background:var(--danger); border-radius:50%; }
+
+  .page { display:none; padding:16px; padding-bottom:90px; }
+  .page.active { display:block; }
+  .card { background:var(--card); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); margin-bottom:12px; }
+  .card-title { font-size:14px; font-weight:600; color:var(--text-sec); margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+
+  /* Clock */
+  .clock-area { text-align:center; padding:20px 0; }
+  .clock-btn { width:140px; height:140px; border-radius:50%; border:none; font-size:18px; font-weight:700; color:white; cursor:pointer; transition:all 0.3s; box-shadow:0 6px 20px rgba(79,70,229,0.35); }
+  .clock-btn.check-in { background:linear-gradient(135deg,var(--primary),var(--primary-light)); }
+  .clock-btn.check-out { background:linear-gradient(135deg,var(--danger),#F87171); }
+  .clock-btn.disabled { background:#CBD5E1; box-shadow:none; cursor:not-allowed; }
+  .clock-btn:active:not(.disabled) { transform:scale(0.95); }
+  .clock-status { margin-top:12px; font-size:13px; color:var(--text-sec); }
+  .clock-status .in-range { color:var(--success); font-weight:600; }
+  .clock-status .out-range { color:var(--danger); font-weight:600; }
+  .clock-time-display { margin-top:8px; font-size:28px; font-weight:700; color:var(--primary); font-variant-numeric:tabular-nums; }
+  .clock-date-display { font-size:13px; color:var(--text-sec); margin-top:2px; }
+
+  /* Timeline */
+  .timeline { padding:0 0 0 16px; border-left:2px solid var(--border); }
+  .timeline-item { position:relative; padding:8px 0 16px 16px; }
+  .timeline-item::before { content:''; position:absolute; left:-7px; top:12px; width:12px; height:12px; border-radius:50%; background:var(--primary); border:2px solid white; }
+  .timeline-item.out::before { background:var(--danger); }
+  .timeline-label { font-size:12px; color:var(--text-sec); }
+  .timeline-time { font-size:16px; font-weight:600; margin-top:2px; }
+
+  /* Records */
+  .record-card { background:var(--card); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
+  .record-left { flex:1; }
+  .record-date { font-size:15px; font-weight:600; }
+  .record-weekday { font-size:12px; color:var(--text-sec); margin-left:6px; }
+  .record-times { font-size:12px; color:var(--text-sec); margin-top:4px; }
+  .record-right { text-align:right; }
+  .record-overtime { font-size:18px; font-weight:700; color:var(--accent); }
+  .record-type-badge { font-size:10px; padding:2px 6px; border-radius:4px; margin-top:4px; display:inline-block; }
+  .badge-holiday { background:#FEF3C7; color:#D97706; }
+  .badge-workday { background:#DBEAFE; color:#2563EB; }
+
+  /* Settings */
+  .setting-group { background:var(--card); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); margin-bottom:16px; }
+  .setting-group-title { font-size:13px; font-weight:600; color:var(--text-sec); padding:16px 16px 8px; }
+  .setting-item { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border); min-height:48px; }
+  .setting-item:last-child { border-bottom:none; }
+  .setting-label { font-size:15px; flex:1; }
+  .setting-value { font-size:14px; color:var(--text-sec); text-align:right; max-width:50%; }
+  .setting-input { font-size:14px; text-align:right; border:none; background:transparent; color:var(--text); outline:none; width:100%; max-width:120px; font-family:inherit; }
+  .setting-select { font-size:14px; text-align:right; border:none; background:transparent; color:var(--text-sec); outline:none; font-family:inherit; -webkit-appearance:none; }
+
+  .toggle { width:48px; height:28px; background:#CBD5E1; border-radius:14px; position:relative; cursor:pointer; border:none; flex-shrink:0; transition:background 0.2s; }
+  .toggle.on { background:var(--primary); }
+  .toggle::after { content:''; position:absolute; width:22px; height:22px; border-radius:50%; background:white; top:3px; left:3px; transition:transform 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+  .toggle.on::after { transform:translateX(20px); }
+
+  /* Summary */
+  .summary-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:14px; }
+  .summary-row:last-child { border-bottom:none; }
+  .summary-row .label { color:var(--text-sec); }
+  .summary-row .value { font-weight:600; }
+  .summary-row .value.overtime { color:var(--accent); }
+
+  /* Weekday */
+  .weekday-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .weekday-chip { padding:5px 10px; border-radius:6px; font-size:12px; border:1.5px solid var(--border); cursor:pointer; background:white; font-family:inherit; transition:all 0.2s; }
+  .weekday-chip.on { border-color:var(--primary); background:#EEF2FF; color:var(--primary); font-weight:600; }
+
+  /* Holiday */
+  .holiday-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+  .holiday-tag { font-size:12px; background:#FEF3C7; color:#D97706; padding:3px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
+  .holiday-tag button { background:none; border:none; color:#D97706; font-size:14px; cursor:pointer; line-height:1; }
+  .workday-tag { font-size:12px; background:#DBEAFE; color:#2563EB; padding:3px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
+  .workday-tag button { background:none; border:none; color:#2563EB; font-size:14px; cursor:pointer; line-height:1; }
+  .sync-spin { display:inline-block; animation:spin 1s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* Calendar */
+  .calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; text-align:center; }
+  .cal-header { font-size:12px; color:var(--text-sec); padding:4px 0; font-weight:600; }
+  .cal-day { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:8px; font-size:13px; }
+  .cal-day.today { background:var(--primary); color:white; font-weight:700; }
+  .cal-day.has-record::after { content:''; position:absolute; bottom:3px; width:4px; height:4px; border-radius:50%; background:var(--accent); }
+  .cal-day.has-record.today::after { background:white; }
+  .cal-nav { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .cal-nav-btn { background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-sec); padding:4px 8px; }
+  .cal-month { font-size:15px; font-weight:600; }
+
+  /* Modal */
+  .modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index:200; align-items:flex-end; justify-content:center; }
+  .modal-overlay.show { display:flex; }
+  .modal-content { background:var(--card); border-radius:16px 16px 0 0; width:100%; max-height:80vh; overflow-y:auto; padding:20px; animation:slideUp 0.3s ease; }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .modal-title { font-size:17px; font-weight:700; margin-bottom:16px; text-align:center; }
+
+  /* Toast */
+  .toast { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.75); color:white; padding:12px 24px; border-radius:10px; font-size:14px; z-index:300; opacity:0; transition:opacity 0.3s; pointer-events:none; }
+  .toast.show { opacity:1; }
+
+  .empty-state { text-align:center; padding:40px 20px; color:var(--text-sec); }
+  .empty-state .icon { font-size:48px; margin-bottom:12px; }
+  .empty-state .text { font-size:14px; }
+
+  /* User list */
+  .user-card { background:var(--card); border-radius:var(--radius); padding:12px 16px; box-shadow:var(--shadow); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
+  .user-card-info { display:flex; align-items:center; gap:10px; }
+  .user-avatar { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:white; }
+  .avatar-admin { background:var(--accent); }
+  .avatar-user { background:var(--primary-light); }
+  .user-name { font-size:15px; font-weight:600; }
+  .user-meta { font-size:12px; color:var(--text-sec); }
+  .user-actions { display:flex; gap:6px; }
+  .user-actions button { border:none; background:#F1F5F9; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:14px; }
+  .user-actions button:hover { background:#E2E8F0; }
+
+  .btn-group { display:flex; gap:8px; margin-top:12px; }
+  .note-text { font-size:12px; color:var(--text-sec); margin-top:8px; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<!-- ==================== AUTH SCREEN ==================== -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="icon">⏱</div>
+      <h2>加班打卡助手</h2>
+      <p>GPS定位 · 自动计算 · 数据导出</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">登录</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">注册</button>
+    </div>
+
+    <!-- Login Form -->
+    <div class="auth-form active" id="form-login">
+      <div class="auth-field">
+        <label>用户名</label>
+        <input type="text" id="login-user" placeholder="请输入用户名" autocomplete="username">
+      </div>
+      <div class="auth-field">
+        <label>密码</label>
+        <input type="password" id="login-pass" placeholder="请输入密码" autocomplete="current-password">
+      </div>
+      <div class="auth-error" id="login-error"></div>
+      <button class="btn btn-primary" onclick="doLogin()">登 录</button>
+      <p class="note-text" style="text-align:center;margin-top:16px;">
+        首次使用？点击「注册」创建账号<br>
+        <b>默认管理员</b>：admin / admin123
+      </p>
+    </div>
+
+    <!-- Register Form -->
+    <div class="auth-form" id="form-register">
+      <div class="auth-field">
+        <label>用户名</label>
+        <input type="text" id="reg-user" placeholder="请设置用户名（至少2位）" autocomplete="username">
+      </div>
+      <div class="auth-field">
+        <label>显示名称</label>
+        <input type="text" id="reg-name" placeholder="你的真实姓名（用于打卡显示）">
+      </div>
+      <div class="auth-field">
+        <label>密码</label>
+        <input type="password" id="reg-pass" placeholder="请设置密码（至少4位）" autocomplete="new-password">
+      </div>
+      <div class="auth-field">
+        <label>确认密码</label>
+        <input type="password" id="reg-pass2" placeholder="再次输入密码" autocomplete="new-password">
+      </div>
+      <div class="auth-error" id="reg-error"></div>
+      <button class="btn btn-primary" onclick="doRegister()">注 册</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== APP SHELL ==================== -->
+<div class="app-shell" id="app-shell">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <h1>⏱ 加班打卡助手</h1>
+      <div class="header-btns">
+        <button class="header-btn" id="btn-settings" onclick="showPage('settings')" title="设置">⚙</button>
+        <button class="header-btn" onclick="doLogout()" title="退出登录">⏻</button>
+      </div>
+    </div>
+    <div class="user-badge" id="user-badge">
+      <span class="role-dot role-admin"></span>
+      <span id="user-badge-text">管理员</span>
+    </div>
+    <div class="stats-row">
+      <div class="stat-item"><div class="stat-value" id="stat-today-ot">0h</div><div class="stat-label">今日加班</div></div>
+      <div class="stat-item"><div class="stat-value" id="stat-month-ot">0h</div><div class="stat-label">本月加班</div></div>
+      <div class="stat-item"><div class="stat-value" id="stat-total-ot">0h</div><div class="stat-label">累计加班</div></div>
+    </div>
+  </div>
+
+  <!-- Page: Clock In -->
+  <div class="page active" id="page-clock">
+    <div class="card">
+      <div class="clock-area">
+        <div class="clock-date-display" id="clock-date"></div>
+        <div class="clock-time-display" id="clock-time">--:--:--</div>
+        <button class="clock-btn check-in" id="clock-btn" onclick="handleClock()"><span id="clock-btn-text">打卡上班</span></button>
+        <div class="clock-status" id="clock-status">正在获取位置...</div>
+      </div>
+    </div>
+    <div class="card" id="today-card" style="display:none">
+      <div class="card-title">📋 今日打卡记录</div>
+      <div class="timeline" id="today-timeline"></div>
+      <div style="padding-left:16px;margin-top:8px;">
+        <div class="summary-row">
+          <span class="label">今日加班时长</span>
+          <span class="value overtime" id="today-overtime">0 分钟</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">ℹ️ 考勤规则</div>
+      <div class="summary-row"><span class="label">工作时间</span><span class="value" id="info-worktime">09:00 - 18:00</span></div>
+      <div class="summary-row"><span class="label">午休时间</span><span class="value" id="info-lunch">12:00 - 13:00</span></div>
+      <div class="summary-row"><span class="label">打卡范围</span><span class="value" id="info-radius">500 米</span></div>
+    </div>
+  </div>
+
+  <!-- Page: Records -->
+  <div class="page" id="page-records">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div class="card-title" style="margin-bottom:0;">📅 打卡记录</div>
+        <button class="btn btn-outline btn-sm" onclick="exportRecords()">📤 导出CSV</button>
+      </div>
+      <div class="summary-row"><span class="label">本月统计</span><span class="value" id="summary-month-info"></span></div>
+    </div>
+    <div class="card">
+      <div class="cal-nav">
+        <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+        <span class="cal-month" id="cal-month-label"></span>
+        <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+      </div>
+      <div class="calendar-grid" id="calendar-grid"></div>
+    </div>
+    <div id="records-list"></div>
+  </div>
+
+  <!-- Page: Stats -->
+  <div class="page" id="page-stats">
+    <div class="card"><div class="card-title">📊 加班统计</div><div id="stats-content"></div></div>
+    <div class="card"><div class="card-title">🏆 月度加班排行</div><div id="stats-bar-chart"></div></div>
+  </div>
+
+  <!-- Page: Settings (admin only) -->
+  <div class="page" id="page-settings">
+    <!-- User Management - Admin Only -->
+    <div id="admin-user-mgmt">
+      <div class="setting-group-title">👥 用户管理</div>
+      <div class="setting-group" id="user-list-container"></div>
+    </div>
+
+    <div class="setting-group-title">📍 打卡位置</div>
+    <div class="setting-group">
+      <div class="setting-item"><span class="setting-label">打卡地点</span><span class="setting-value" id="set-location-name" onclick="editLocation()">未设置，点击设置</span></div>
+      <div class="setting-item">
+        <span class="setting-label">打卡范围</span>
+        <select class="setting-select" id="set-radius" onchange="saveSettings()"><option value="100">100m</option><option value="200">200m</option><option value="300">300m</option><option value="500" selected>500m</option><option value="1000">1000m</option><option value="2000">2000m</option></select>
+      </div>
+      <div class="setting-item">
+        <span class="setting-label">GPS精度要求</span>
+        <select class="setting-select" id="set-gps-accuracy" onchange="saveSettings()"><option value="50">≤50m</option><option value="100" selected>≤100m</option><option value="200">≤200m</option></select>
+      </div>
+    </div>
+
+    <div class="setting-group-title">⏰ 工作时间</div>
+    <div class="setting-group">
+      <div class="setting-item"><span class="setting-label">上班时间</span><input class="setting-input" type="time" id="set-work-start" value="09:00" onchange="saveSettings()"></div>
+      <div class="setting-item"><span class="setting-label">下班时间</span><input class="setting-input" type="time" id="set-work-end" value="18:00" onchange="saveSettings()"></div>
+      <div class="setting-item"><span class="setting-label">午休开始</span><input class="setting-input" type="time" id="set-lunch-start" value="12:00" onchange="saveSettings()"></div>
+      <div class="setting-item"><span class="setting-label">午休结束</span><input class="setting-input" type="time" id="set-lunch-end" value="13:00" onchange="saveSettings()"></div>
+      <div class="setting-item" style="flex-direction:column;align-items:flex-start;">
+        <span class="setting-label">工作日</span>
+        <div class="weekday-row" id="set-weekdays"></div>
+      </div>
+    </div>
+
+    <div class="setting-group-title">🎌 法定节假日 / 调休</div>
+    <div class="setting-group">
+      <div class="setting-item">
+        <div style="flex:1">
+          <div class="setting-label">一键同步节假日</div>
+          <div class="note-text" id="sync-status">自动获取当年法定节假日和调休工作日</div>
+        </div>
+        <button class="btn btn-primary btn-sm" id="sync-btn" onclick="syncHolidays()" style="white-space:nowrap;">📥 同步</button>
+      </div>
+    </div>
+    <div class="setting-group" id="holiday-synced-group" style="display:none">
+      <div class="setting-item" style="flex-direction:column;align-items:flex-start;">
+        <div style="display:flex;justify-content:space-between;width:100%;margin-bottom:6px;">
+          <span class="setting-label" style="font-weight:600;">🔴 法定节假日（休息）</span>
+          <span class="note-text" id="holiday-count"></span>
+        </div>
+        <div class="holiday-tags" id="holiday-tags"></div>
+      </div>
+      <div class="setting-item" style="flex-direction:column;align-items:flex-start;">
+        <div style="display:flex;justify-content:space-between;width:100%;margin-bottom:6px;">
+          <span class="setting-label" style="font-weight:600;">🔵 调休工作日（补班）</span>
+          <span class="note-text" id="workday-count"></span>
+        </div>
+        <div class="holiday-tags" id="workday-tags" style="background:#DBEAFE;"></div>
+      </div>
+    </div>
+    <div class="setting-group">
+      <div class="setting-item" style="flex-direction:column;align-items:flex-start;">
+        <span class="setting-label" style="margin-bottom:8px;">手动添加日期</span>
+        <div style="display:flex;gap:6px;width:100%;">
+          <input type="date" class="setting-input" id="holiday-input" style="max-width:none;flex:1;text-align:left;border:1.5px solid var(--border);border-radius:8px;padding:8px;">
+          <select id="holiday-type-select" style="border:1.5px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:white;">
+            <option value="holiday">节假日</option>
+            <option value="workday">调休补班</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="addHolidayManual()">添加</button>
+        </div>
+        <div class="note-text">节假日=休息，调休补班=按工作日计算加班</div>
+      </div>
+    </div>
+
+    <div class="setting-group-title">⚙️ 其他设置</div>
+    <div class="setting-group">
+      <div class="setting-item"><span class="setting-label">自动打卡（到范围自动上班）</span><button class="toggle" id="set-auto-in" onclick="toggleSetting('autoIn')"></button></div>
+      <div class="setting-item"><span class="setting-label">自动打卡（离开范围自动下班）</span><button class="toggle" id="set-auto-out" onclick="toggleSetting('autoOut')"></button></div>
+      <div class="setting-item">
+        <span class="setting-label">加班最低计时</span>
+        <select class="setting-select" id="set-min-overtime" onchange="saveSettings()"><option value="0">无限制</option><option value="15">15分钟</option><option value="30" selected>30分钟</option><option value="60">60分钟</option></select>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-outline" onclick="exportAllData()">💾 备份数据</button>
+      <button class="btn btn-outline" onclick="document.getElementById('import-file').click()">📂 恢复数据</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+    <div class="btn-group"><button class="btn btn-danger btn-block" onclick="confirmClearData()">🗑 清除全部数据</button></div>
+  </div>
+
+  <!-- Tab Nav -->
+  <div class="tab-nav" id="tab-nav">
+    <button class="tab-item active" onclick="showPage('clock')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+      打卡
+    </button>
+    <button class="tab-item" onclick="showPage('records')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      记录
+    </button>
+    <button class="tab-item" onclick="showPage('stats')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      统计
+    </button>
+    <button class="tab-item tab-settings-item" onclick="showPage('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      设置
+    </button>
+  </div>
+</div>
+
+<!-- Toast & Modal -->
+<div class="toast" id="toast"></div>
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal-content" id="modal-body" onclick="event.stopPropagation()"></div>
+</div>
+
+<script>
+// ==================== DATA LAYER ====================
+const DEFAULT_SETTINGS = {
+  locationName:'', lat:null, lng:null, radius:500, gpsAccuracy:100,
+  workStart:'09:00', workEnd:'18:00', lunchStart:'12:00', lunchEnd:'13:00',
+  weekdays:[1,2,3,4,5],
+  holidays:[],       // 法定节假日（自动同步+手动添加）
+  workdays:[],       // 调休工作日（周末补班）
+  holidaySyncTime:null,
+  autoIn:false, autoOut:false, minOvertime:30
+};
+const DEFAULT_ADMIN = { username:'admin', password:'admin123', displayName:'管理员', role:'admin', createdAt: Date.now() };
+
+function db(key, def) { try { return JSON.parse(localStorage.getItem('ot_'+key)) || def; } catch { return def; } }
+function dbSave(key, val) { localStorage.setItem('ot_'+key, JSON.stringify(val)); }
+
+let settings = { ...DEFAULT_SETTINGS, ...db('settings', {}) };
+let users = db('users', []);
+let records = db('records', []);
+let currentUser = db('currentUser', null);
+let currentPos = null;
+let calMonth = new Date().getMonth();
+let calYear = new Date().getFullYear();
+let lastAutoAction = '';
+let clockIntervalId = null; // 防止重复 setInterval
+
+// Ensure default admin exists
+if (users.length === 0) {
+  users.push(DEFAULT_ADMIN);
+  dbSave('users', users);
+}
+
+// ==================== AUTH ====================
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (tab==='login'?i===0:i===1)));
+  document.getElementById('form-login').classList.toggle('active', tab==='login');
+  document.getElementById('form-register').classList.toggle('active', tab==='register');
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('reg-error').textContent = '';
+}
+
+function doLogin() {
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  if (!u || !p) { errEl.textContent = '请输入用户名和密码'; return; }
+  const user = users.find(x => x.username === u && x.password === p);
+  if (!user) { errEl.textContent = '用户名或密码错误'; return; }
+  currentUser = user;
+  dbSave('currentUser', user);
+  enterApp();
+}
+
+function doRegister() {
+  const u = document.getElementById('reg-user').value.trim();
+  const name = document.getElementById('reg-name').value.trim();
+  const p = document.getElementById('reg-pass').value;
+  const p2 = document.getElementById('reg-pass2').value;
+  const errEl = document.getElementById('reg-error');
+  if (!u || u.length < 2) { errEl.textContent = '用户名至少2个字符'; return; }
+  if (!name) { errEl.textContent = '请输入显示名称'; return; }
+  if (!p || p.length < 4) { errEl.textContent = '密码至少4个字符'; return; }
+  if (p !== p2) { errEl.textContent = '两次密码不一致'; return; }
+  if (users.find(x => x.username === u)) { errEl.textContent = '用户名已存在'; return; }
+  const newUser = { username:u, password:p, displayName:name, role:'user', createdAt:Date.now() };
+  users.push(newUser);
+  dbSave('users', users);
+  errEl.style.color = 'var(--success)';
+  errEl.textContent = '✅ 注册成功，请登录';
+  setTimeout(() => { errEl.style.color = ''; switchAuthTab('login'); }, 1200);
+}
+
+function doLogout() {
+  if (clockIntervalId) { clearInterval(clockIntervalId); clockIntervalId = null; }
+  currentUser = null;
+  dbSave('currentUser', null);
+  document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+}
+
+function enterApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'block';
+  applyRoleAccess();
+  showPage('clock'); // 强制回到打卡页（防止从管理员设置页切换用户后残留）
+  startGeoWatch();
+  updateClock();
+  renderSettings();
+  renderStats();
+  renderCalendar();
+  updateHeaderStats();
+  if (clockIntervalId) clearInterval(clockIntervalId);
+  clockIntervalId = setInterval(updateClock, 1000);
+}
+
+function applyRoleAccess() {
+  if (!currentUser) return;
+  const isAdmin = currentUser.role === 'admin';
+  const badge = document.getElementById('user-badge');
+  badge.innerHTML = `<span class="role-dot ${isAdmin?'role-admin':'role-user'}"></span><span>${currentUser.displayName}（${isAdmin?'管理员':'普通用户'}）</span>`;
+  // Settings: admin sees all, user sees nothing
+  document.getElementById('btn-settings').style.display = isAdmin ? '' : 'none';
+  document.getElementById('tab-nav').querySelectorAll('.tab-settings-item').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+  document.getElementById('admin-user-mgmt').style.display = isAdmin ? '' : 'none';
+}
+
+// ==================== CLOCK ====================
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock-time').textContent = now.toLocaleTimeString('zh-CN',{hour12:false});
+  document.getElementById('clock-date').textContent = now.toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  updateClockButton();
+  updateTodayTimeline();
+  updateHeaderStats();
+}
+
+function isWithinRange(pos) {
+  if (!settings.lat || !settings.lng || !pos) return false;
+  return haversineDistance(settings.lat, settings.lng, pos.lat, pos.lng) <= settings.radius;
+}
+function haversineDistance(lat1,lon1,lat2,lon2) {
+  const R=6371000, dLat=(lat2-lat1)*Math.PI/180, dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function startGeoWatch() {
+  if (!navigator.geolocation) { document.getElementById('clock-status').innerHTML='⚠️ 不支持定位'; return; }
+  navigator.geolocation.watchPosition(pos => {
+    currentPos = {lat:pos.coords.latitude, lng:pos.coords.longitude, accuracy:pos.coords.accuracy};
+    updateGeoStatus();
+    checkAutoClock();
+  }, err => { document.getElementById('clock-status').innerHTML='⚠️ 定位失败：'+err.message; },
+  {enableHighAccuracy:true, maximumAge:10000, timeout:15000});
+}
+
+function updateGeoStatus() {
+  if (!currentPos) return;
+  const el = document.getElementById('clock-status');
+  if (!settings.lat) { el.innerHTML='⚠️ 未设置打卡地点，请联系管理员'; return; }
+  const dist = Math.round(haversineDistance(settings.lat, settings.lng, currentPos.lat, currentPos.lng));
+  const acc = Math.round(currentPos.accuracy);
+  if (acc > settings.gpsAccuracy) el.innerHTML=`📍 GPS精度: ${acc}m，精度不足（需≤${settings.gpsAccuracy}m）`;
+  else if (isWithinRange(currentPos)) el.innerHTML=`<span class="in-range">✅ 范围内</span>（距离${dist}m）`;
+  else el.innerHTML=`<span class="out-range">❌ 范围外</span>（距离${dist}m）`;
+}
+
+function getUserRecords() { return records.filter(r => r.userId === currentUser.username); }
+
+function getTodayRecords() {
+  const today = dateKey(new Date());
+  return getUserRecords().filter(r => r.date === today).sort((a,b) => a.ts - b.ts);
+}
+
+function updateClockButton() {
+  const btn = document.getElementById('clock-btn');
+  const btnText = document.getElementById('clock-btn-text');
+  const today = getTodayRecords();
+  const last = today[today.length - 1];
+
+  if (!settings.lat && !currentPos) { btn.className='clock-btn disabled'; btnText.textContent='请等待管理员配置'; return; }
+  if (currentPos && currentPos.accuracy > settings.gpsAccuracy) { btn.className='clock-btn disabled'; btnText.textContent='GPS精度不足'; return; }
+
+  // 核心逻辑：只看最后一条记录的 type
+  // 无记录 → 打卡上班；最后一条是 in → 打卡下班；最后一条是 out → 打卡上班（再次）
+  if (!last) {
+    btn.className = 'clock-btn check-in';
+    btnText.textContent = '打卡上班';
+  } else if (last.type === 'in') {
+    btn.className = 'clock-btn check-out';
+    btnText.textContent = '打卡下班';
+  } else {
+    // last.type === 'out'
+    btn.className = 'clock-btn check-in';
+    btnText.textContent = '再次打卡';
+  }
+}
+
+function handleClock() {
+  const btn = document.getElementById('clock-btn');
+  if (btn.classList.contains('disabled')) { showToast('请先满足打卡条件'); return; }
+  if (!currentPos) { showToast('正在获取位置...'); return; }
+  if (!settings.lat) { showToast('打卡地点未配置，请联系管理员'); return; }
+
+  const today = getTodayRecords();
+  const last = today[today.length - 1];
+
+  // 根据最后一条记录决定本次打卡类型
+  let type = 'in'; // 默认上班
+  if (last && last.type === 'in') {
+    type = 'out'; // 最后是上班 → 这次下班
+  }
+  // last.type === 'out' 或无记录 → type 保持 'in'
+
+  if (!isWithinRange(currentPos)) {
+    showConfirmModal('⚠️ 范围外打卡','你不在打卡范围内，是否仍要记录？\n（将标记为例外）',
+      ()=>doClock(type, true), ()=>{});
+    return;
+  }
+  doClock(type, false);
+}
+
+function doClock(type, outOfRange) {
+  const now = new Date();
+  records.push({
+    id:Date.now(), userId:currentUser.username, date:dateKey(now),
+    time:now.toLocaleTimeString('zh-CN',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'}),
+    ts:now.getTime(), type, lat:currentPos?currentPos.lat:null, lng:currentPos?currentPos.lng:null,
+    accuracy:currentPos?currentPos.accuracy:null, outOfRange, note:''
+  });
+  dbSave('records', records);
+  updateClockButton(); updateTodayTimeline(); updateHeaderStats(); renderStats(); renderCalendar();
+  showToast(type==='in'?'✅ 已记录上班打卡':'✅ 已记录下班打卡');
+}
+
+function checkAutoClock() {
+  if (!settings.lat || !currentPos || !currentUser) return;
+  const now = new Date();
+  const timeStr = now.toTimeString().slice(0,5);
+  const today = getTodayRecords();
+  const hasIn = today.some(r=>r.type==='in');
+  const hasOut = today.some(r=>r.type==='out');
+  const key = dateKey(now)+'-'+timeStr.slice(0,4);
+  if (key === lastAutoAction) return;
+  if (settings.autoIn && !hasIn && timeStr>=settings.workStart && timeStr<=settings.lunchStart && isWithinRange(currentPos)) {
+    lastAutoAction=key; doClock('in',false); showToast('🤖 自动打卡上班');
+  }
+  if (settings.autoOut && hasIn && !hasOut && timeStr>=settings.workEnd && !isWithinRange(currentPos)) {
+    lastAutoAction=key; doClock('out',false); showToast('🤖 自动打卡下班');
+  }
+}
+
+function updateTodayTimeline() {
+  const today = getTodayRecords();
+  const card = document.getElementById('today-card');
+  const tl = document.getElementById('today-timeline');
+  if (today.length===0) { card.style.display='none'; return; }
+  card.style.display='block';
+  tl.innerHTML = today.map(r=>`
+    <div class="timeline-item ${r.type==='out'?'out':''}">
+      <div class="timeline-label">${r.type==='in'?'上班打卡':'下班打卡'}${r.outOfRange?' ⚠️范围外':''}</div>
+      <div class="timeline-time">${r.time}</div>
+    </div>`).join('');
+  document.getElementById('today-overtime').textContent = formatMinutes(calcTodayOT(today, new Date()));
+}
+
+function calcTodayOT(dayRecords, date) {
+  if (!dayRecords.length) return 0;
+  const isWorkday = isWorkingDay(date);
+  const workMin = getWorkMinutes();
+  const ins = dayRecords.filter(r=>r.type==='in');
+  const outs = dayRecords.filter(r=>r.type==='out');
+  if (!ins.length) return 0;
+
+  if (isWorkday) {
+    let totalMs = 0;
+    const sorted = [...dayRecords].sort((a,b)=>a.ts-b.ts);
+    for (let i=0;i<sorted.length;i++) {
+      if (sorted[i].type==='in') {
+        const nextOut = sorted.slice(i).find((r,j)=>j>0&&r.type==='out');
+        if (nextOut) {
+          let dur = nextOut.ts - sorted[i].ts;
+          const inMin = msToTimeMin(sorted[i].ts);
+          const outMin = msToTimeMin(nextOut.ts);
+          const lunchS = timeToMinutes(settings.lunchStart), lunchE = timeToMinutes(settings.lunchEnd);
+          if (inMin < lunchS && outMin > lunchE) dur -= (lunchE-lunchS)*60000;
+          totalMs += dur;
+        }
+      }
+    }
+    return Math.max(0, Math.round((totalMs - workMin*60000)/60000));
+  } else {
+    let totalMs=0;
+    const sorted=[...dayRecords].sort((a,b)=>a.ts-b.ts);
+    for (let i=0;i<sorted.length;i++) {
+      if (sorted[i].type==='in') {
+        const nextOut=sorted.slice(i).find((r,j)=>j>0&&r.type==='out');
+        totalMs += nextOut ? nextOut.ts-sorted[i].ts : Date.now()-sorted[i].ts;
+      }
+    }
+    return Math.round(totalMs/60000);
+  }
+}
+
+// ==================== RECORDS & CALENDAR ====================
+function renderCalendar() {
+  const grid = document.getElementById('calendar-grid');
+  const label = document.getElementById('cal-month-label');
+  label.textContent = `${calYear}年${calMonth+1}月`;
+  const firstDay = new Date(calYear,calMonth,1).getDay();
+  const daysInMonth = new Date(calYear,calMonth+1,0).getDate();
+  const today = new Date();
+  const dayNames = ['日','一','二','三','四','五','六'];
+  let html = dayNames.map(d=>`<div class="cal-header">${d}</div>`).join('');
+  const recDates = new Set();
+  getUserRecords().forEach(r => { const d=new Date(r.ts); if(d.getMonth()===calMonth&&d.getFullYear()===calYear) recDates.add(d.getDate()); });
+  for(let i=0;i<firstDay;i++) html+=`<div class="cal-day" style="visibility:hidden"></div>`;
+  for(let d=1;d<=daysInMonth;d++) {
+    const isToday=d===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear();
+    html+=`<div class="cal-day ${isToday?'today':''} ${recDates.has(d)?'has-record':''}">${d}</div>`;
+  }
+  grid.innerHTML=html;
+  renderMonthSummary();
+}
+function changeMonth(d){calMonth+=d;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
+
+function renderMonthSummary() {
+  const monthRecs = getUserRecords().filter(r=>{const d=new Date(r.ts);return d.getMonth()===calMonth&&d.getFullYear()===calYear;});
+  const dateGroups={};monthRecs.forEach(r=>{if(!dateGroups[r.date])dateGroups[r.date]=[];dateGroups[r.date].push(r);});
+  let totalOT=0;
+  Object.entries(dateGroups).forEach(([date,recs])=>{totalOT+=calcTodayOT(recs,new Date(date+'T12:00:00'));});
+  const days=Object.keys(dateGroups).length;
+  document.getElementById('summary-month-info').textContent=`${days} 天打卡，加班 ${formatMinutes(totalOT)}`;
+  renderRecordsList(dateGroups);
+}
+
+function renderRecordsList(dateGroups) {
+  const container = document.getElementById('records-list');
+  const sorted = Object.keys(dateGroups).sort().reverse();
+  if (!sorted.length) { container.innerHTML='<div class="empty-state"><div class="icon">📭</div><div class="text">暂无打卡记录</div></div>'; return; }
+  container.innerHTML = sorted.map(date=>{
+    const d=new Date(date+'T12:00:00');
+    const isWorkday=isWorkingDay(d);
+    const dayRecs=dateGroups[date].sort((a,b)=>a.ts-b.ts);
+    const ot=calcTodayOT(dayRecs,d);
+    const weekday=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+    const firstIn=dayRecs.find(r=>r.type==='in');
+    const lastOut=[...dayRecs].reverse().find(r=>r.type==='out');
+    const badge=isWorkday?'<span class="record-type-badge badge-workday">工作日</span>':'<span class="record-type-badge badge-holiday">休息日</span>';
+    return `<div class="record-card"><div class="record-left"><div><span class="record-date">${d.getMonth()+1}月${d.getDate()}日</span><span class="record-weekday">${weekday}</span></div><div class="record-times">${firstIn?firstIn.time.slice(0,5):'--:--'} → ${lastOut?lastOut.time.slice(0,5):'进行中'}</div><div>${badge}</div></div><div class="record-right"><div class="record-overtime">+${formatMinutes(ot)}</div></div></div>`;
+  }).join('');
+}
+
+// ==================== STATS ====================
+function renderStats() {
+  const allDateGroups={};
+  getUserRecords().forEach(r=>{if(!allDateGroups[r.date])allDateGroups[r.date]=[];allDateGroups[r.date].push(r);});
+  let totalOT=0, workdayOT=0, holidayOT=0;
+  Object.entries(allDateGroups).forEach(([date,recs])=>{
+    const d=new Date(date+'T12:00:00');const ot=calcTodayOT(recs,d);totalOT+=ot;
+    if(isWorkingDay(d)) workdayOT+=ot; else holidayOT+=ot;
+  });
+  const days=Object.keys(allDateGroups).length;
+  document.getElementById('stats-content').innerHTML=`
+    <div class="summary-row"><span class="label">累计加班</span><span class="value overtime">${formatMinutes(totalOT)}</span></div>
+    <div class="summary-row"><span class="label">工作日加班</span><span class="value">${formatMinutes(workdayOT)}</span></div>
+    <div class="summary-row"><span class="label">休息日加班</span><span class="value">${formatMinutes(holidayOT)}</span></div>
+    <div class="summary-row"><span class="label">有打卡天数</span><span class="value">${days} 天</span></div>
+    <div class="summary-row"><span class="label">平均日加班</span><span class="value">${days>0?formatMinutes(Math.round(totalOT/days)):'0 分钟'}</span></div>`;
+
+  // Monthly bar chart
+  const monthlyStats={};
+  getUserRecords().forEach(r=>{const d=new Date(r.ts);const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;if(!monthlyStats[key])monthlyStats[key]={seen:new Set(),minutes:0};monthlyStats[key].seen.add(r.date);});
+  Object.keys(monthlyStats).forEach(key=>{let ot=0;const [y,m]=key.split('-').map(Number);Object.entries(allDateGroups).forEach(([date,recs])=>{const d=new Date(date+'T12:00:00');if(d.getFullYear()===y&&d.getMonth()===m-1)ot+=calcTodayOT(recs,d);});monthlyStats[key].minutes=ot;monthlyStats[key].days=monthlyStats[key].seen.size;});
+  const sorted=Object.keys(monthlyStats).sort().reverse().slice(0,6);
+  if (sorted.length) {
+    const maxMin=Math.max(...sorted.map(k=>monthlyStats[k].minutes),1);
+    document.getElementById('stats-bar-chart').innerHTML=sorted.map(m=>`<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>${m}（${monthlyStats[m].days}天）</span><span style="font-weight:600;color:var(--accent)">${formatMinutes(monthlyStats[m].minutes)}</span></div><div style="height:20px;background:#F1F5F9;border-radius:4px;overflow:hidden;"><div style="height:100%;width:${(monthlyStats[m].minutes/maxMin*100).toFixed(1)}%;background:linear-gradient(90deg,var(--primary),var(--primary-light));border-radius:4px;"></div></div></div>`).join('');
+  } else {
+    document.getElementById('stats-bar-chart').innerHTML='<div class="empty-state"><div class="text">暂无数据</div></div>';
+  }
+}
+
+function updateHeaderStats() {
+  if (!currentUser) return;
+  const now=new Date(), todayKey=dateKey(now);
+  const todayRecs=getUserRecords().filter(r=>r.date===todayKey);
+  const todayOT=calcTodayOT(todayRecs,now);
+  const monthRecs=getUserRecords().filter(r=>{const d=new Date(r.ts);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+  const monthDateGroups={};monthRecs.forEach(r=>{if(!monthDateGroups[r.date])monthDateGroups[r.date]=[];monthDateGroups[r.date].push(r);});
+  let monthOT=0;Object.entries(monthDateGroups).forEach(([date,recs])=>{monthOT+=calcTodayOT(recs,new Date(date+'T12:00:00'));});
+  const allDateGroups={};getUserRecords().forEach(r=>{if(!allDateGroups[r.date])allDateGroups[r.date]=[];allDateGroups[r.date].push(r);});
+  let totalOT=0;Object.entries(allDateGroups).forEach(([date,recs])=>{totalOT+=calcTodayOT(recs,new Date(date+'T12:00:00'));});
+  document.getElementById('stat-today-ot').textContent=formatMinutesShort(todayOT);
+  document.getElementById('stat-month-ot').textContent=formatMinutesShort(monthOT);
+  document.getElementById('stat-total-ot').textContent=formatMinutesShort(totalOT);
+}
+
+// ==================== SETTINGS ====================
+function renderSettings() {
+  document.getElementById('set-location-name').textContent=settings.locationName||'未设置，点击设置';
+  document.getElementById('set-radius').value=settings.radius;
+  document.getElementById('set-gps-accuracy').value=settings.gpsAccuracy;
+  document.getElementById('set-work-start').value=settings.workStart;
+  document.getElementById('set-work-end').value=settings.workEnd;
+  document.getElementById('set-lunch-start').value=settings.lunchStart;
+  document.getElementById('set-lunch-end').value=settings.lunchEnd;
+  document.getElementById('set-min-overtime').value=settings.minOvertime;
+  document.getElementById('set-auto-in').className='toggle'+(settings.autoIn?' on':'');
+  document.getElementById('set-auto-out').className='toggle'+(settings.autoOut?' on':'');
+  const dayNames=['日','一','二','三','四','五','六'];
+  document.getElementById('set-weekdays').innerHTML=[0,1,2,3,4,5,6].map(d=>`<button class="weekday-chip ${settings.weekdays.includes(d)?'on':''}" onclick="toggleWeekday(${d})">${dayNames[d]}</button>`).join('');
+  renderHolidayTags();
+  document.getElementById('info-worktime').textContent=`${settings.workStart} - ${settings.workEnd}`;
+  document.getElementById('info-lunch').textContent=`${settings.lunchStart} - ${settings.lunchEnd}`;
+  document.getElementById('info-radius').textContent=`${settings.radius} 米`;
+  renderUserList();
+}
+
+function toggleWeekday(d){const i=settings.weekdays.indexOf(d);if(i>=0)settings.weekdays.splice(i,1);else settings.weekdays.push(d);settings.weekdays.sort();dbSave('settings',settings);renderSettings();}
+function toggleSetting(k){settings[k]=!settings[k];dbSave('settings',settings);renderSettings();}
+function saveSettings(){settings.radius=+document.getElementById('set-radius').value;settings.gpsAccuracy=+document.getElementById('set-gps-accuracy').value;settings.workStart=document.getElementById('set-work-start').value;settings.workEnd=document.getElementById('set-work-end').value;settings.lunchStart=document.getElementById('set-lunch-start').value;settings.lunchEnd=document.getElementById('set-lunch-end').value;settings.minOvertime=+document.getElementById('set-min-overtime').value;dbSave('settings',settings);renderSettings();}
+
+// ==================== HOLIDAY SYNC ====================
+const HOLIDAY_SOURCES = [
+  { url: 'https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/', yearUrl: y => `https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/${y}.json` },
+  { url: 'https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn@master/', yearUrl: y => `https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn@master/${y}.json` },
+];
+const HOLIDAY_NAMES_CN = { 1:'元旦', 2:'春节', 3:'清明节', 4:'劳动节', 5:'端午节', 7:'中秋节', 10:'国庆节' };
+const WORKDAY_NAMES_CN = { 1:'元旦', 2:'春节', 3:'清明节', 4:'劳动节', 5:'端午节', 7:'中秋节', 10:'国庆节' };
+
+async function syncHolidays() {
+  const btn = document.getElementById('sync-btn');
+  const statusEl = document.getElementById('sync-status');
+  const year = new Date().getFullYear();
+  btn.innerHTML = '<span class="sync-spin">⏳</span> 同步中...';
+  btn.disabled = true;
+  statusEl.textContent = '正在从云端获取节假日数据...';
+
+  // 尝试当年，失败则尝试上一年（跨年时可能还没更新）
+  let data = null;
+  for (let tryYear of [year, year - 1]) {
+    for (const src of HOLIDAY_SOURCES) {
+      try {
+        const resp = await fetch(src.yearUrl(tryYear) + '?_=' + Date.now(), { cache: 'no-store' });
+        if (resp.ok) { data = await resp.json(); break; }
+      } catch(e) { continue; }
+    }
+    if (data) break;
+  }
+
+  if (!data || !data.days) {
+    btn.innerHTML = '📥 同步';
+    btn.disabled = false;
+    statusEl.textContent = '❌ 同步失败，请检查网络后重试';
+    showToast('❌ 节假日同步失败');
+    return;
+  }
+
+  // holiday-cn 数据格式：
+  // data.days = [{ date:"2026-01-01", name:"元旦", isOffDay:true/false }, ...]
+  // isOffDay=true  → 法定节假日（休息）
+  // isOffDay=false → 调休工作日（周末补班）
+  const syncHolidays = [];  // 法定节假日（isOffDay=true）
+  const syncWorkdays = [];  // 调休工作日（isOffDay=false）
+
+  data.days.forEach(d => {
+    if (d.isOffDay === true) {
+      syncHolidays.push(d.date);
+    } else if (d.isOffDay === false) {
+      syncWorkdays.push(d.date);
+    }
+  });
+
+  // 合并：自动同步覆盖同日期，保留手动添加的其他日期
+  const syncedSet = new Set([...syncHolidays, ...syncWorkdays]);
+  const manualHolidays = (settings.holidays || []).filter(h => !syncedSet.has(h));
+  const manualWorkdays = (settings.workdays || []).filter(w => !syncedSet.has(w));
+
+  settings.holidays = [...syncHolidays, ...manualHolidays].sort();
+  settings.workdays = [...syncWorkdays, ...manualWorkdays].sort();
+  settings.holidaySyncTime = Date.now();
+  dbSave('settings', settings);
+
+  btn.innerHTML = '📥 同步';
+  btn.disabled = false;
+  const syncTime = new Date().toLocaleString('zh-CN');
+  statusEl.innerHTML = `✅ 上次同步: ${syncTime}（${year}年）`;
+  renderHolidayTags();
+  renderSettings();
+  showToast(`✅ 已同步 ${syncHolidays.length} 个节假日 + ${syncWorkdays.length} 个调休工作日`);
+}
+
+function renderHolidayTags(){
+  const hTags = document.getElementById('holiday-tags');
+  const wTags = document.getElementById('workday-tags');
+  const syncedGroup = document.getElementById('holiday-synced-group');
+
+  if (!hTags) return;
+
+  const hasData = (settings.holidays && settings.holidays.length) || (settings.workdays && settings.workdays.length);
+  if (syncedGroup) syncedGroup.style.display = hasData ? '' : 'none';
+
+  // 渲染节假日标签
+  hTags.innerHTML = (settings.holidays || []).map((h,i) => {
+    const d = new Date(h + 'T12:00:00');
+    const md = `${d.getMonth()+1}/${d.getDate()}`;
+    return `<span class="holiday-tag">${md}<button onclick="removeHolidayItem('holiday',${i})">×</button></span>`;
+  }).join('') || '<span class="note-text">暂无</span>';
+
+  const hCount = document.getElementById('holiday-count');
+  if (hCount) hCount.textContent = settings.holidays ? `${settings.holidays.length} 天` : '';
+
+  // 渲染调休工作日标签
+  if (wTags) {
+    wTags.innerHTML = (settings.workdays || []).map((w,i) => {
+      const d = new Date(w + 'T12:00:00');
+      const md = `${d.getMonth()+1}/${d.getDate()}`;
+      return `<span class="workday-tag">${md}<button onclick="removeHolidayItem('workday',${i})">×</button></span>`;
+    }).join('') || '<span class="note-text">暂无</span>';
+
+    const wCount = document.getElementById('workday-count');
+    if (wCount) wCount.textContent = settings.workdays ? `${settings.workdays.length} 天` : '';
+  }
+
+  // 同步状态
+  const statusEl = document.getElementById('sync-status');
+  if (statusEl && settings.holidaySyncTime) {
+    const t = new Date(settings.holidaySyncTime);
+    statusEl.innerHTML = `✅ 上次同步: ${t.toLocaleDateString('zh-CN')}（${new Date().getFullYear()}年）`;
+  }
+}
+
+function removeHolidayItem(type, i) {
+  if (type === 'holiday') settings.holidays.splice(i, 1);
+  else settings.workdays.splice(i, 1);
+  dbSave('settings', settings);
+  renderHolidayTags();
+}
+
+function addHolidayManual() {
+  const inp = document.getElementById('holiday-input');
+  const typeSel = document.getElementById('holiday-type-select');
+  if (!inp.value) return;
+  if (typeSel.value === 'holiday') {
+    if (!settings.holidays.includes(inp.value)) { settings.holidays.push(inp.value); settings.holidays.sort(); }
+  } else {
+    if (!settings.workdays.includes(inp.value)) { settings.workdays.push(inp.value); settings.workdays.sort(); }
+  }
+  dbSave('settings', settings);
+  renderHolidayTags();
+  inp.value = '';
+  showToast(typeSel.value === 'holiday' ? '🔴 已添加节假日' : '🔵 已添加调休工作日');
+}
+
+// ==================== USER MANAGEMENT (admin) ====================
+function renderUserList() {
+  const container = document.getElementById('user-list-container');
+  if (!currentUser || currentUser.role !== 'admin') { container.innerHTML=''; return; }
+  container.innerHTML = users.map(u => {
+    const isSelf = u.username === currentUser.username;
+    const isDefaultAdmin = u.username === 'admin';
+    const avatar = u.role==='admin'?'avatar-admin':'avatar-user';
+    const initial = (u.displayName||u.username)[0].toUpperCase();
+    const memberSince = new Date(u.createdAt).toLocaleDateString('zh-CN');
+    const userOT = getUserTotalOT(u.username);
+    return `<div class="user-card">
+      <div class="user-card-info">
+        <div class="user-avatar ${avatar}">${initial}</div>
+        <div><div class="user-name">${u.displayName||u.username}${isSelf?' <span style="color:var(--success);font-size:12px;">（我）</span>':''}</div>
+        <div class="user-meta">@${u.username} · ${u.role==='admin'?'管理员':'用户'} · 加班${formatMinutesShort(userOT)} · ${memberSince}</div></div>
+      </div>
+      <div class="user-actions">
+        ${!isSelf && !isDefaultAdmin ? `<button onclick="toggleUserRole('${u.username}')" title="切换角色">${u.role==='admin'?'👤':'⭐'}</button>` : ''}
+        ${!isSelf && !isDefaultAdmin ? `<button onclick="removeUser('${u.username}')" title="删除用户" style="color:var(--danger)">🗑</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function getUserTotalOT(username) {
+  const userRecs = records.filter(r => r.userId === username);
+  const dateGroups = {};
+  userRecs.forEach(r => { if(!dateGroups[r.date])dateGroups[r.date]=[];dateGroups[r.date].push(r); });
+  let total = 0;
+  Object.entries(dateGroups).forEach(([date,recs]) => { total += calcTodayOT(recs, new Date(date+'T12:00:00')); });
+  return total;
+}
+
+function toggleUserRole(username) {
+  const user = users.find(u=>u.username===username);
+  if (!user) return;
+  user.role = user.role==='admin'?'user':'admin';
+  dbSave('users', users);
+  renderUserList();
+  showToast(`✅ ${user.displayName} 已变为${user.role==='admin'?'管理员':'普通用户'}`);
+}
+
+function removeUser(username) {
+  const user = users.find(u=>u.username===username);
+  if (!user) return;
+  showConfirmModal('⚠️ 删除用户', `确认删除用户「${user.displayName}」？\n该用户的打卡记录也会被一并删除。`, () => {
+    users = users.filter(u=>u.username!==username);
+    records = records.filter(r=>r.userId!==username);
+    dbSave('users', users);
+    dbSave('records', records);
+    renderUserList();
+    showToast('🗑 用户已删除');
+  }, ()=>{});
+}
+
+function editLocation() {
+  if (!currentPos) { showToast('正在获取位置...'); navigator.geolocation.getCurrentPosition(p=>{currentPos={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy};editLocation();},e=>showToast('获取位置失败')); return; }
+  showModal(`<div class="modal-title">设置打卡位置</div>
+    <p style="font-size:14px;color:var(--text-sec);margin-bottom:16px;">当前GPS坐标：${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}（精度 ${Math.round(currentPos.accuracy)}m）</p>
+    <input class="setting-input" type="text" id="loc-name-input" placeholder="地点名称（如：公司）" style="width:100%;text-align:left;border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:15px;margin-bottom:12px;">
+    <button class="btn btn-primary" onclick="confirmLocation()">✅ 确认设置</button>`);
+}
+function confirmLocation(){settings.lat=currentPos.lat;settings.lng=currentPos.lng;settings.locationName=document.getElementById('loc-name-input').value||'打卡地点';dbSave('settings',settings);closeModalDirect();renderSettings();updateGeoStatus();updateClockButton();showToast('✅ 打卡位置已设置');}
+
+// ==================== EXPORT / BACKUP ====================
+function exportRecords(){
+  const monthRecs=getUserRecords().filter(r=>{const d=new Date(r.ts);return d.getMonth()===calMonth&&d.getFullYear()===calYear;});
+  const dateGroups={};monthRecs.forEach(r=>{if(!dateGroups[r.date])dateGroups[r.date]=[];dateGroups[r.date].push(r);});
+  const headers=['日期','星期','类型','上班时间','下班时间','加班(分钟)','范围外'];
+  const rows=Object.entries(dateGroups).sort().map(([date,recs])=>{const d=new Date(date+'T12:00:00');const wd=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];const fIn=recs.find(r=>r.type==='in');const lOut=[...recs].reverse().find(r=>r.type==='out');const ot=calcTodayOT(recs,d);const type=isWorkingDay(d)?'工作日':'休息日';return[date,wd,type,fIn?fIn.time.slice(0,5):'',lOut?lOut.time.slice(0,5):'进行中',ot,recs.some(r=>r.outOfRange)?'是':'否'];});
+  const totalOT=rows.reduce((s,r)=>s+r[5],0);rows.push(['','','','','合计',totalOT,'']);
+  const csv='\uFEFF'+[headers,...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),`加班记录_${currentUser.displayName}_${calYear}年${calMonth+1}月.csv`);
+  showToast('📤 已导出CSV');
+}
+function exportAllData(){downloadBlob(new Blob([JSON.stringify({settings,records,users,version:1},null,2)],{type:'application/json'}),`加班助手备份_${dateKey(new Date())}.json`);showToast('💾 数据已备份');}
+function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.settings)settings={...DEFAULT_SETTINGS,...d.settings},dbSave('settings',settings);if(d.records)records=d.records,dbSave('records',records);if(d.users)users=d.users,dbSave('users',users);renderSettings();updateClock();renderStats();renderCalendar();showToast('✅ 数据已恢复');}catch{showToast('❌ 文件格式错误');}};r.readAsText(f);e.target.value='';}
+function confirmClearData(){showModal(`<div class="modal-title">⚠️ 确认清除</div><p style="font-size:14px;color:var(--text-sec);margin-bottom:16px;text-align:center;">将删除所有数据，无法恢复。建议先备份。</p><div class="btn-group"><button class="btn btn-outline" onclick="closeModalDirect()">取消</button><button class="btn btn-danger" onclick="clearAllData()">确认清除</button></div>`);}
+function clearAllData(){records=[];settings={...DEFAULT_SETTINGS};users=[DEFAULT_ADMIN];dbSave('records',records);dbSave('settings',settings);dbSave('users',users);closeModalDirect();renderSettings();updateClock();renderStats();renderCalendar();updateHeaderStats();showToast('🗑 数据已清除');}
+
+// ==================== HELPERS ====================
+function dateKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function timeToMinutes(t){const[h,m]=t.split(':').map(Number);return h*60+m;}
+function msToTimeMin(ts){const d=new Date(ts);return d.getHours()*60+d.getMinutes();}
+function isWorkingDay(d){
+  const dk=dateKey(d);
+  const dow=d.getDay();
+  // 1. 手动/自动同步的节假日 → 休息
+  if(settings.holidays.includes(dk)) return false;
+  // 2. 调休工作日（周末补班） → 工作
+  if(settings.workdays.includes(dk)) return true;
+  // 3. 默认：按配置的工作日判断
+  return settings.weekdays.includes(dow);
+}
+function getWorkMinutes(){return timeToMinutes(settings.workEnd)-timeToMinutes(settings.workStart)-(timeToMinutes(settings.lunchEnd)-timeToMinutes(settings.lunchStart));}
+function formatMinutes(m){if(m<=0)return'0 分钟';const h=Math.floor(m/60),mm=m%60;return h===0?`${mm} 分钟`:mm===0?`${h} 小时`:`${h} 小时 ${mm} 分钟`;}
+function formatMinutesShort(m){if(m<=0)return'0h';const h=Math.floor(m/60),mm=m%60;return mm===0?`${h}h`:`${h}h${mm}m`;}
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);}
+
+function showPage(name){
+  // 非管理员禁止访问设置页
+  if(name==='settings' && (!currentUser || currentUser.role!=='admin')) name='clock';
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  const pageMap=['clock','records','stats','settings'];
+  document.querySelectorAll('.tab-item').forEach((t,i)=>t.classList.toggle('active',pageMap[i]===name));
+  if(name==='records')renderCalendar();
+  if(name==='stats')renderStats();
+  if(name==='settings')renderSettings();
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
+function showModal(html){document.getElementById('modal-body').innerHTML=html;document.getElementById('modal').classList.add('show');}
+function closeModal(e){if(e.target===document.getElementById('modal'))document.getElementById('modal').classList.remove('show');}
+function closeModalDirect(){document.getElementById('modal').classList.remove('show');}
+function showConfirmModal(title,msg,onOk,onCancel){showModal(`<div class="modal-title">${title}</div><p style="font-size:14px;color:var(--text-sec);margin-bottom:16px;text-align:center;white-space:pre-line;">${msg}</p><div class="btn-group"><button class="btn btn-outline" onclick="closeModalDirect()">取消</button><button class="btn btn-primary" onclick="closeModalDirect()">确认</button></div>`);document.querySelector('#modal .btn-primary').onclick=()=>{closeModalDirect();onOk();};}
+
+// ==================== INIT ====================
+if (currentUser) { enterApp(); }
+</script>
+</body>
+</html>

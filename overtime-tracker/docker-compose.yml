@@ -1,0 +1,9 @@
+services:
+  overtime-tracker:
+    build: .
+    container_name: overtime-tracker
+    restart: unless-stopped
+    ports:
+      - "3090:80"
+    volumes:
+      - ./data:/data
