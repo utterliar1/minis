@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>考勤助手 - 使用说明</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:#F8FAFC;color:#1E293B;line-height:1.8}
+  .container{max-width:900px;margin:0 auto;padding:20px}
+  
+  /* Cover */
+  .cover{background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;border-radius:16px;padding:48px 32px;text-align:center;margin-bottom:32px;position:relative;overflow:hidden}
+  .cover::before{content:'';position:absolute;top:-50%;right:-20%;width:400px;height:400px;background:rgba(255,255,255,0.08);border-radius:50%}
+  .cover h1{font-size:36px;font-weight:800;margin-bottom:8px}
+  .cover p{font-size:16px;opacity:0.85}
+  .cover .version{margin-top:16px;font-size:13px;opacity:0.6}
+  
+  /* Section */
+  .section{background:#fff;border-radius:12px;padding:28px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+  .section h2{font-size:20px;font-weight:700;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #EEF2FF;color:#4F46E5}
+  .section h3{font-size:16px;font-weight:600;margin:16px 0 8px;color:#1E293B}
+  
+  /* Features Grid */
+  .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:16px 0}
+  .feature{padding:16px;background:#F8FAFC;border-radius:10px;border:1px solid #E2E8F0}
+  .feature .icon{font-size:28px;margin-bottom:8px}
+  .feature h4{font-size:15px;font-weight:600;margin-bottom:4px}
+  .feature p{font-size:13px;color:#64748B;line-height:1.5}
+  
+  /* Table */
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+  th,td{padding:10px 12px;text-align:left;border:1px solid #E2E8F0}
+  th{background:#F8FAFC;font-weight:600;color:#64748B;font-size:13px}
+  td{font-size:14px}
+  tr:hover td{background:#FAFBFC}
+  
+  /* Steps */
+  .steps{counter-reset:step}
+  .step{display:flex;gap:16px;margin-bottom:16px;padding:16px;background:#F8FAFC;border-radius:10px}
+  .step-num{counter-increment:step;width:36px;height:36px;background:var(--primary);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0}
+  .step-num::after{content:counter(step)}
+  .step-content h4{font-size:15px;font-weight:600;margin-bottom:4px}
+  .step-content p{font-size:13px;color:#64748B}
+  
+  /* Badge */
+  .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600}
+  .badge-admin{background:#FEF3C7;color:#D97706}
+  .badge-user{background:#DBEAFE;color:#2563EB}
+  .badge-success{background:#D1FAE5;color:#059669}
+  
+  /* Info Box */
+  .info-box{padding:16px;border-radius:10px;margin:12px 0;font-size:14px;line-height:1.7}
+  .info-box.blue{background:#EEF2FF;border-left:4px solid #4F46E5;color:#3730A3}
+  .info-box.green{background:#ECFDF5;border-left:4px solid #10B981;color:#065F46}
+  .info-box.orange{background:#FFFBEB;border-left:4px solid #F59E0B;color:#92400E}
+  
+  /* Flow */
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:16px 0;font-size:14px}
+  .flow-step{background:#EEF2FF;color:#4F46E5;padding:8px 16px;border-radius:8px;font-weight:600}
+  .flow-arrow{color:#CBD5E1;font-size:18px}
+  
+  /* Screenshot placeholder */
+  .screenshot{background:#F1F5F9;border:2px dashed #CBD5E1;border-radius:12px;padding:32px;text-align:center;color:#94A3B8;font-size:14px;margin:16px 0}
+  
+  /* Print */
+  @media print{
+    body{background:#fff}
+    .cover{break-after:page}
+    .section{break-inside:avoid;box-shadow:none;border:1px solid #E2E8F0}
+  }
+  
+  :root{--primary:#4F46E5;--primary-light:#818CF8;--success:#10B981;--accent:#F59E0B}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- Cover -->
+<div class="cover">
+  <h1>⏱ 考勤助手</h1>
+  <p>GPS 定位打卡 · 团队管理 · 工时统计</p>
+  <div class="version">使用说明 v1.0 | 2026年6月</div>
+</div>
+
+<!-- 一、系统概述 -->
+<div class="section">
+  <h2>一、系统概述</h2>
+  <p>考勤助手是一套基于 <strong>GPS 地理围栏</strong> 的轻量级考勤系统，支持多人团队使用。管理员可实时查看所有成员的打卡状态和工时统计，系统自动识别法定节假日和调休工作日，准确计算加班时长。</p>
+  
+  <div class="features">
+    <div class="feature">
+      <div class="icon">📍</div>
+      <h4>GPS 地理围栏</h4>
+      <p>必须在指定位置范围内才能打卡，防止代打卡，确保考勤真实性</p>
+    </div>
+    <div class="feature">
+      <div class="icon">📊</div>
+      <h4>自动工时计算</h4>
+      <p>自动识别工作日/休息日，精确计算加班时长，扣除午休时间</p>
+    </div>
+    <div class="feature">
+      <div class="icon">🎌</div>
+      <h4>节假日同步</h4>
+      <p>一键同步国家法定节假日和调休工作日，无需手动配置</p>
+    </div>
+    <div class="feature">
+      <div class="icon">📧</div>
+      <h4>邮件报表</h4>
+      <p>自动定时发送工时统计报表到指定邮箱，方便管理</p>
+    </div>
+    <div class="feature">
+      <div class="icon">📤</div>
+      <h4>数据导出</h4>
+      <p>支持按人员、时间段导出 CSV 报表，可直接用 Excel 打开</p>
+    </div>
+    <div class="feature">
+      <div class="icon">🔒</div>
+      <h4>权限分离</h4>
+      <p>管理员与普通用户界面分离，数据隔离，安全可靠</p>
+    </div>
+  </div>
+</div>
+
+<!-- 二、角色说明 -->
+<div class="section">
+  <h2>二、角色说明</h2>
+  <table>
+    <tr>
+      <th>功能</th>
+      <th><span class="badge badge-admin">管理员</span></th>
+      <th><span class="badge badge-user">普通成员</span></th>
+    </tr>
+    <tr><td>团队概览（全员工时表）</td><td>✅</td><td>❌</td></tr>
+    <tr><td>GPS 打卡</td><td>❌</td><td>✅</td></tr>
+    <tr><td>个人记录查看</td><td>❌</td><td>✅</td></tr>
+    <tr><td>个人工时统计</td><td>❌</td><td>✅</td></tr>
+    <tr><td>成员管理（白名单/删除/重置密码）</td><td>✅</td><td>❌</td></tr>
+    <tr><td>邮件配置与发送</td><td>✅</td><td>❌</td></tr>
+    <tr><td>系统设置（位置/时间/节假日）</td><td>✅</td><td>❌</td></tr>
+    <tr><td>导出工时报表</td><td>✅（全员/个人）</td><td>✅（仅自己）</td></tr>
+  </table>
+</div>
+
+<!-- 三、使用流程 -->
+<div class="section">
+  <h2>三、使用流程</h2>
+  
+  <h3>管理员初始化</h3>
+  <div class="flow">
+    <span class="flow-step">1. 登录管理员账号</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">2. 设置打卡位置</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">3. 配置工作时间</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">4. 同步节假日</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">5. 添加成员白名单</span>
+  </div>
+  
+  <div class="info-box blue">
+    <strong>💡 提示：</strong>管理员账号默认密码建议首次登录后立即修改（设置 → 修改密码）。
+  </div>
+  
+  <h3>成员注册与打卡</h3>
+  <div class="flow">
+    <span class="flow-step">1. 管理员添加姓名到白名单</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">2. 成员用姓名注册账号</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">3. 到达打卡范围后打卡</span>
+  </div>
+  
+  <div class="info-box green">
+    <strong>📍 打卡说明：</strong>成员需在管理员设定的 GPS 范围内（默认 500 米）才能打卡。如因 GPS 漂移等原因在范围外，系统会提示确认，打卡记录将标记为"范围外"。
+  </div>
+</div>
+
+<!-- 四、管理员界面 -->
+<div class="section">
+  <h2>四、管理员界面详解</h2>
+  
+  <h3>4.1 概览页</h3>
+  <p>管理员首页显示团队所有成员的实时打卡状态：</p>
+  <table>
+    <tr><th>列</th><th>说明</th></tr>
+    <tr><td>成员</td><td>已注册成员姓名</td></tr>
+    <tr><td>状态</td><td>🟢上班中 / ⚪已下班 / ⚪未打卡</td></tr>
+    <tr><td>今日工时</td><td>今日累计加班时长</td></tr>
+    <tr><td>本月工时</td><td>本月累计加班时长</td></tr>
+  </table>
+  
+  <h3>4.2 导出工时报表</h3>
+  <p>在概览页底部可导出 CSV 报表：</p>
+  <ul style="padding-left:20px;margin:8px 0;font-size:14px">
+    <li><strong>人选</strong>：所有人 / 某个成员</li>
+    <li><strong>时段</strong>：今日 / 本月 / 全部</li>
+    <li>导出内容：姓名、日期、星期、上班时间、下班时间、类型（工作日/休息日）、加班时长</li>
+  </ul>
+  
+  <h3>4.3 成员管理</h3>
+  <div class="steps">
+    <div class="step"><div class="step-num"></div><div class="step-content"><h4>添加白名单</h4><p>输入成员姓名 → 点击「+ 添加」→ 对方输入姓名即可注册</p></div></div>
+    <div class="step"><div class="step-num"></div><div class="step-content"><h4>管理已注册用户</h4><p>切换角色（⭐/👤）、重置密码（🔑）、删除用户（🗑）</p></div></div>
+  </div>
+  
+  <h3>4.4 系统设置</h3>
+  <table>
+    <tr><th>设置项</th><th>说明</th></tr>
+    <tr><td>打卡位置</td><td>点击「📍 使用当前位置」自动获取 GPS 坐标</td></tr>
+    <tr><td>打卡范围</td><td>100m / 200m / 300m / 500m / 1000m</td></tr>
+    <tr><td>工作时间</td><td>上班/下班/午休开始结束时间</td></tr>
+    <tr><td>工作日</td><td>选择哪些天是默认工作日</td></tr>
+    <tr><td>节假日同步</td><td>一键同步当年法定节假日和调休工作日</td></tr>
+    <tr><td>修改密码</td><td>修改管理员登录密码</td></tr>
+  </table>
+  
+  <h3>4.5 邮件配置</h3>
+  <div class="steps">
+    <div class="step"><div class="step-num"></div><div class="step-content"><h4>配置 SMTP</h4><p>填写邮件服务器地址、端口、发件邮箱、授权码</p></div></div>
+    <div class="step"><div class="step-num"></div><div class="step-content"><h4>添加收件人</h4><p>每行一个邮箱地址，支持多个收件人</p></div></div>
+    <div class="step"><div class="step-num"></div><div class="step-content"><h4>设置定时</h4><p>开启定时发送，设置每日发送时间</p></div></div>
+    <div class="step"><div class="step-num"></div><div class="step-content"><h4>测试发送</h4><p>点击「📧 测试」确认配置正确</p></div></div>
+  </div>
+  <div class="info-box orange">
+    <strong>📧 邮件内容：</strong>系统会自动生成 HTML 格式的工时统计报表，包含所有成员的本月加班汇总表格。
+  </div>
+</div>
+
+<!-- 五、成员界面 -->
+<div class="section">
+  <h2>五、成员界面详解</h2>
+  
+  <div class="features">
+    <div class="feature">
+      <div class="icon">⏱</div>
+      <h4>打卡页</h4>
+      <p>显示当前时间、GPS 状态、打卡按钮。上班后按钮变为「打卡下班」，支持多次打卡。</p>
+    </div>
+    <div class="feature">
+      <div class="icon">📅</div>
+      <h4>记录页</h4>
+      <p>日历视图查看打卡记录，时间线展示每日打卡详情，支持按月翻页。</p>
+    </div>
+    <div class="feature">
+      <div class="icon">📊</div>
+      <h4>统计页</h4>
+      <p>累计/工作日/休息日加班统计，月度趋势柱状图，可导出个人 CSV。</p>
+    </div>
+  </div>
+  
+  <h3>工时计算规则</h3>
+  <table>
+    <tr><th>日期类型</th><th>工时计算</th></tr>
+    <tr><td><span class="badge badge-success">工作日</span> 超出下班时间</td><td>下班打卡时间 - 标准下班时间 = 加班时长</td></tr>
+    <tr><td><span class="badge badge-success">工作日</span> 全天</td><td>总在岗时间 - 标准工时（8小时）- 午休 = 加班时长</td></tr>
+    <tr><td><span class="badge" style="background:#FEF3C7;color:#D97706">休息日</span> 全天</td><td>全部在岗时间均算加班</td></tr>
+    <tr><td><span class="badge" style="background:#FEE2E2;color:#DC2626">调休补班</span> 同工作日</td><td>按工作日规则计算</td></tr>
+  </table>
+</div>
+
+<!-- 六、技术架构 -->
+<div class="section">
+  <h2>六、技术架构</h2>
+  <table>
+    <tr><th>层级</th><th>技术</th><th>说明</th></tr>
+    <tr><td>前端</td><td>原生 HTML/CSS/JS</td><td>单文件 SPA，无需构建工具</td></tr>
+    <tr><td>后端</td><td>Python Flask + SQLite</td><td>轻量级 RESTful API</td></tr>
+    <tr><td>认证</td><td>JWT</td><td>30天有效期，前端自动刷新</td></tr>
+    <tr><td>部署</td><td>Docker + Nginx + Gunicorn</td><td>单容器，一条命令启动</td></tr>
+    <tr><td>存储</td><td>SQLite</td><td>单文件数据库，挂载卷持久化</td></tr>
+  </table>
+  
+  <h3>部署命令</h3>
+  <div style="background:#1E293B;color:#E2E8F0;padding:16px;border-radius:8px;font-family:monospace;font-size:13px;line-height:1.6;overflow-x:auto">
+    <div style="color:#64748B"># 构建并启动</div>
+    <div>docker compose up -d --build</div>
+    <div style="margin-top:8px;color:#64748B"># 访问地址</div>
+    <div>http://服务器IP:3090</div>
+  </div>
+</div>
+
+<!-- 七、常见问题 -->
+<div class="section">
+  <h2>七、常见问题</h2>
+  
+  <h3>Q: 成员注册时提示"姓名不在管理员名单中"？</h3>
+  <p style="font-size:14px;color:#64748B">需要管理员先在「成员」页添加该姓名到白名单。</p>
+  
+  <h3>Q: 打卡时显示"GPS精度不足"？</h3>
+  <p style="font-size:14px;color:#64748B">手机 GPS 信号弱，建议到开阔地带等待精度恢复（默认要求≤100米）。</p>
+  
+  <h3>Q: 导出的工时数据不准确？</h3>
+  <p style="font-size:14px;color:#64748B">工时 = 在岗时间 - 标准工时(8h) - 午休(1h)。休息日全天算加班，工作日仅超出下班时间部分算加班。</p>
+  
+  <h3>Q: 节假日数据过时了？</h3>
+  <p style="font-size:14px;color:#64748B">在设置页点击「📥 同步」重新获取最新数据。</p>
+  
+  <h3>Q: 如何备份数据？</h3>
+  <p style="font-size:14px;color:#64748B">数据存储在服务器 /root/overtime-tracker/data/overtime.db，可直接拷贝该文件备份。重启容器后自动加载。</p>
+</div>
+
+<!-- Footer -->
+<div style="text-align:center;padding:24px;color:#94A3B8;font-size:13px">
+  <p>考勤助手 v1.0 | 部署地址：mark.wlup.eu.org</p>
+  <p style="margin-top:4px">技术栈：Flask + SQLite + Nginx | Docker 单容器部署</p>
+</div>
+
+</div>
+</body>
+</html>
