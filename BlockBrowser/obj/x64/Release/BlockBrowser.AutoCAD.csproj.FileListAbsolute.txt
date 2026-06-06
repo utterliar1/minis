@@ -1,0 +1,5 @@
+D:\Documents\GitHub\minis\BlockBrowser\obj\x64\Release\BlockBrowser.AutoCAD.csprojResolveAssemblyReference.cache
+D:\Documents\GitHub\minis\BlockBrowser\bin\Release\acad\BlockBrowser.dll
+D:\Documents\GitHub\minis\BlockBrowser\bin\Release\acad\BlockBrowser.pdb
+D:\Documents\GitHub\minis\BlockBrowser\obj\x64\Release\BlockBrowser.dll
+D:\Documents\GitHub\minis\BlockBrowser\obj\x64\Release\BlockBrowser.pdb

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlockBrowser 块浏览器 - 使用手册</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif;background:#F8FAFC;color:#1E293B;line-height:1.8;padding:16px}
+  .container{max-width:600px;margin:0 auto}
+  .header{background:linear-gradient(135deg,#2563EB,#7C3AED);color:#fff;border-radius:16px;padding:32px 24px;text-align:center;margin-bottom:20px}
+  .header h1{font-size:24px;font-weight:800}
+  .header p{font-size:14px;opacity:0.85;margin-top:4px}
+  .card{background:#fff;border-radius:12px;padding:20px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+  .card h2{font-size:17px;font-weight:700;margin-bottom:12px;color:#2563EB}
+  .card h3{font-size:15px;font-weight:600;margin:14px 0 6px}
+  .card p,.card li{font-size:14px;color:#475569}
+  .card ul,.card ol{padding-left:20px;margin:6px 0}
+  .card li{margin-bottom:4px}
+  .step{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start}
+  .step-num{width:28px;height:28px;background:#2563EB;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+  .step-text{flex:1;font-size:14px}
+  .step-text strong{color:#1E293B}
+  .tip{background:#EFF6FF;border-left:4px solid #2563EB;padding:12px;border-radius:0 8px 8px 0;margin:10px 0;font-size:13px;color:#1E40AF}
+  .warn{background:#FEF3C7;border-left:4px solid #F59E0B;padding:12px;border-radius:0 8px 8px 0;margin:10px 0;font-size:13px;color:#92400E}
+  .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600}
+  .badge-green{background:#D1FAE5;color:#059669}
+  .badge-blue{background:#DBEAFE;color:#2563EB}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+  th,td{padding:8px 10px;border:1px solid #E2E8F0;text-align:left}
+  th{background:#F8FAFC;font-weight:600;color:#64748B}
+  code{background:#F1F5F9;padding:2px 6px;border-radius:4px;font-size:13px}
+  .divider{height:1px;background:#E2E8F0;margin:16px 0}
+  .q{font-weight:600;margin-top:12px;font-size:14px}
+  .a{font-size:13px;color:#64748B;margin-bottom:8px}
+  .ascii-art{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px;font-family:monospace;font-size:11px;line-height:1.4;overflow-x:auto;white-space:pre;color:#64748B}
+  @media print{body{background:#fff;padding:0}.card{box-shadow:none;border:1px solid #E2E8F0;break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>📦 BlockBrowser 块浏览器</h1>
+  <p>CAD 块管理插件 · 使用手册</p>
+</div>
+
+<!-- 快速开始 -->
+<div class="card">
+  <h2>🚀 快速开始</h2>
+  <h3>第一步：加载插件</h3>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text">打开CAD（浩辰CAD / AutoCAD / 中望CAD）</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text">命令行输入 <code>APPLOAD</code> 回车</div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text">找到插件目录，选择 <code>autoload.lsp</code>，点击「加载」</div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-text">命令行显示「BlockBrowser 已就绪，输入 BB 启动。」即为成功</div>
+  </div>
+
+  <h3>第二步：打开块浏览器</h3>
+  <p>命令行输入 <code>BB</code>（或 <code>KLLQ</code>）回车，弹出块浏览器窗口。</p>
+
+  <div class="tip">💡 <strong>自动加载：</strong>将 <code>autoload.lsp</code> 添加到CAD启动脚本，每次启动CAD自动加载，无需手动操作。</div>
+</div>
+
+<!-- 界面说明 -->
+<div class="card">
+  <h2>🖥 界面说明</h2>
+  <div class="ascii-art">┌────────┬────────┬────────┬────────┬────────┐
+│  全部  │  最近  │  常用  │  电气  │  ...   │  ← 分类栏
+├────────┴────────┴────────┴────────┴────────┤
+│ 插入 │ 添加到库 │ 导出块 │ 刷新 │ 设置 │ 🔍 │  ← 工具栏
+├────────────────────────────────────────────┤
+│                                            │
+│  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  │
+│  │ 缩略 │  │ 缩略 │  │ 缩略 │  │ 缩略 │  │
+│  │  图  │  │  图  │  │  图  │  │  图  │  │  ← 缩略图网格
+│  └──────┘  └──────┘  └──────┘  └──────┘  │
+│  块名称1   块名称2   块名称3   块名称4    │
+│                                            │
+├────────────────────────────────────────────┤
+│ 就绪                          v1.25 | WLUP │  ← 状态栏
+└────────────────────────────────────────────┘</div>
+</div>
+
+<!-- 浏览块 -->
+<div class="card">
+  <h2>👀 浏览块</h2>
+  <ul>
+    <li><strong>切换分类</strong>：点击分类栏按钮，当前分类 <span class="badge badge-blue">粗体高亮</span></li>
+    <li><strong>搜索</strong>：输入关键字，实时过滤（匹配块名和分类名）</li>
+    <li><strong>缩略图大小</strong>：右侧下拉框选「小/中/大/特大」</li>
+    <li><strong>预览</strong>：缩略图自动显示DWG内容，首次加载需几秒，之后有缓存</li>
+    <li><strong>选中</strong>：单击缩略图选中（蓝色边框），状态栏显示文件大小和修改时间</li>
+  </ul>
+</div>
+
+<!-- 插入块 -->
+<div class="card">
+  <h2>📌 插入块</h2>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text"><strong>选中块</strong><br>单击缩略图选中要插入的块</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text"><strong>点击「插入」</strong><br>或直接<strong>双击</strong>缩略图快速插入</div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text"><strong>指定插入点</strong><br>对话框自动关闭后，在CAD图纸中<strong>点击</strong>确定插入位置</div>
+  </div>
+  <div class="tip">💡 插入比例和角度可在「设置」中预设，插入时自动应用，无需每次输入。</div>
+</div>
+
+<!-- 添加到库 -->
+<div class="card">
+  <h2>📥 添加到库</h2>
+  <p>将CAD图纸中选中的图形保存为块到库中：</p>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text">点击工具栏「添加到库」</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text">选择<strong>分类</strong>，输入<strong>块名称</strong>，点击确定</div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text">在图纸中<strong>框选</strong>要保存的图形对象，回车确认</div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-text"><strong>指定基点</strong><br>点击确定块的插入基点（对齐点）</div>
+  </div>
+</div>
+
+<!-- 导出块 -->
+<div class="card">
+  <h2>📤 导出块</h2>
+  <p>从当前图纸导出已有的块定义到库中：</p>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text">点击工具栏「导出块」</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text">弹窗列出当前图纸中<strong>所有块定义</strong>，支持 <code>Ctrl</code>/<code>Shift</code> 多选</div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text">选择目标分类，点击「导出」</div>
+  </div>
+</div>
+
+<!-- 其他操作 -->
+<div class="card">
+  <h2>⚙️ 其他操作</h2>
+  <ul>
+    <li><strong>删除块</strong>：选中块后点击「删除」，文件移到回收站可恢复</li>
+    <li><strong>重命名</strong>：选中块后点击「重命名」，输入新名称</li>
+    <li><strong>设置</strong>：修改块库路径、插入比例、旋转角度</li>
+    <li><strong>打开文件夹</strong>：直接打开块库目录，方便手动管理文件</li>
+    <li><strong>刷新</strong>：清除内存缓存，重新加载块列表</li>
+  </ul>
+</div>
+
+<!-- 块库目录 -->
+<div class="card">
+  <h2>📁 块库目录结构</h2>
+  <p>块库是普通文件夹，按子文件夹分类：</p>
+  <div class="ascii-art">我的常用块/
+├── 常用/          ← 常用的块
+├── 电气/          ← 电气相关
+├── 建筑/          ← 建筑相关
+├── 机械/          ← 机械相关
+├── 脉冲-平底-26-104/  ← 自定义分类
+│   ├── 某个块.dwg     ← 每个DWG文件=一个块
+│   └── 另一个块.dwg
+└── .thumbs/       ← 缩略图缓存（自动生成）</div>
+  <ul>
+    <li>直接在文件夹里放入 <code>.dwg</code> 文件即可被识别</li>
+    <li>新建子文件夹 = 新分类，自动识别</li>
+    <li>删除 <code>.dwg</code> 文件即从库中移除</li>
+    <li>一个DWG文件可以包含多个图形对象，整体作为一个块插入</li>
+  </ul>
+</div>
+
+<!-- 命令列表 -->
+<div class="card">
+  <h2>⌨️ 命令列表</h2>
+  <table>
+    <tr><th>命令</th><th>说明</th></tr>
+    <tr><td><code>BB</code></td><td>打开块浏览器</td></tr>
+    <tr><td><code>KLLQ</code></td><td>打开块浏览器（快捷别名）</td></tr>
+    <tr><td><code>BBADD</code></td><td>命令行方式添加到库</td></tr>
+    <tr><td><code>BBEXPORT</code></td><td>命令行方式导出块</td></tr>
+    <tr><td><code>BBTHUMB</code></td><td>清除所有缩略图缓存</td></tr>
+    <tr><td><code>BBINFO</code></td><td>显示插件版本信息</td></tr>
+  </table>
+</div>
+
+<!-- 支持平台 -->
+<div class="card">
+  <h2>💻 支持的CAD平台</h2>
+  <table>
+    <tr><th>平台</th><th>版本</th><th>状态</th></tr>
+    <tr><td>浩辰CAD (GstarCAD)</td><td>2022+</td><td><span class="badge badge-green">✓ 完全支持</span></td></tr>
+    <tr><td>AutoCAD</td><td>2020+</td><td><span class="badge badge-green">✓ 完全支持</span></td></tr>
+    <tr><td>中望CAD (ZWCAD)</td><td>2020+</td><td><span class="badge badge-green">✓ 完全支持</span></td></tr>
+  </table>
+</div>
+
+<div class="divider"></div>
+
+<!-- 常见问题 -->
+<div class="card">
+  <h2>❓ 常见问题</h2>
+
+  <div class="q">Q：加载 autoload.lsp 后输入 BB 没反应？</div>
+  <div class="a">A：确认命令行显示了「已就绪」。如果没有，尝试手动加载 DLL：<br>输入 <code>NETLOAD</code>，选择对应平台文件夹下的 <code>BlockBrowser.dll</code>。</div>
+
+  <div class="q">Q：缩略图不显示？</div>
+  <div class="a">A：① 首次加载需要时间，等状态栏显示「就绪」<br>② 输入 <code>BBTHUMB</code> 清除缓存后重新打开<br>③ 确认DWG文件能正常用CAD打开</div>
+
+  <div class="q">Q：插入块时提示「导入失败」？</div>
+  <div class="a">A：① 确认DWG文件是有效格式<br>② 检查文件是否被其他程序占用<br>③ 同名块会自动重命名（如 door_2），不会冲突</div>
+
+  <div class="q">Q：如何共享块库给团队？</div>
+  <div class="a">A：将整个插件目录放在网络共享路径，或在设置中把块库路径指向网络共享文件夹。</div>
+
+  <div class="q">Q：删除的块能恢复吗？</div>
+  <div class="a">A：可以。删除的块会移到系统回收站，从回收站恢复即可。</div>
+
+  <div class="q">Q：按 ESC 能关闭界面吗？</div>
+  <div class="a">A：可以。按 ESC 或点击右上角 ✕ 都能关闭块浏览器。</div>
+</div>
+
+<div class="card" style="text-align:center">
+  <p style="color:#94A3B8;font-size:12px">BlockBrowser v1.25 · 制作人 WLUP</p>
+</div>
+
+</div>
+</body>
+</html>
