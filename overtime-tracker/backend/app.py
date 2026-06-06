@@ -3,7 +3,10 @@ import os, json, hashlib, time, sqlite3, smtplib, secrets
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+BJ_TZ = timezone(timedelta(hours=8))
+def bj_now(): return datetime.now(BJ_TZ)
+def bj_from_ts(ts): return datetime.fromtimestamp(ts, BJ_TZ)
 from functools import wraps
 from threading import Timer
 from flask import Flask, request, jsonify, send_from_directory
@@ -160,7 +163,7 @@ def api_clock():
     d = request.json or {}
     uid = request.user['username']
     now = time.time()
-    dt = datetime.fromtimestamp(now)
+    dt = bj_from_ts(now)
     date_str = dt.strftime('%Y-%m-%d')
     time_str = dt.strftime('%H:%M:%S')
     conn = get_db()
@@ -263,6 +266,10 @@ def api_delete_user(username):
     if username == request.user['username']: return jsonify(error="不能删除自己"), 400
     if username == 'admin': return jsonify(error="不能删除主管理员"), 400
     conn = get_db()
+    # 获取用户显示名用于重置白名单
+    u = conn.execute("SELECT display_name FROM users WHERE username=?", (username,)).fetchone()
+    if u:
+        conn.execute("UPDATE whitelist SET used=0, used_by=NULL WHERE name=?", (u['display_name'],))
     conn.execute("DELETE FROM records WHERE user_id=?", (username,))
     conn.execute("DELETE FROM users WHERE username=?", (username,))
     conn.commit(); conn.close()
@@ -374,29 +381,43 @@ def api_update_settings():
 
 # ==================== Export ====================
 @app.route('/api/export')
-@admin_required
+@login_required
 def api_export():
-    uid = request.args.get('uid', '')
+    uid_param = request.args.get('uid', '')
+    is_admin = request.user.get('role') == 'admin'
+    # 非管理员只能导出自己；管理员不传uid则导出全部
+    uid = uid_param if is_admin else request.user['username']
+    # 管理员没传uid或传了all，视为导出全部
+    if is_admin and (not uid_param or uid_param == 'all'):
+        uid = ''
     period = request.args.get('period', 'month')
     conn = get_db()
     from datetime import date as dt_date
-    today = dt_date.today()
-    if period == 'today':
-        date_filter = f"{today}"
+    today = bj_now().date()
+    date_from = request.args.get('from', '')
+    date_to = request.args.get('to', '')
+    if date_from and date_to:
+        date_range = True
+    elif period == 'today':
+        date_from = date_to = str(today)
+        date_range = True
     elif period == 'month':
-        date_filter = today.strftime('%Y-%m')
+        date_from = today.strftime('%Y-%m-01')
+        date_to = today.strftime('%Y-%m-31')
+        date_range = True
     else:
-        date_filter = ''
+        date_from = date_to = ''
+        date_range = False
     if uid:
-        if date_filter:
-            rows = conn.execute("SELECT r.*,u.display_name FROM records r JOIN users u ON r.user_id=u.username WHERE r.user_id=? AND r.date LIKE ? ORDER BY r.ts", (uid, date_filter+'%')).fetchall()
+        if date_range:
+            rows = conn.execute("SELECT r.*,u.display_name FROM records r JOIN users u ON r.user_id=u.username WHERE r.user_id=? AND r.date>=? AND r.date<=? ORDER BY r.ts", (uid, date_from, date_to)).fetchall()
         else:
             rows = conn.execute("SELECT r.*,u.display_name FROM records r JOIN users u ON r.user_id=u.username WHERE r.user_id=? ORDER BY r.ts", (uid,)).fetchall()
     else:
-        if date_filter:
-            rows = conn.execute("SELECT r.*,u.display_name FROM records r JOIN users u ON r.user_id=u.username WHERE r.date LIKE ? ORDER BY r.user_id, r.ts", (date_filter+'%',)).fetchall()
+        if date_range:
+            rows = conn.execute("SELECT r.*,u.display_name FROM records r JOIN users u ON r.user_id=u.username WHERE r.date>=? AND r.date<=? ORDER BY r.user_id,r.ts", (date_from, date_to)).fetchall()
         else:
-            rows = conn.execute("SELECT r.*,u.display_name FROM records r JOIN users u ON r.user_id=u.username ORDER BY r.user_id, r.ts").fetchall()
+            rows = conn.execute("SELECT r.*,u.display_name FROM records r JOIN users u ON r.user_id=u.username ORDER BY r.user_id,r.ts").fetchall()
     conn.close()
     return jsonify(records=[dict(r) for r in rows])
 
@@ -518,7 +539,7 @@ def send_overtime_report():
     conn = get_db()
     users = conn.execute("SELECT username,display_name FROM users WHERE role='user'").fetchall()
     conn.close()
-    now = datetime.now()
+    now = bj_now()
     month_str = now.strftime('%Y-%m')
     rows_html = ""
     for u in users:
@@ -554,8 +575,8 @@ def schedule_email_task():
     conn.close()
     if not cfg or not cfg['enabled']: return
     cfg = dict(cfg)
-    now = datetime.now()
-    target = now.replace(hour=cfg.get('schedule_hour',9), minute=cfg.get('schedule_minute',0), second=0)
+    now = bj_now()
+    target = now.replace(hour=cfg.get('schedule_hour',9), minute=cfg.get('schedule_minute',0), second=0, microsecond=0)
     if target <= now: target += timedelta(days=1)
     delay = (target - now).total_seconds()
     def job():

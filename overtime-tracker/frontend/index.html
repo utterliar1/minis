@@ -123,6 +123,7 @@
   .avatar-admin{background:var(--accent)}.avatar-user{background:var(--primary-light)}
   .user-name{font-size:15px;font-weight:600}.user-meta{font-size:12px;color:var(--text-sec)}
   .user-actions{display:flex;gap:6px}.user-actions button{border:none;background:#F1F5F9;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px}
+  .user-detail.show{display:block!important}
   .btn-group{display:flex;gap:8px;margin-top:12px}.note-text{font-size:12px;color:var(--text-sec);margin-top:8px;line-height:1.5}
   .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:200;align-items:flex-end;justify-content:center}
   .modal-overlay.show{display:flex}.modal-content{background:var(--card);border-radius:16px 16px 0 0;width:100%;max-height:80vh;overflow-y:auto;padding:20px;animation:slideUp .3s ease}
@@ -194,15 +195,20 @@
   <div class="page" id="page-members">
     <div class="card">
       <div class="card-title">📋 成员管理</div>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
         <input type="text" id="wl-name-input" placeholder="输入成员姓名" style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:10px;font-size:14px;font-family:inherit">
         <button class="btn btn-primary btn-sm" onclick="addWhitelist()" style="width:auto;flex-shrink:0">+ 添加</button>
       </div>
       <div class="note-text">添加后对方输入姓名即可注册</div>
     </div>
-    <div id="wl-list-container"></div>
-    <div class="card" style="margin-top:16px"><div class="card-title">👤 已注册成员</div></div>
-    <div id="user-list-container"></div>
+    <div onclick="toggleSection('wl')" style="cursor:pointer;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:8px">
+      <span style="font-weight:600;font-size:14px">📋 白名单</span><span id="wl-toggle-icon" style="font-size:12px;color:var(--text-sec)">▾ 展开</span>
+    </div>
+    <div id="wl-list-container" style="display:none"></div>
+    <div onclick="toggleSection('users')" style="cursor:pointer;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:8px;margin-top:12px">
+      <span style="font-weight:600;font-size:14px">👤 已注册成员</span><span id="users-toggle-icon" style="font-size:12px;color:var(--text-sec)">▾ 展开</span>
+    </div>
+    <div id="users-list-container" style="display:none"></div>
   </div>
 
   <!-- ===== ADMIN: Settings ===== -->
@@ -306,7 +312,7 @@
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div class="card-title" style="margin-bottom:0">📅 我的记录</div>
-        <button class="btn btn-outline btn-sm" onclick="exportMyRecords()">📤 导出</button>
+        <button class="btn btn-outline btn-sm" onclick="showExportDialog()">📤 导出</button>
       </div>
       <div class="summary-row"><span class="label">本月统计</span><span class="value" id="summary-month-info"></span></div>
     </div>
@@ -490,7 +496,48 @@ async function loadDashboard(){
 }
 
 // ==================== EXPORT ====================
-async function doExport(){
+function showExportDialog(){
+  const isAdmin=currentUser&&currentUser.role==='admin';
+  let html=`<div class="modal-title">📥 导出工时报表</div>`;
+  if(isAdmin){
+    html+=`<div style="margin-bottom:12px"><label style="font-size:13px;color:var(--text-sec);display:block;margin-bottom:4px">人员</label><select id="exp-uid" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit"><option value="all">所有人</option></select></div>`;
+  }
+  html+=`<div style="margin-bottom:12px"><label style="font-size:13px;color:var(--text-sec);display:block;margin-bottom:4px">时间范围</label><select id="exp-period" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit"><option value="month">本月</option><option value="today">今日</option><option value="week">本周</option><option value="all">全部</option><option value="range">自定义日期...</option></select></div>`;
+  html+=`<div id="exp-range-box" style="display:none;margin-bottom:12px"><div style="display:flex;gap:8px"><input type="date" id="exp-from" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit"><input type="date" id="exp-to" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit"></div></div>`;
+  html+=`<button class="btn btn-primary btn-block" onclick="doUnifiedExport()">📥 导出 CSV</button>`;
+  showModal(html);
+  if(isAdmin){api('/users').then(d=>{const sel=document.getElementById('exp-uid');d.users.filter(u=>u.username!=='admin').forEach(u=>{sel.innerHTML+=`<option value="${u.username}">${u.display_name}</option>`})})}
+  document.getElementById('exp-period').addEventListener('change',function(){document.getElementById('exp-range-box').style.display=this.value==='range'?'block':'none'});
+}
+async function doUnifiedExport(){
+  const isAdmin=currentUser&&currentUser.role==='admin';
+  const uid=isAdmin?document.getElementById('exp-uid').value:'';
+  const period=document.getElementById('exp-period').value;
+  let from='',to='';
+  if(period==='range'){from=document.getElementById('exp-from').value;to=document.getElementById('exp-to').value;if(!from||!to){showToast('请选择日期范围');return}}
+  try{
+    let url='/export?';
+    if(uid&&uid!=='all')url+=`uid=${uid}&`;
+    if(period==='range')url+=`from=${from}&to=${to}`;
+    else if(period!=='all')url+=`period=${period}`;
+    const data=await api(url);const recs=data.records||[];
+    if(!recs.length){showToast('暂无数据');return}
+    const groups={};recs.forEach(r=>{const key=(r.display_name||r.user_id)+'|'+r.date;if(!groups[key])groups[key]={name:r.display_name||r.user_id,date:r.date,records:[]};groups[key].records.push(r)});
+    const header='姓名,日期,星期,上班,下班,类型,事由,工时(分),工时(h)\n';
+    const rows=Object.values(groups).map(g=>{
+      const d=new Date(g.date+'T12:00:00'),wd=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+      const sorted=g.records.sort((a,b)=>a.ts-b.ts),fi=sorted.find(r=>r.type==='in'),lo=[...sorted].reverse().find(r=>r.type==='out');
+      const reasons=sorted.filter(r=>r.type==='in'&&r.note).map(r=>r.note).filter(Boolean).join('; ');
+      const isWk=isWorkingDay(d),ot=calcTodayOT(sorted,d);
+      const hrs=ot>=60?Math.floor(ot/60)+'h'+(ot%60?ot%60+'m':''):ot+'m';
+      return`"${g.name}","${g.date}","${wd}","${fi?(fi.time_str||'').slice(0,5):''}","${lo?(lo.time_str||'').slice(0,5):''}","${isWk?'工作日':'休息日'}","${reasons}",${ot},"${hrs}"`;
+    }).join('\n');
+    downloadBlob(new Blob(['\uFEFF'+header+rows],{type:'text/csv;charset=utf-8'}),`工时报表_${dateKey(bjNow())}.csv`);
+    closeModalDirect();showToast('📥 已导出');
+  }catch(e){showToast('❌ '+e.message)}
+}
+async function doExport(){showExportDialog()}
+async function doOldExport(){
   const scope=document.getElementById('export-scope').value;
   const period=document.getElementById('export-period').value;
   try{
@@ -613,7 +660,7 @@ function renderCalendar(){
   let html=['日','一','二','三','四','五','六'].map(d=>`<div class="cal-header">${d}</div>`).join('');
   const rd=new Set();allRecords.forEach(r=>{const d=new Date(r.ts);if(d.getMonth()===calMonth&&d.getFullYear()===calYear)rd.add(d.getDate())});
   for(let i=0;i<fd;i++)html+=`<div class="cal-day" style="visibility:hidden"></div>`;
-  for(let d=1;d<=dim;d++){const it=d===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear();html+=`<div class="cal-day ${it?'today':''} ${rd.has(d)?'has-record':''}">${d}</div>`}
+  for(let d=1;d<=dim;d++){const it=d===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear();html+=`<div class="cal-day ${it?'today':''} ${rd.has(d)?'has-record':''}" onclick="event.stopPropagation();showDayDetail(${calYear},${calMonth},${d})">${d}</div>`}
   grid.innerHTML=html;
   // Month summary
   const dg={};allRecords.forEach(r=>{const d=new Date(r.ts);if(d.getMonth()===calMonth&&d.getFullYear()===calYear){if(!dg[r.date])dg[r.date]=[];dg[r.date].push(r)}});
@@ -637,10 +684,10 @@ function renderStats(){
   let totalOT=0,wkOT=0,hdOT=0;
   Object.entries(dg).forEach(([date,recs])=>{const ot=calcTodayOT(recs,new Date(date+'T12:00:00'));totalOT+=ot;isWorkingDay(new Date(date+'T12:00:00'))?wkOT+=ot:hdOT+=ot});
   const days=Object.keys(dg).length;
+  const ws2=new Date();ws2.setDate(ws2.getDate()-ws2.getDay()+1);ws2.setHours(0,0,0,0);
+  let weekTotal=0,weekDays=0;
+  Object.entries(dg).forEach(([date,recs])=>{const d=new Date(date+'T12:00:00');if(d>=ws2){const ot=calcTodayOT(recs,d);weekTotal+=ot;weekDays++}});
   document.getElementById('stats-content').innerHTML=`
-    const ws2=new Date();ws2.setDate(ws2.getDate()-ws2.getDay()+1);ws2.setHours(0,0,0,0);
-    let weekTotal=0,weekDays=0;
-    Object.entries(dg).forEach(([date,recs])=>{const d=new Date(date+'T12:00:00');if(d>=ws2){const ot=calcTodayOT(recs,d);weekTotal+=ot;weekDays++}});
     <div class="summary-row"><span class="label">本周工时</span><span class="value overtime">${formatMinutes(weekTotal)}（${weekDays}天）</span></div>
     <div class="summary-row"><span class="label">本月工时</span><span class="value overtime">${formatMinutes(totalOT)}（${days}天）</span></div>
     <div class="summary-row"><span class="label">工作日工时</span><span class="value">${formatMinutes(wkOT)}</span></div>
@@ -662,12 +709,11 @@ function updateHeaderStats(){
   let mot=0;Object.entries(mdg).forEach(([date,recs])=>{mot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
   const adg={};allRecords.forEach(r=>{if(!adg[r.date])adg[r.date]=[];adg[r.date].push(r)});
   let ttot=0;Object.entries(adg).forEach(([date,recs])=>{ttot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
+  const ws=new Date();ws.setDate(ws.getDate()-ws.getDay()+1);ws.setHours(0,0,0,0);
+  const wRecs=allRecords.filter(r=>{const d=new Date(r.ts);return d>=ws});
+  const wdg={};wRecs.forEach(r=>{if(!wdg[r.date])wdg[r.date]=[];wdg[r.date].push(r)});
+  let wot=0;Object.entries(wdg).forEach(([date,recs])=>{wot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
   document.getElementById('header-stats').innerHTML=`
-    const ws=new Date();ws.setDate(ws.getDate()-ws.getDay()+1);ws.setHours(0,0,0,0);
-    const wRecs=allRecords.filter(r=>{const d=new Date(r.ts);return d>=ws});
-    const wdg={};wRecs.forEach(r=>{if(!wdg[r.date])wdg[r.date]=[];wdg[r.date].push(r)});
-    let wot=0;Object.entries(wdg).forEach(([date,recs])=>{wot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
-    document.getElementById('header-stats').innerHTML=`
     <div class="stat-item"><div class="stat-value">${fmtMin(tot)}</div><div class="stat-label">今日</div></div>
     <div class="stat-item"><div class="stat-value">${fmtMin(wot)}</div><div class="stat-label">本周</div></div>
     <div class="stat-item"><div class="stat-value">${fmtMin(mot)}</div><div class="stat-label">本月</div></div>`;
@@ -701,10 +747,21 @@ async function changeMyPassword(){
 }
 
 // ==================== WHITELIST ====================
+function toggleSection(name){
+  const el=document.getElementById(name+'-list-container');
+  const icon=document.getElementById(name+'-toggle-icon');
+  if(!el||!icon)return;
+  const show=el.style.display==='none';
+  el.style.display=show?'':'none';
+  const count=icon.dataset.count||'0';
+  icon.textContent=show?'▴ 收起':'▾ 展开 ('+count+'人)';
+}
 async function loadWhitelist(){
   const c=document.getElementById('wl-list-container');
   try{const d=await api('/whitelist');if(!d.items.length){c.innerHTML='<div class="setting-item"><span class="note-text" style="color:var(--text-sec)">暂无成员</span></div>';return}
     c.innerHTML='<div class="setting-group" style="margin:0">'+d.items.map(i=>{const st=i.used?'<span class="wl-status wl-status-used">已注册</span>':'<span class="wl-status wl-status-unused">未注册</span>';const del=!i.used?`<button onclick="deleteWL('${i.name}')" style="border:none;background:none;color:var(--danger);font-size:16px;cursor:pointer;padding:4px 8px">✕</button>`:'';return`<div class="wl-card"><span class="wl-name">${i.name}</span><div style="display:flex;align-items:center;gap:8px">${st}${del}</div></div>`}).join('')+'</div>';
+    document.getElementById('wl-toggle-icon').dataset.count=d.items.length;
+    document.getElementById('wl-toggle-icon').textContent='▾ 展开 ('+d.items.length+'人)';
   }catch(e){c.innerHTML='<div class="setting-item"><span class="note-text">加载失败</span></div>'}
 }
 async function addWhitelist(){
@@ -713,9 +770,14 @@ async function addWhitelist(){
 }
 async function deleteWL(n){showConfirmModal('移除成员',`确认移除「${n}」？`,async()=>{try{await api('/whitelist/'+encodeURIComponent(n),{method:'DELETE'});loadWhitelist();showToast('已移除')}catch(e){showToast('❌ '+e.message)}})}
 async function loadUserList(){
-  const c=document.getElementById('user-list-container');
-  try{const d=await api('/users');c.innerHTML=d.users.filter(u=>u.username!=='admin').map(u=>{const isSelf=u.username===currentUser.username;return`<div class="user-card"><div class="user-card-info"><div class="user-avatar ${u.role==='admin'?'avatar-admin':'avatar-user'}">${(u.display_name||u.username)[0]}</div><div><div class="user-name">${u.display_name}${isSelf?' <span style="color:var(--success);font-size:12px">（我）</span>':''}</div><div class="user-meta">@${u.username} · ${u.role==='admin'?'管理员':'成员'}</div></div></div><div class="user-actions">${!isSelf?`<button onclick="toggleRole('${u.username}')" title="切换角色">${u.role==='admin'?'👤':'⭐'}</button><button onclick="resetPwd('${u.display_name}','${u.username}')" title="重置密码" style="color:var(--accent)">🔑</button><button onclick="delUser('${u.username}')" title="删除" style="color:var(--danger)">🗑</button>`:''}</div></div>`}).join('')||'<div class="setting-item"><span class="note-text" style="color:var(--text-sec)">暂无注册用户</span></div>';
-  }catch(e){c.innerHTML=''}
+  const c=document.getElementById('users-list-container');
+  try{const d=await api('/users');const users=d.users.filter(u=>u.username!=='admin');
+    document.getElementById('users-toggle-icon').dataset.count=users.length;
+    document.getElementById('users-toggle-icon').textContent='▾ 展开 ('+users.length+'人)';
+    if(!users.length){c.innerHTML='<div class="setting-item"><span class="note-text" style="color:var(--text-sec)">暂无注册用户</span></div>';return}
+    c.innerHTML='<div class="setting-group" style="margin:0">'+users.map(u=>{const isSelf=u.username===currentUser.username;const isDef=u.username==='admin';
+    return`<div class="user-card"><div class="user-card-info"><div class="user-avatar ${u.role==='admin'?'avatar-admin':'avatar-user'}">${(u.display_name||u.username)[0]}</div><div><div class="user-name">${u.display_name}${isSelf?' <span style="color:var(--success);font-size:12px">（我）</span>':''}</div><div class="user-meta">@${u.username} · ${u.role==='admin'?'管理员':'成员'}</div></div></div><div class="user-actions">${!isSelf&&!isDef?`<button onclick="toggleRole('${u.username}')" title="切换角色">${u.role==='admin'?'👤':'⭐'}</button><button onclick="resetPwd('${u.display_name}','${u.username}')" title="重置密码" style="color:var(--accent)">🔑</button><button onclick="delUser('${u.username}')" title="删除" style="color:var(--danger)">🗑</button>`:''}</div></div>`}).join('')+'</div>';}
+  catch(e){c.innerHTML=''}
 }
 async function toggleRole(u){try{await api(`/users/${u}/role`,{method:'PUT'});loadUserList();showToast('✅ 已切换')}catch(e){showToast('❌ '+e.message)}}
 function resetPwd(name,username){
@@ -795,6 +857,27 @@ async function exportMyRecords(){
     });
     downloadBlob(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}),`我的工时记录_${dateKey(new Date())}.csv`);showToast('📤 已导出');
   }catch(e){showToast('导出失败')}
+}
+
+// ==================== DAY DETAIL ====================
+function showDayDetail(y,m,d){
+  const dateStr=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  const dayRecs=allRecords.filter(r=>r.date===dateStr).sort((a,b)=>a.ts-b.ts);
+  const dt=new Date(dateStr+'T12:00:00');
+  const wd=['周日','周一','周二','周三','周四','周五','周六'][dt.getDay()];
+  const isWk=isWorkingDay(dt),ot=calcTodayOT(dayRecs,dt);
+  const badge=isWk?'工作日':'休息日';
+  let c=`<div class="modal-title">${m+1}月${d}日 ${wd}（${badge}）</div>`;
+  if(!dayRecs.length){c+=`<div style="text-align:center;padding:20px;color:var(--text-sec)">当天无打卡记录</div>`}
+  else{
+    c+=`<div style="margin-bottom:12px">`;
+    dayRecs.forEach(r=>{const icon=r.type==='in'?'🟢':'🔴',label=r.type==='in'?'上班':'下班';
+      c+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)"><span>${icon}</span><div style="flex:1"><div style="font-weight:600;font-size:15px">${label} ${r.time_str||''}</div>${r.note?`<div style="font-size:12px;color:var(--text-sec);margin-top:2px">${r.note}</div>`:''}</div></div>`});
+    c+=`</div>`;
+    c+=`<div style="background:#EEF2FF;border-radius:8px;padding:12px;text-align:center;font-weight:600;color:var(--primary)">工时：${formatMinutes(ot)}</div>`;
+  }
+  c+=`<button class="btn btn-primary btn-block" style="margin-top:12px" onclick="closeModalDirect()">关闭</button>`;
+  showModal(c);
 }
 
 // ==================== HELPERS ====================
