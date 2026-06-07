@@ -8,13 +8,16 @@ echo ========================================
 set "MSBUILD=C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe"
 set "BASE=%~dp0"
 set "DEPLOY=C:\CadToolkit"
-set "CT_VERSION=v1.23"
+set "CT_VERSION=v1.23.1"
 
 for /f "tokens=2 delims=()" %%V in ('findstr /C:"AssemblyVersion" "%BASE%src\CadToolkit.Core\Properties\AssemblyInfo.cs"') do (
     set "ASM_VERSION=%%~V"
 )
 if defined ASM_VERSION (
-    for /f "tokens=1,2 delims=." %%A in ("!ASM_VERSION!") do set "CT_VERSION=v%%A.%%B"
+    for /f "tokens=1,2,3 delims=." %%A in ("!ASM_VERSION!") do (
+        set "CT_VERSION=v%%A.%%B"
+        if not "%%C"=="0" if not "%%C"=="" set "CT_VERSION=v%%A.%%B.%%C"
+    )
 )
 setlocal DisableDelayedExpansion
 if not exist "%DEPLOY%\acad" mkdir "%DEPLOY%\acad"
@@ -50,9 +53,9 @@ echo   GstarCAD: OK
 
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content '%BASE%autoload.lsp' -Raw) -replace 'CadToolkit v[0-9.]+ ready', 'CadToolkit %CT_VERSION% ready' | Set-Content '%DEPLOY%\autoload.lsp' -Encoding UTF8"
-copy /Y "%DEPLOY%\autoload.lsp" "%DEPLOY%\acad\"
-copy /Y "%DEPLOY%\autoload.lsp" "%DEPLOY%\zwcad\"
-copy /Y "%DEPLOY%\autoload.lsp" "%DEPLOY%\gcad\"
+if exist "%DEPLOY%\acad\autoload.lsp" del /q "%DEPLOY%\acad\autoload.lsp"
+if exist "%DEPLOY%\zwcad\autoload.lsp" del /q "%DEPLOY%\zwcad\autoload.lsp"
+if exist "%DEPLOY%\gcad\autoload.lsp" del /q "%DEPLOY%\gcad\autoload.lsp"
 copy /Y "%BASE%CadToolkit.ini" "%DEPLOY%\"
 if exist "%DEPLOY%\acad\CadToolkit.ini" del /q "%DEPLOY%\acad\CadToolkit.ini"
 if exist "%DEPLOY%\zwcad\CadToolkit.ini" del /q "%DEPLOY%\zwcad\CadToolkit.ini"

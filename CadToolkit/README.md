@@ -1,4 +1,4 @@
-# CadToolkit v1.23
+# CadToolkit v1.23.1
 
 AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱。
 
@@ -95,7 +95,7 @@ AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱。
 
 ```ini
 # CadToolkit 配置文件
-Version=v1.23
+Version=v1.23.1
 
 # 快捷建块设置
 QuickBlockPrefix=BK

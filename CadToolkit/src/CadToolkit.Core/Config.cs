@@ -169,10 +169,15 @@ namespace CadToolkit.Core
                 try
                 {
                     var v = typeof(Config).Assembly.GetName().Version;
-                    if (v != null) return "v" + v.Major + "." + v.Minor;
+                    if (v != null)
+                    {
+                        string version = "v" + v.Major + "." + v.Minor;
+                        if (v.Build > 0) version += "." + v.Build;
+                        return version;
+                    }
                 }
                 catch (Exception ex) { LogConfigError("Read assembly version failed: " + ex.Message); }
-                return "v1.23";
+                return "v1.23.1";
             }
         }
 
