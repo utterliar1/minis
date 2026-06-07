@@ -25,6 +25,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Dialogs.cs" />
+    <Compile Include="PanelBuilder.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CadToolkit.Core\CadToolkit.Core.csproj">
