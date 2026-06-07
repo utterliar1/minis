@@ -172,6 +172,53 @@ namespace CadToolkit
             catch { }
         }
 
+        static bool RunWithUndo(string name, Func<bool> action)
+        {
+            bool started = TryInvokeUndoMethod(name, "StartUndoMark");
+            try
+            {
+                return action();
+            }
+            catch (System.Exception ex)
+            {
+                Ed.WriteMessage(string.Format("\n{0} 执行失败：{1}", name, ex.Message));
+                Log(name + " failed: " + ex);
+                return false;
+            }
+            finally
+            {
+                if (started)
+                {
+                    TryInvokeUndoMethod(name, "EndUndoMark");
+                }
+            }
+        }
+
+        static bool TryInvokeUndoMethod(string commandName, string methodName)
+        {
+            try
+            {
+                object doc = CadApp.DocumentManager.MdiActiveDocument;
+                if (TryInvokeNoArg(doc, methodName)) return true;
+                if (TryInvokeNoArg(Db, methodName)) return true;
+                Log(commandName + " " + methodName + " unavailable.");
+            }
+            catch (System.Exception ex)
+            {
+                Log(commandName + " " + methodName + " failed: " + ex.Message);
+            }
+            return false;
+        }
+
+        static bool TryInvokeNoArg(object target, string methodName)
+        {
+            if (target == null) return false;
+            var method = target.GetType().GetMethod(methodName, Type.EmptyTypes);
+            if (method == null) return false;
+            method.Invoke(target, null);
+            return true;
+        }
+
         class LayerStandardPlan
         {
             public string SourceLayer;
@@ -674,52 +721,57 @@ namespace CadToolkit
                 var texts = new List<DBText>();
                 double baseX = 0;
                 double baseY = 0;
-                using (var tr = Db.TransactionManager.StartTransaction())
+                bool changed = RunWithUndo("CT_ALIGN", delegate
                 {
-                    foreach (ObjectId id in psr.Value.GetObjectIds())
+                    using (var tr = Db.TransactionManager.StartTransaction())
                     {
-                        var ent = tr.GetObject(id, OpenMode.ForRead);
-                        if (ent is DBText) texts.Add((DBText)ent);
+                        foreach (ObjectId id in psr.Value.GetObjectIds())
+                        {
+                            var ent = tr.GetObject(id, OpenMode.ForRead);
+                            if (ent is DBText) texts.Add((DBText)ent);
+                        }
+                        if (texts.Count == 0) { Ed.WriteMessage("\n\u672a\u627e\u5230\u5355\u884c\u6587\u5b57\u3002"); return false; }
+                        texts.Sort(delegate(DBText a, DBText b) { return b.Position.Y.CompareTo(a.Position.Y); });
+                        if (spacing <= 0)
+                        {
+                            double maxH = 0;
+                            foreach (var t in texts) { if (t.Height > maxH) maxH = t.Height; }
+                            spacing = maxH * 1.8;
+                        }
+                        if (useFirst)
+                        {
+                            var t0 = texts[0];
+                            double tw = 0;
+                            try { tw = t0.WidthFactor * t0.TextString.Length * t0.Height * 0.6; } catch { }
+                            if (h == 0) baseX = t0.Position.X;
+                            else if (h == 1) baseX = t0.Position.X + tw / 2.0;
+                            else baseX = t0.Position.X + tw;
+                            baseY = t0.Position.Y;
+                        }
+                        else
+                        {
+                            var ppr = Ed.GetPoint("\n\u6307\u5b9a\u5bf9\u9f50\u57fa\u70b9\uff1a");
+                            if (ppr.Status != PromptStatus.OK) return false;
+                            baseX = ppr.Value.X;
+                            baseY = ppr.Value.Y;
+                        }
+                        for (int i = 0; i < texts.Count; i++)
+                        {
+                            var dt = texts[i];
+                            double tw = 0;
+                            try { tw = dt.WidthFactor * dt.TextString.Length * dt.Height * 0.6; } catch { }
+                            double nx = baseX;
+                            if (h == 1) nx = baseX - tw / 2.0;
+                            else if (h == 2) nx = baseX - tw;
+                            double ny = baseY - i * spacing;
+                            dt.UpgradeOpen();
+                            dt.Position = new Point3d(nx, ny, 0);
+                        }
+                        tr.Commit();
                     }
-                    if (texts.Count == 0) { Ed.WriteMessage("\n\u672a\u627e\u5230\u5355\u884c\u6587\u5b57\u3002"); return; }
-                    texts.Sort(delegate(DBText a, DBText b) { return b.Position.Y.CompareTo(a.Position.Y); });
-                    if (spacing <= 0)
-                    {
-                        double maxH = 0;
-                        foreach (var t in texts) { if (t.Height > maxH) maxH = t.Height; }
-                        spacing = maxH * 1.8;
-                    }
-                    if (useFirst)
-                    {
-                        var t0 = texts[0];
-                        double tw = 0;
-                        try { tw = t0.WidthFactor * t0.TextString.Length * t0.Height * 0.6; } catch { }
-                        if (h == 0) baseX = t0.Position.X;
-                        else if (h == 1) baseX = t0.Position.X + tw / 2.0;
-                        else baseX = t0.Position.X + tw;
-                        baseY = t0.Position.Y;
-                    }
-                    else
-                    {
-                        var ppr = Ed.GetPoint("\n\u6307\u5b9a\u5bf9\u9f50\u57fa\u70b9\uff1a");
-                        if (ppr.Status != PromptStatus.OK) return;
-                        baseX = ppr.Value.X;
-                        baseY = ppr.Value.Y;
-                    }
-                    for (int i = 0; i < texts.Count; i++)
-                    {
-                        var dt = texts[i];
-                        double tw = 0;
-                        try { tw = dt.WidthFactor * dt.TextString.Length * dt.Height * 0.6; } catch { }
-                        double nx = baseX;
-                        if (h == 1) nx = baseX - tw / 2.0;
-                        else if (h == 2) nx = baseX - tw;
-                        double ny = baseY - i * spacing;
-                        dt.UpgradeOpen();
-                        dt.Position = new Point3d(nx, ny, 0);
-                    }
-                    tr.Commit();
-                }
+                    return true;
+                });
+                if (!changed) return;
                 Ed.WriteMessage(string.Format("\n\u5df2\u5bf9\u9f50 {0} \u4e2a\u6587\u5b57\u3002", texts.Count));
             }
         }        [CommandMethod("CT_UNDERLINE")]
@@ -826,34 +878,43 @@ namespace CadToolkit
             if (ppr.Status != PromptStatus.OK) return;
             string prefix = Config.Prefix;
             bool del = Config.DeleteOriginal;
-            using (var tr = Db.TransactionManager.StartTransaction())
+            string createdName = "";
+            int objectCount = 0;
+            bool changed = RunWithUndo("CT_QUICKBLOCK", delegate
             {
-                var bt = (BlockTable)tr.GetObject(Db.BlockTableId, OpenMode.ForWrite);
-                int idx = 1;
-                string name;
-                do { name = string.Format("{0}{1:D3}", prefix, idx++); } while (bt.Has(name));
-                var btr = new BlockTableRecord();
-                btr.Name = name;
-                btr.Origin = ppr.Value;
-                bt.Add(btr);
-                tr.AddNewlyCreatedDBObject(btr, true);
-                var ids = new ObjectIdCollection(psr.Value.GetObjectIds());
-                var mapping = new IdMapping();
-                Db.DeepCloneObjects(ids, btr.Id, mapping, false);
-                var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
-                var br = new BlockReference(ppr.Value, btr.Id);
-                msBtr.AppendEntity(br);
-                tr.AddNewlyCreatedDBObject(br, true);
-                if (del)
+                using (var tr = Db.TransactionManager.StartTransaction())
                 {
-                    foreach (ObjectId id in psr.Value.GetObjectIds())
+                    var bt = (BlockTable)tr.GetObject(Db.BlockTableId, OpenMode.ForWrite);
+                    int idx = 1;
+                    string name;
+                    do { name = string.Format("{0}{1:D3}", prefix, idx++); } while (bt.Has(name));
+                    var btr = new BlockTableRecord();
+                    btr.Name = name;
+                    btr.Origin = ppr.Value;
+                    bt.Add(btr);
+                    tr.AddNewlyCreatedDBObject(btr, true);
+                    var ids = new ObjectIdCollection(psr.Value.GetObjectIds());
+                    var mapping = new IdMapping();
+                    Db.DeepCloneObjects(ids, btr.Id, mapping, false);
+                    var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
+                    var br = new BlockReference(ppr.Value, btr.Id);
+                    msBtr.AppendEntity(br);
+                    tr.AddNewlyCreatedDBObject(br, true);
+                    if (del)
                     {
-                        tr.GetObject(id, OpenMode.ForWrite).Erase();
+                        foreach (ObjectId id in psr.Value.GetObjectIds())
+                        {
+                            tr.GetObject(id, OpenMode.ForWrite).Erase();
+                        }
                     }
+                    tr.Commit();
+                    createdName = name;
+                    objectCount = ids.Count;
                 }
-                tr.Commit();
-                Ed.WriteMessage(string.Format("\n\u5df2\u521b\u5efa\u5757 \"{0}\" \uff0c\u5305\u542b {1} \u4e2a\u5bf9\u8c61\u3002", name, ids.Count));
-            }
+                return true;
+            });
+            if (!changed) return;
+            Ed.WriteMessage(string.Format("\n\u5df2\u521b\u5efa\u5757 \"{0}\" \uff0c\u5305\u542b {1} \u4e2a\u5bf9\u8c61\u3002", createdName, objectCount));
         }        [CommandMethod("CT_LAYERSTANDARD")]
         public void LayerStandard()
         {
@@ -955,58 +1016,63 @@ namespace CadToolkit
             f.Dispose();
 
             int moved = 0, failed = 0, deleted = 0;
-            using (var tr = Db.TransactionManager.StartTransaction())
+            bool changed = RunWithUndo("CT_LAYERSTANDARD", delegate
             {
-                var lt = (LayerTable)tr.GetObject(Db.LayerTableId, OpenMode.ForRead);
-                foreach (var rule in rules) ApplyLayerRule(tr, lt, rule);
-
-                var targetBySource = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var p in plans) targetBySource[p.SourceLayer] = p.TargetLayer;
-                if (fallbackTo0)
-                    foreach (var p in fallbackPlans) targetBySource[p.SourceLayer] = p.TargetLayer;
-
-                var space = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForRead);
-                foreach (ObjectId id in space)
+                using (var tr = Db.TransactionManager.StartTransaction())
                 {
-                    var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
-                    if (ent == null) continue;
-                    string target;
-                    if (!targetBySource.TryGetValue(ent.Layer, out target)) continue;
-                    try
-                    {
-                        ent.UpgradeOpen();
-                        ent.Layer = target;
-                        if (setByLayer)
-                        {
-                            ent.ColorIndex = 256;
-                            ent.Linetype = "ByLayer";
-                            try { ent.LineWeight = LineWeight.ByLayer; } catch { }
-                        }
-                        moved++;
-                    }
-                    catch { failed++; }
-                }
+                    var lt = (LayerTable)tr.GetObject(Db.LayerTableId, OpenMode.ForRead);
+                    foreach (var rule in rules) ApplyLayerRule(tr, lt, rule);
 
-                if (deleteEmpty)
-                {
-                    var oldLayers = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var p in plans) oldLayers[p.SourceLayer] = true;
+                    var targetBySource = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var p in plans) targetBySource[p.SourceLayer] = p.TargetLayer;
                     if (fallbackTo0)
-                        foreach (var p in fallbackPlans) oldLayers[p.SourceLayer] = true;
-                    foreach (string oldLayer in new List<string>(oldLayers.Keys))
+                        foreach (var p in fallbackPlans) targetBySource[p.SourceLayer] = p.TargetLayer;
+
+                    var space = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForRead);
+                    foreach (ObjectId id in space)
                     {
+                        var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                        if (ent == null) continue;
+                        string target;
+                        if (!targetBySource.TryGetValue(ent.Layer, out target)) continue;
                         try
                         {
-                            if (oldLayer == "0" || !lt.Has(oldLayer) || Db.Clayer == lt[oldLayer]) continue;
-                            var ltr = (LayerTableRecord)tr.GetObject(lt[oldLayer], OpenMode.ForWrite);
-                            ltr.Erase();
-                            deleted++;
+                            ent.UpgradeOpen();
+                            ent.Layer = target;
+                            if (setByLayer)
+                            {
+                                ent.ColorIndex = 256;
+                                ent.Linetype = "ByLayer";
+                                try { ent.LineWeight = LineWeight.ByLayer; } catch { }
+                            }
+                            moved++;
                         }
-                        catch { }
+                        catch { failed++; }
                     }
+
+                    if (deleteEmpty)
+                    {
+                        var oldLayers = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var p in plans) oldLayers[p.SourceLayer] = true;
+                        if (fallbackTo0)
+                            foreach (var p in fallbackPlans) oldLayers[p.SourceLayer] = true;
+                        foreach (string oldLayer in new List<string>(oldLayers.Keys))
+                        {
+                            try
+                            {
+                                if (oldLayer == "0" || !lt.Has(oldLayer) || Db.Clayer == lt[oldLayer]) continue;
+                                var ltr = (LayerTableRecord)tr.GetObject(lt[oldLayer], OpenMode.ForWrite);
+                                ltr.Erase();
+                                deleted++;
+                            }
+                            catch { }
+                        }
+                    }
+                    tr.Commit();
                 }
-                tr.Commit();
-            }
+                return true;
+            });
+            if (!changed) return;
 
             Ed.WriteMessage(string.Format("\n\u56fe\u5c42\u89c4\u8303\u5316\u5b8c\u6210\uff1a\u8fc1\u79fb {0} \u4e2a\u5bf9\u8c61\uff0c\u5931\u8d25 {1} \u4e2a\uff0c\u5220\u9664\u7a7a\u65e7\u5c42 {2} \u4e2a\u3002", moved, failed, deleted));
         }
@@ -1020,44 +1086,49 @@ namespace CadToolkit
             if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
             int count = 0;
             bool hasBlocks = false;
-            using (var tr = Db.TransactionManager.StartTransaction())
+            bool changed = RunWithUndo("CT_SETLAYER0", delegate
             {
-                var lt = (LayerTable)tr.GetObject(Db.LayerTableId, OpenMode.ForRead);
-                if (!lt.Has("0"))
+                using (var tr = Db.TransactionManager.StartTransaction())
                 {
-                    lt.UpgradeOpen();
-                    var ltr = new LayerTableRecord();
-                    ltr.Name = "0";
-                    lt.Add(ltr);
-                    tr.AddNewlyCreatedDBObject(ltr, true);
-                }
-                foreach (ObjectId id in psr.Value.GetObjectIds())
-                {
-                    var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
-                    if (ent == null) continue;
-                    if (ent is BlockReference)
+                    var lt = (LayerTable)tr.GetObject(Db.LayerTableId, OpenMode.ForRead);
+                    if (!lt.Has("0"))
                     {
-                        var br = (BlockReference)ent;
-                        br.UpgradeOpen();
-                        br.Layer = "0";
-                        br.ColorIndex = 256;
-                        count++;
-                        if (br.BlockTableRecord.IsValid)
+                        lt.UpgradeOpen();
+                        var ltr = new LayerTableRecord();
+                        ltr.Name = "0";
+                        lt.Add(ltr);
+                        tr.AddNewlyCreatedDBObject(ltr, true);
+                    }
+                    foreach (ObjectId id in psr.Value.GetObjectIds())
+                    {
+                        var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                        if (ent == null) continue;
+                        if (ent is BlockReference)
                         {
-                            SetBlockLayer0(tr, br.BlockTableRecord);
-                            hasBlocks = true;
+                            var br = (BlockReference)ent;
+                            br.UpgradeOpen();
+                            br.Layer = "0";
+                            br.ColorIndex = 256;
+                            count++;
+                            if (br.BlockTableRecord.IsValid)
+                            {
+                                SetBlockLayer0(tr, br.BlockTableRecord);
+                                hasBlocks = true;
+                            }
+                        }
+                        else
+                        {
+                            ent.UpgradeOpen();
+                            ent.Layer = "0";
+                            ent.ColorIndex = 256;
+                            count++;
                         }
                     }
-                    else
-                    {
-                        ent.UpgradeOpen();
-                        ent.Layer = "0";
-                        ent.ColorIndex = 256;
-                        count++;
-                    }
+                    tr.Commit();
                 }
-                tr.Commit();
-            }
+                return true;
+            });
+            if (!changed) return;
             Ed.WriteMessage(string.Format("\n\u5df2\u5c06 {0} \u4e2a\u5bf9\u8c61\u6539\u5230 0 \u5c42\u3002", count));
             if (hasBlocks) Ed.WriteMessage("\n\u6ce8\u610f\uff1a\u5757\u5b9a\u4e49\u5185\u7684\u5bf9\u8c61\u4e5f\u5df2\u5f52\u96f6\uff0c\u5c06\u5f71\u54cd\u6240\u6709\u540c\u540d\u5757\u5b9e\u4f8b\u3002");
         }
@@ -1325,17 +1396,22 @@ namespace CadToolkit
             texts.Sort(delegate(KeyValuePair<double, string> a, KeyValuePair<double, string> b) { return b.Key.CompareTo(a.Key); });
             var sb = new StringBuilder();
             for (int i = 0; i < texts.Count; i++) { if (i > 0) sb.Append("\\P"); sb.Append(texts[i].Value); }
-            using (var tr = Db.TransactionManager.StartTransaction())
+            bool changed = RunWithUndo("CT_TEXTMERGE", delegate
             {
-                var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
-                var mt = new MText();
-                mt.Contents = sb.ToString();
-                mt.Location = new Point3d(posX, texts[0].Key, 0);
-                mt.TextHeight = maxHeight > 0 ? maxHeight : 3.0;
-                msBtr.AppendEntity(mt);
-                tr.AddNewlyCreatedDBObject(mt, true);
-                tr.Commit();
-            }
+                using (var tr = Db.TransactionManager.StartTransaction())
+                {
+                    var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
+                    var mt = new MText();
+                    mt.Contents = sb.ToString();
+                    mt.Location = new Point3d(posX, texts[0].Key, 0);
+                    mt.TextHeight = maxHeight > 0 ? maxHeight : 3.0;
+                    msBtr.AppendEntity(mt);
+                    tr.AddNewlyCreatedDBObject(mt, true);
+                    tr.Commit();
+                }
+                return true;
+            });
+            if (!changed) return;
             Ed.WriteMessage(string.Format("\n\u5df2\u5408\u5e76 {0} \u4e2a\u6587\u5b57\u4e3a\u591a\u884c\u6587\u5b57\u3002", texts.Count));
         }        [CommandMethod("CT_TEXTNUMBER")]
         public void TextNumber()
