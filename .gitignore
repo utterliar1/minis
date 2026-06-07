@@ -19,6 +19,10 @@ venv/
 .github/stubs/obj/
 .github/stubs/bin/
 
+# CadToolkit build outputs
+CadToolkit/src/**/bin/
+CadToolkit/src/**/obj/
+
 # BlockBrowser build outputs
 BlockBrowser/bin/
 BlockBrowser/obj/
