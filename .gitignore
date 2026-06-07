@@ -11,6 +11,10 @@ venv/
 # Logs
 *.log
 
+# Local Codex worktrees
+.worktrees
+.worktrees/
+
 # CAD build stubs
 .github/stubs/obj/
 .github/stubs/bin/
