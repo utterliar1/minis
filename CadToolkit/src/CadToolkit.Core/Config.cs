@@ -127,6 +127,9 @@ namespace CadToolkit.Core
 
         static string IniPath { get { return Path.Combine(_dir ?? ".", "CadToolkit.ini"); } }
 
+        // Inline comments are recognized only when # or ; appears at the start of
+        // a value token or after whitespace. Values that intentionally begin with
+        // # or ; are not supported by this simple INI parser.
         static string StripInlineComment(string value)
         {
             if (value == null) return "";

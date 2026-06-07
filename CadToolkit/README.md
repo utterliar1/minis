@@ -91,6 +91,8 @@ AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱。
 
 配置文件统一放在 `CadToolkit` 根目录，三端共享同一份 `CadToolkit.ini`，修改一次即可对 AutoCAD / ZWCAD / GstarCAD 生效。
 
+> 配置值中如需使用 `#` 或 `;`，不要让它们出现在值开头或空格之后。当前 INI 解析器会把这种写法识别为行内注释。
+
 ```ini
 # CadToolkit 配置文件
 Version=v1.22
