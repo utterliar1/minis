@@ -24,7 +24,13 @@
     <Reference Include="accoremgd"><HintPath>$(AutoCADDir)\accoremgd.dll</HintPath><Private>False</Private></Reference>
     <Reference Include="AdWindows"><HintPath>$(AutoCADDir)\AdWindows.dll</HintPath><Private>False</Private></Reference>
   </ItemGroup>
-  <ItemGroup><Compile Include="Plugin.cs" /></ItemGroup>
+  <ItemGroup>
+    <Compile Include="Plugin.cs" />
+    <Compile Include="TextCommands.cs" />
+    <Compile Include="LayerCommands.cs" />
+    <Compile Include="BlockCommands.cs" />
+    <Compile Include="DrawCommands.cs" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CadToolkit.Core\CadToolkit.Core.csproj"><Name>CadToolkit.Core</Name></ProjectReference>
     <ProjectReference Include="..\CadToolkit.UI\CadToolkit.UI.csproj"><Name>CadToolkit.UI</Name></ProjectReference>
