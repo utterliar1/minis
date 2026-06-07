@@ -63,7 +63,7 @@ namespace CadToolkit
                 };
                 Config.Init(typeof(CadPlugin).Assembly.Location);
             }
-            catch { }
+            catch (System.Exception ex) { CadCommands.Log("GstarCAD Initialize failed: " + ex.Message); }
         }
         public void Terminate() { }
     }
@@ -91,7 +91,7 @@ namespace CadToolkit
                 };
                 Config.Init(typeof(CadCommands).Assembly.Location);
             }
-            catch { }
+            catch (System.Exception ex) { Log("EnsureInit failed: " + ex.Message); }
         }
 
         static Editor Ed { get { return CadApp.DocumentManager.MdiActiveDocument.Editor; } }
@@ -162,7 +162,7 @@ namespace CadToolkit
             return Ed.GetSelection();
         }
 
-        static void Log(string msg)
+        internal static void Log(string msg)
         {
             try
             {
@@ -296,7 +296,7 @@ namespace CadToolkit
                         var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
                         if (ent != null && matches(ent, tr)) result.Add(id);
                     }
-                    catch { }
+                    catch (System.Exception ex) { Log("FilterObjectIds skipped object: " + ex.Message); }
                 }
                 tr.Commit();
             }
@@ -333,7 +333,7 @@ namespace CadToolkit
 #endif
                 Db.LoadLineTypeFile(lineTypeName, fileName);
             }
-            catch { }
+            catch (System.Exception ex) { Log("EnsureLineType failed for " + lineTypeName + ": " + ex.Message); }
         }
 
         static void ApplyLayerRule(Transaction tr, LayerTable lt, LayerStandardRule rule)
@@ -353,15 +353,15 @@ namespace CadToolkit
                 tr.AddNewlyCreatedDBObject(ltr, true);
             }
 
-            try { ltr.Color = CadColor.FromColorIndex(CadColorMethod.ByAci, (short)rule.ColorIndex); } catch { }
-            try { ltr.LineWeight = ParseLineWeight(rule.LineWeight); } catch { }
-            try { ltr.IsPlottable = rule.Plot; } catch { }
+            try { ltr.Color = CadColor.FromColorIndex(CadColorMethod.ByAci, (short)rule.ColorIndex); } catch (System.Exception ex) { Log("ApplyLayerRule color failed for " + rule.Name + ": " + ex.Message); }
+            try { ltr.LineWeight = ParseLineWeight(rule.LineWeight); } catch (System.Exception ex) { Log("ApplyLayerRule lineweight failed for " + rule.Name + ": " + ex.Message); }
+            try { ltr.IsPlottable = rule.Plot; } catch (System.Exception ex) { Log("ApplyLayerRule plot failed for " + rule.Name + ": " + ex.Message); }
             try
             {
                 var lineTypes = (LinetypeTable)tr.GetObject(Db.LinetypeTableId, OpenMode.ForRead);
                 if (lineTypes.Has(rule.Linetype)) ltr.LinetypeObjectId = lineTypes[rule.Linetype];
             }
-            catch { }
+            catch (System.Exception ex) { Log("ApplyLayerRule linetype failed for " + rule.Name + ": " + ex.Message); }
         }
 
         static string FormatLayerPlan(List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0)
@@ -592,7 +592,7 @@ namespace CadToolkit
                 if (System.IO.File.Exists(pfPath))
                 {
                     string handleStr = System.IO.File.ReadAllText(pfPath).Trim();
-                    try { System.IO.File.Delete(pfPath); } catch {}
+                    try { System.IO.File.Delete(pfPath); } catch (System.Exception ex) { Log("Delete pickfirst.txt failed: " + ex.Message); }
                     if (!string.IsNullOrEmpty(handleStr))
                     {
                         string[] handles = handleStr.Split(new char[] { ',' });
@@ -605,13 +605,13 @@ namespace CadToolkit
                                 ObjectId oid = Db.GetObjectId(false, new Handle(val), 0);
                                 if (oid.IsValid) ids.Add(oid);
                             }
-                            catch { }
+                            catch (System.Exception ex) { Log("Invalid pickfirst handle skipped: " + ex.Message); }
                         }
                         if (ids.Count > 0) _pendingSelection = ids.ToArray();
                     }
                 }
             }
-            catch { }
+            catch (System.Exception ex) { Log("Read pickfirst selection failed: " + ex.Message); }
 
             f.ShowDialog();
             f.Dispose();
@@ -1043,7 +1043,7 @@ namespace CadToolkit
                             {
                                 ent.ColorIndex = 256;
                                 ent.Linetype = "ByLayer";
-                                try { ent.LineWeight = LineWeight.ByLayer; } catch { }
+                                try { ent.LineWeight = LineWeight.ByLayer; } catch (System.Exception ex) { Log("Set entity lineweight ByLayer failed: " + ex.Message); }
                             }
                             moved++;
                         }
@@ -1065,7 +1065,7 @@ namespace CadToolkit
                                 ltr.Erase();
                                 deleted++;
                             }
-                            catch { }
+                            catch (System.Exception ex) { Log("Delete empty old layer failed for " + oldLayer + ": " + ex.Message); }
                         }
                     }
                     tr.Commit();
@@ -1232,7 +1232,7 @@ namespace CadToolkit
                     else if (ent is Hatch || ent is Solid3d)
                     {
                         Extents3d ext3d;
-                        var e2 = (Entity)ent; try { ext3d = e2.GeometricExtents; } catch { continue; }
+                        var e2 = (Entity)ent; try { ext3d = e2.GeometricExtents; } catch (System.Exception ex) { Log("CenterLine extents skipped: " + ex.Message); continue; }
                         center = new Point3d((ext3d.MinPoint.X + ext3d.MaxPoint.X) / 2.0, (ext3d.MinPoint.Y + ext3d.MaxPoint.Y) / 2.0, 0);
                         halfX = (ext3d.MaxPoint.X - ext3d.MinPoint.X) / 2.0 * (1.0 + extRatio);
                         halfY = (ext3d.MaxPoint.Y - ext3d.MinPoint.Y) / 2.0 * (1.0 + extRatio);
@@ -1241,12 +1241,12 @@ namespace CadToolkit
                     if (!ok) continue;
                     var l1 = new Line(new Point3d(center.X - halfX, center.Y, 0), new Point3d(center.X + halfX, center.Y, 0));
                     l1.Layer = "0"; l1.ColorIndex = 1;
-                    try { l1.Linetype = ltName; } catch { }
+                    try { l1.Linetype = ltName; } catch (System.Exception ex) { Log("Set centerline horizontal linetype failed: " + ex.Message); }
                     l1.LinetypeScale = 1.0;
                     msBtr.AppendEntity(l1); tr.AddNewlyCreatedDBObject(l1, true);
                     var l2 = new Line(new Point3d(center.X, center.Y - halfY, 0), new Point3d(center.X, center.Y + halfY, 0));
                     l2.Layer = "0"; l2.ColorIndex = 1;
-                    try { l2.Linetype = ltName; } catch { }
+                    try { l2.Linetype = ltName; } catch (System.Exception ex) { Log("Set centerline vertical linetype failed: " + ex.Message); }
                     l2.LinetypeScale = 1.0;
                     msBtr.AppendEntity(l2); tr.AddNewlyCreatedDBObject(l2, true);
                     count++;
@@ -1497,7 +1497,7 @@ namespace CadToolkit
                     foreach (var lid in frozen)
                     {
                         if (!lid.IsValid) continue;
-                        try { var ltr = (LayerTableRecord)tr.GetObject(lid, OpenMode.ForWrite); ltr.IsFrozen = false; } catch { }
+                        try { var ltr = (LayerTableRecord)tr.GetObject(lid, OpenMode.ForWrite); ltr.IsFrozen = false; } catch (System.Exception ex) { Log("Restore isolated layer failed: " + ex.Message); }
                     }
                     tr.Commit();
                 }
@@ -1529,7 +1529,7 @@ namespace CadToolkit
                         ltr.IsFrozen = true;
                         frozenList.Add(lid);
                     }
-                    catch { }
+                    catch (System.Exception ex) { Log("Freeze non-isolated layer failed: " + ex.Message); }
                 }
                 tr.Commit();
             }
@@ -1559,7 +1559,7 @@ namespace CadToolkit
                         if (ext.MaxPoint.X > maxX) maxX = ext.MaxPoint.X;
                         if (ext.MaxPoint.Y > maxY) maxY = ext.MaxPoint.Y;
                     }
-                    catch { }
+                    catch (System.Exception ex) { Log("Freeze non-isolated layer failed: " + ex.Message); }
                 }
                 tr.Commit();
             }
@@ -1769,7 +1769,7 @@ namespace CadToolkit
                                 count++;
                             }
                         }
-                        catch { }
+                    catch (System.Exception ex) { Log("QuickDim extents skipped: " + ex.Message); }
                     }
                 }
                 tr.Commit();

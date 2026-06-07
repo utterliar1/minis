@@ -38,6 +38,16 @@ namespace CadToolkit.Core
                     lock (_fileLock) { File.WriteAllText(IniPath, def, Encoding.UTF8); }
                 }
             }
+            catch (Exception ex) { LogConfigError("EnsureConfig failed: " + ex.Message); }
+        }
+
+        static void LogConfigError(string msg)
+        {
+            try
+            {
+                string logPath = Path.Combine(Path.GetTempPath(), "CadToolkit.log");
+                File.AppendAllText(logPath, string.Format("[{0}] {1}\r\n", DateTime.Now.ToString("HH:mm:ss"), msg), Encoding.UTF8);
+            }
             catch { }
         }
 
@@ -142,7 +152,7 @@ namespace CadToolkit.Core
                     if (eq > 0 && t.Substring(0, eq).Trim().Equals(key, StringComparison.OrdinalIgnoreCase))
                         return StripInlineComment(t.Substring(eq + 1));
                 }
-            } catch { }
+            } catch (Exception ex) { LogConfigError("GetString failed: " + ex.Message); }
             return def;
         }
 
@@ -193,7 +203,7 @@ namespace CadToolkit.Core
                     lines.Insert(insertAt, key + "=" + val);
                 }
                 lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
-            } catch { }
+            } catch (Exception ex) { LogConfigError("SaveString failed: " + ex.Message); }
         }
         static void SaveInt(string key, int val) { SaveString(key, val.ToString()); }
         static void SaveBool(string key, bool val) { SaveString(key, val.ToString()); }
@@ -223,7 +233,7 @@ namespace CadToolkit.Core
                             list.Add(new KeyValuePair<string, string>(key, val));
                     }
                 }
-            } catch { }
+            } catch (Exception ex) { LogConfigError("GetSectionValues failed: " + ex.Message); }
             return list;
         }
 
@@ -296,7 +306,7 @@ namespace CadToolkit.Core
                             list.Add(new KeyValuePair<string, string>(label, cmd));
                     }
                 }
-            } catch { }
+            } catch (Exception ex) { LogConfigError("GetCommands failed: " + ex.Message); }
             return list;
         }
 
@@ -339,7 +349,7 @@ namespace CadToolkit.Core
                             current.Commands.Add(new KeyValuePair<string, string>(label, cmd));
                     }
                 }
-            } catch { }
+            } catch (Exception ex) { LogConfigError("GetCommandGroups failed: " + ex.Message); }
             // remove empty groups
             for (int i = groups.Count - 1; i >= 0; i--)
                 if (groups[i].Commands.Count == 0) groups.RemoveAt(i);
@@ -368,7 +378,7 @@ namespace CadToolkit.Core
                 }
                 lines.Insert(insertIdx, label + "=" + cmd);
                 lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
-            } catch { }
+            } catch (Exception ex) { LogConfigError("SaveCommand failed: " + ex.Message); }
         }
 
         public static void RemoveCommand(string label)
@@ -395,7 +405,7 @@ namespace CadToolkit.Core
                     }
                 }
                 lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
-            } catch { }
+            } catch (Exception ex) { LogConfigError("RemoveCommand failed: " + ex.Message); }
         }
 
     public class CommandGroup
