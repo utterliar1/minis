@@ -8,7 +8,7 @@ echo ========================================
 set "MSBUILD=C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe"
 set "BASE=%~dp0"
 set "DEPLOY=C:\CadToolkit"
-set "CT_VERSION=v1.23.1"
+set "CT_VERSION=v1.23.2"
 
 for /f "tokens=2 delims=()" %%V in ('findstr /C:"AssemblyVersion" "%BASE%src\CadToolkit.Core\Properties\AssemblyInfo.cs"') do (
     set "ASM_VERSION=%%~V"

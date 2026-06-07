@@ -30,6 +30,14 @@ namespace GrxCAD.ApplicationServices
     }
     public class DocumentLock : IDisposable { public void Dispose() {} }
 }
+namespace GrxCAD.Colors
+{
+    public enum ColorMethod { ByAci }
+    public class Color
+    {
+        public static Color FromColorIndex(ColorMethod method, short colorIndex) { return new Color(); }
+    }
+}
 namespace GrxCAD.DatabaseServices
 {
     public class Database : IDisposable
@@ -70,6 +78,7 @@ namespace GrxCAD.DatabaseServices
         public void Dispose() {}
     }
     public enum OpenMode { ForRead, ForWrite }
+    public enum LineWeight { ByLayer = -1, ByBlock = -2, ByLineWeightDefault = -3 }
     public enum FileOpenMode { OpenForReadAndAllShare, OpenForReadAndWriteNoShare, OpenForReadAndAllShareWithConversions }
     public enum DwgVersion { Current, AC1015, AC1018, AC1021, AC1024, AC1027, AC1032 }
     public class DBObject
@@ -140,6 +149,7 @@ namespace GrxCAD.DatabaseServices
         public ObjectId LayerId { get; set; }
         public ObjectId LinetypeId { get; set; }
         public ObjectId TextStyleId { get; set; }
+        public LineWeight LineWeight { get; set; }
         public Geometry.Extents3d GeometricExtents { get; set; }
         public Entity Clone() { return null; }
         public void TransformBy(Geometry.Matrix3d mat) {}
@@ -196,7 +206,18 @@ namespace GrxCAD.DatabaseServices
         public IEnumerator<ObjectId> GetEnumerator() { yield break; }
         IEnumerator IEnumerable.GetEnumerator() { yield break; }
     }
-    public class LayerTableRecord : DBObject { public string Name { get; set; } public bool IsFrozen { get; set; } public bool IsOff { get; set; } public bool IsLocked { get; set; } }
+    public class LayerTableRecord : DBObject
+    {
+        public string Name { get; set; }
+        public bool IsFrozen { get; set; }
+        public bool IsOff { get; set; }
+        public bool IsLocked { get; set; }
+        public bool IsDependent { get; set; }
+        public GrxCAD.Colors.Color Color { get; set; }
+        public LineWeight LineWeight { get; set; }
+        public bool IsPlottable { get; set; }
+        public ObjectId LinetypeObjectId { get; set; }
+    }
     public class LinetypeTable : DBObject, IEnumerable<ObjectId>
     {
         public bool Has(string name) { return false; }
@@ -232,7 +253,16 @@ namespace GrxCAD.DatabaseServices
         public bool Closed { get; set; }
         public int NumberOfVertices { get; }
         public Geometry.Point3d GetPoint3dAt(int index) { return new Geometry.Point3d(); }
+        public void SetPointAt(int index, Geometry.Point2d point) {}
+        public double Elevation { get; set; }
     }
+    public class Polyline2d : Entity { public double Elevation { get; set; } }
+    public class Polyline3d : Entity, IEnumerable<ObjectId>
+    {
+        public IEnumerator<ObjectId> GetEnumerator() { yield break; }
+        IEnumerator IEnumerable.GetEnumerator() { yield break; }
+    }
+    public class PolylineVertex3d : Entity { public Geometry.Point3d Position { get; set; } }
     public class Arc : Entity
     {
         public Geometry.Point3d Center { get; set; }
@@ -243,6 +273,9 @@ namespace GrxCAD.DatabaseServices
     public class Spline : Entity
     {
         public Entity ToPolyline() { return null; }
+        public int NumControlPoints { get; set; }
+        public Geometry.Point3d GetControlPointAt(int index) { return new Geometry.Point3d(); }
+        public void SetControlPointAt(int index, Geometry.Point3d point) {}
     }
     public class Ellipse : Entity
     {
@@ -264,6 +297,7 @@ namespace GrxCAD.DatabaseServices
         public Geometry.Point3d DimLinePoint { get; set; }
         public ObjectId DimensionStyle { get; set; }
     }
+    public class Dimension : Entity { public Geometry.Point3d TextPosition { get; set; } }
 }
 namespace GrxCAD.EditorInput
 {
@@ -275,6 +309,8 @@ namespace GrxCAD.EditorInput
         public PromptSelectionResult GetSelection(SelectionFilter filter) { return new PromptSelectionResult(); }
         public PromptSelectionResult SelectImplied() { return new PromptSelectionResult(); }
         public void SetImpliedSelection(DatabaseServices.ObjectId[] ids) {}
+        public PromptSelectionResult GetSelection(PromptSelectionOptions opts) { return new PromptSelectionResult(); }
+        public PromptSelectionResult SelectAll(SelectionFilter filter) { return new PromptSelectionResult(); }
         public PromptEntityResult GetEntity(string msg) { return new PromptEntityResult(); }
         public PromptEntityResult GetEntity(PromptEntityOptions opts) { return new PromptEntityResult(); }
         public PromptStringResult GetString(string msg) { return new PromptStringResult(); }
@@ -297,6 +333,7 @@ namespace GrxCAD.EditorInput
     }
     public class PromptEntityResult { public PromptStatus Status { get; set; } public DatabaseServices.ObjectId ObjectId { get; set; } public Geometry.Point3d PickPoint { get; set; } }
     public class PromptSelectionResult { public PromptStatus Status { get; set; } public SelectionSet Value { get; set; } }
+    public class PromptSelectionOptions { public string MessageForAdding { get; set; } }
     public class SelectionSet { public DatabaseServices.ObjectId[] GetObjectIds() { return new DatabaseServices.ObjectId[0]; } public int Count { get; set; } }
     public class SelectionFilter { public SelectionFilter(TypedValue[] tv) {} }
     public struct TypedValue { public TypedValue(int code) { Code = code; Value = null; } public TypedValue(int code, object value) { Code = code; Value = value; } public int Code { get; set; } public object Value { get; set; } }
@@ -309,6 +346,7 @@ namespace GrxCAD.Geometry
     public struct Point2d { public Point2d(double x, double y) {} public double X { get; set; } public double Y { get; set; } }
     public struct Point3d { public Point3d(double x, double y, double z) {} public double X { get; set; } public double Y { get; set; } public double Z { get; set; } public static Point3d Origin { get { return new Point3d(0,0,0); } }
         public Point3d TransformBy(Matrix3d xf) { return this; } }
+    public class Point3dCollection : List<Point3d> {}
     public struct Vector3d { public Vector3d(double x, double y, double z) {} public double X { get; set; } public double Y { get; set; } public double Z { get; set; } public static Vector3d XAxis { get { return new Vector3d(1,0,0); } } public static Vector3d YAxis { get { return new Vector3d(0,1,0); } } public static Vector3d ZAxis { get { return new Vector3d(0,0,1); } }
         public double Length { get { return 0; } } }
     public struct Matrix3d { public static Matrix3d Displacement(Vector3d vec) { return new Matrix3d(); } public static Matrix3d Identity { get { return new Matrix3d(); } }

@@ -177,7 +177,7 @@ namespace CadToolkit.Core
                     }
                 }
                 catch (Exception ex) { LogConfigError("Read assembly version failed: " + ex.Message); }
-                return "v1.23.1";
+                return "v1.23.2";
             }
         }
 
