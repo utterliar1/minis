@@ -52,7 +52,7 @@ namespace BlockBrowser
     public static class BlockLibrary
     {
         public static string LibraryPath { get; set; }
-        public const string AppVersion = "1.25";
+        public const string AppVersion = "1.25.2";
         public static string PlatformName { get; set; }
         public static int ThumbSize { get; set; }
         public static double InsertScale { get; set; }
@@ -62,9 +62,7 @@ namespace BlockBrowser
 
         static BlockLibrary()
         {
-            string dllDir = Path.GetDirectoryName(typeof(BlockLibrary).Assembly.Location) ?? "";
-            string pluginRoot = Path.GetFullPath(Path.Combine(dllDir, ".."));
-            LibraryPath = Path.Combine(pluginRoot, "我的常用块");
+            LibraryPath = Path.Combine(PluginRoot, "我的常用块");
             ThumbSize = 128;
             InsertScale = 1.0;
             InsertRotation = 0;
@@ -96,10 +94,58 @@ namespace BlockBrowser
         {
             get
             {
-                string dllDir = Path.GetDirectoryName(typeof(BlockLibrary).Assembly.Location) ?? "";
-                string pluginRoot = Path.GetFullPath(Path.Combine(dllDir, ".."));
-                return Path.Combine(pluginRoot, "config.ini");
+                return Path.Combine(PluginRoot, "config.ini");
             }
+        }
+
+        private static string PluginRoot
+        {
+            get
+            {
+                string dllDir = Path.GetDirectoryName(typeof(BlockLibrary).Assembly.Location) ?? "";
+                return Path.GetFullPath(Path.Combine(dllDir, ".."));
+            }
+        }
+
+        private static string EnsureTrailingSeparator(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return "";
+            char last = path[path.Length - 1];
+            if (last == Path.DirectorySeparatorChar || last == Path.AltDirectorySeparatorChar) return path;
+            return path + Path.DirectorySeparatorChar;
+        }
+
+        private static string ToConfigPath(string path)
+        {
+            try
+            {
+                string full = Path.GetFullPath(path);
+                string root = EnsureTrailingSeparator(PluginRoot);
+                if (full.Equals(PluginRoot, StringComparison.OrdinalIgnoreCase)) return ".";
+                if (full.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                    return full.Substring(root.Length);
+                return full;
+            }
+            catch
+            {
+                return path;
+            }
+        }
+
+        public static bool IsSafeLibraryName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            string trimmed = name.Trim();
+            if (trimmed == "." || trimmed == "..") return false;
+            char[] invalid = Path.GetInvalidFileNameChars();
+            foreach (char c in trimmed)
+            {
+                foreach (char ic in invalid)
+                {
+                    if (c == ic) return false;
+                }
+            }
+            return true;
         }
 
         public static void LoadConfig()
@@ -131,25 +177,13 @@ namespace BlockBrowser
                                 _recentBlocks.Add(t);
                         }
                     }
-                    else if (key.Equals("RecentBlocks", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val))
-                    {
-                        _recentBlocks.Clear();
-                        foreach (var rp in val.Split('|'))
-                        {
-                            string t = rp.Trim();
-                            if (!string.IsNullOrEmpty(t) && !_recentBlocks.Contains(t))
-                                _recentBlocks.Add(t);
-                        }
-                    }
                     else if (key.Equals("LibraryPath", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val))
                     {
                         if (Path.IsPathRooted(val))
                             LibraryPath = val;
                         else
                         {
-                            string dllDir2 = Path.GetDirectoryName(typeof(BlockLibrary).Assembly.Location) ?? "";
-                            string pluginRoot2 = Path.GetFullPath(Path.Combine(dllDir2, ".."));
-                            LibraryPath = Path.Combine(pluginRoot2, val);
+                            LibraryPath = Path.Combine(PluginRoot, val);
                         }
                     }
                 }
@@ -166,7 +200,7 @@ namespace BlockBrowser
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
                 var lines = new List<string>();
                 lines.Add("# 块浏览器配置文件");
-                lines.Add("LibraryPath=" + LibraryPath);
+                lines.Add("LibraryPath=" + ToConfigPath(LibraryPath));
                 lines.Add("ThumbSize=" + ThumbSize);
                 lines.Add("InsertScale=" + InsertScale.ToString("G"));
                 lines.Add("InsertRotation=" + (InsertRotation * 180.0 / Math.PI).ToString("G"));
@@ -708,14 +742,13 @@ namespace BlockBrowser
         public static bool RenameBlock(BlockInfo block, string newName)
         {
             if (block == null || string.IsNullOrEmpty(newName)) return false;
+            newName = newName.Trim();
+            if (!IsSafeLibraryName(newName)) return false;
             string oldPath = block.FilePath;
             string dir = Path.GetDirectoryName(oldPath);
             if (string.IsNullOrEmpty(dir)) return false;
             string newPath = Path.Combine(dir, newName + ".dwg");
             if (File.Exists(newPath)) return false;
-            // Validate filename chars
-            char[] invalid = Path.GetInvalidFileNameChars();
-            foreach (char c in newName) { foreach (char ic in invalid) { if (c == ic) return false; } }
             // Rename DWG file
             File.Move(oldPath, newPath);
             // Rename thumbnail cache
@@ -799,6 +832,13 @@ namespace BlockBrowser
             Document doc = CadApp.DocumentManager.MdiActiveDocument;
             if (doc == null) return false;
             Editor ed = doc.Editor;
+            blockName = (blockName ?? "").Trim();
+            category = (category ?? "").Trim();
+            if (!IsSafeLibraryName(blockName) || !IsSafeLibraryName(category))
+            {
+                ed.WriteMessage("\n名称或分类包含非法字符，取消。");
+                return false;
+            }
             string catDir = Path.Combine(LibraryPath, category);
             if (!Directory.Exists(catDir)) Directory.CreateDirectory(catDir);
             string outPath = Path.Combine(catDir, blockName + ".dwg");
@@ -839,6 +879,13 @@ namespace BlockBrowser
             Document doc = CadApp.DocumentManager.MdiActiveDocument;
             if (doc == null) return false;
             Editor ed = doc.Editor;
+            blockName = (blockName ?? "").Trim();
+            category = (category ?? "").Trim();
+            if (!IsSafeLibraryName(blockName) || !IsSafeLibraryName(category))
+            {
+                ed.WriteMessage("\n名称或分类包含非法字符，取消。");
+                return false;
+            }
             string catDir = Path.Combine(LibraryPath, category);
             if (!Directory.Exists(catDir)) Directory.CreateDirectory(catDir);
             string outPath = Path.Combine(catDir, blockName + ".dwg");
@@ -912,6 +959,23 @@ namespace BlockBrowser
     {
         [CommandMethod("BB", CommandFlags.Session)]
         public void OpenBlockBrowser()
+        {
+            OpenBlockBrowserCore();
+        }
+
+        [CommandMethod("BB_PANEL", CommandFlags.Session)]
+        public void OpenBlockBrowserPanel()
+        {
+            OpenBlockBrowserCore();
+        }
+
+        [CommandMethod("BBPANEL", CommandFlags.Session)]
+        public void OpenBlockBrowserPanelCompat()
+        {
+            OpenBlockBrowserCore();
+        }
+
+        private void OpenBlockBrowserCore()
         {
             try
             {
@@ -1019,7 +1083,7 @@ namespace BlockBrowser
 
                 var lbl2 = new Label { Text = "分类:", Location = new Point(15, 325), AutoSize = true };
                 var cmb = new ComboBox { Location = new Point(15, 345), Width = 200, DropDownStyle = ComboBoxStyle.DropDown };
-                var categories = BlockLibrary.GetCategories().Where(c => c != "全部").ToList();
+                var categories = BlockLibrary.GetCategories().Where(c => c != "全部" && c != "最近").ToList();
                 cmb.Items.AddRange(categories.ToArray());
                 if (cmb.Items.Count > 0) cmb.SelectedIndex = 0;
 
@@ -1036,6 +1100,7 @@ namespace BlockBrowser
             }
 
             if (selectedBlocks.Count == 0 || string.IsNullOrEmpty(selCategory)) { ed.WriteMessage("\n取消。"); return; }
+            if (!BlockLibrary.IsSafeLibraryName(selCategory)) { ed.WriteMessage("\n分类包含非法字符，取消。"); return; }
             int ok = 0, fail = 0;
             foreach (var blk in selectedBlocks)
             {
@@ -1090,7 +1155,7 @@ namespace BlockBrowser
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
             try
             {
-                ed.WriteMessage("\n=== 块浏览器 v1.23 (" + BlockLibrary.PlatformName + ") ===");
+                ed.WriteMessage("\n=== 块浏览器 v" + BlockLibrary.AppVersion + " (" + BlockLibrary.PlatformName + ") ===");
                 ed.WriteMessage("\n库: " + BlockLibrary.LibraryPath);
                 ed.WriteMessage("\n命令: BB KLLQ BBADD BBEXPORT BBTHUMB");
             }

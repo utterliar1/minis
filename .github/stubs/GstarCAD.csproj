@@ -3,6 +3,8 @@
     <TargetFramework>net48</TargetFramework>
     <LangVersion>latest</LangVersion>
     <AssemblyName>gmdb</AssemblyName>
+    <AssemblyVersion>3.5.0.31596</AssemblyVersion>
+    <FileVersion>3.5.0.31596</FileVersion>
     <OutputPath>bin\</OutputPath>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>

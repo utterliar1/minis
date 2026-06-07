@@ -184,6 +184,12 @@ namespace BlockBrowser
         {
             try
             {
+                _thumbTimer.Stop();
+                foreach (var kv in _categoryCards) { foreach (var c in kv.Value) { try { c.Dispose(); } catch { } } }
+                _categoryCards.Clear();
+                _cards.Clear();
+                _flowBlocks.Controls.Clear();
+
                 _lblStatus.Text = "加载中...";
                 this.Refresh();
 
@@ -468,9 +474,11 @@ namespace BlockBrowser
             string newName = ShowInputDialog("输入新名称:", oldName);
             if (string.IsNullOrEmpty(newName) || newName.Trim() == oldName) return;
             newName = newName.Trim();
-            // Validate filename chars
-            char[] invalid = Path.GetInvalidFileNameChars();
-            foreach (char c in newName) { foreach (char ic in invalid) { if (c == ic) { MessageBox.Show("名称包含非法字符: " + ic, "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; } } }
+            if (!BlockLibrary.IsSafeLibraryName(newName))
+            {
+                MessageBox.Show("名称为空或包含非法字符。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
             string oldPath = _selectedBlock.FilePath;
             string dir = Path.GetDirectoryName(oldPath);
             string newPath = Path.Combine(dir, newName + ".dwg");
@@ -501,11 +509,16 @@ namespace BlockBrowser
 
         private void BtnAddToLib_Click(object sender, EventArgs e)
         {
-            var categories = BlockLibrary.GetCategories().Where(c => c != "全部").ToList();
+            var categories = BlockLibrary.GetCategories().Where(c => c != "全部" && c != "最近").ToList();
             string category = ShowCategoryDialog("选择分类", categories);
             if (category == null) return;
             string name = ShowInputDialog("输入块名称:");
             if (string.IsNullOrEmpty(name)) return;
+            if (!BlockLibrary.IsSafeLibraryName(category) || !BlockLibrary.IsSafeLibraryName(name))
+            {
+                MessageBox.Show("分类或名称为空，或包含非法字符。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
             PendingCategory = category;
             PendingBlockName = name.Trim();
             PendingCommand = "BBADD";
