@@ -254,28 +254,18 @@ namespace CadToolkit
         {
             ObjectId[] selectedIds = GetSelectionOrAbort();
             if (selectedIds == null) return;
-            var f = new Form();
-            f.Text = "\u6587\u5b57\u7f16\u53f7";
-            f.StartPosition = FormStartPosition.CenterParent;
-            f.FormBorderStyle = FormBorderStyle.FixedDialog;
-            f.MaximizeBox = false; f.MinimizeBox = false; f.ShowInTaskbar = false;
-            f.AutoScaleMode = AutoScaleMode.None; f.AutoScroll = true; f.ClientSize = new Size(UiScale(320), UiScale(132));
-            var l1 = new Label(); l1.Text = "\u524d\u7f00\uff1a"; l1.Left = UiScale(16); l1.Top = UiScale(16); l1.AutoSize = true; l1.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
-            var t1 = new TextBox(); t1.Left = UiScale(76); t1.Top = UiScale(12); t1.Width = UiScale(70); t1.Text = ""; t1.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            var l2 = new Label(); l2.Text = "\u540e\u7f00\uff1a"; l2.Left = UiScale(160); l2.Top = UiScale(16); l2.AutoSize = true; l2.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
-            var t2 = new TextBox(); t2.Left = UiScale(220); t2.Top = UiScale(12); t2.Width = UiScale(70); t2.Text = ""; t2.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            var l3 = new Label(); l3.Text = "\u8d77\u59cb\u53f7\uff1a"; l3.Left = UiScale(16); l3.Top = UiScale(52); l3.AutoSize = true; l3.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
-            var t3 = new TextBox(); t3.Left = UiScale(76); t3.Top = UiScale(48); t3.Width = UiScale(70); t3.Text = "1"; t3.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            var chkReplace = new CheckBox(); chkReplace.Text = "\u66ff\u6362\uff08\u7528\u7f16\u53f7\u66ff\u6362\u539f\u6587\uff09"; chkReplace.Left = UiScale(160); chkReplace.Top = UiScale(50); chkReplace.Width = UiScale(150); chkReplace.Height = UiScale(24); chkReplace.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            var ok = new Button(); ok.Text = "\u786e\u5b9a"; ok.DialogResult = DialogResult.OK; ok.Left = UiScale(132); ok.Top = UiScale(92); ok.Width = UiScale(80); ok.Height = UiScale(28); ok.FlatStyle = FlatStyle.System;
-            var cancel = new Button(); cancel.Text = "\u53d6\u6d88"; cancel.DialogResult = DialogResult.Cancel; cancel.Left = UiScale(224); cancel.Top = UiScale(92); cancel.Width = UiScale(76); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
-            f.Controls.AddRange(new Control[] { l1, t1, l2, t2, l3, t3, chkReplace, ok, cancel });
-            f.AcceptButton = ok; f.CancelButton = cancel;
-            f.Shown += delegate { t1.Focus(); };
-            if (f.ShowDialog() != DialogResult.OK) return;
-            string prefix = t1.Text.Trim();
-            string suffix = t2.Text.Trim();
-            int startNum = 1; int.TryParse(t3.Text.Trim(), out startNum);
+            string prefix;
+            string suffix;
+            int startNum;
+            bool replaceOriginal;
+            using (var dlg = new TextNumberDialog())
+            {
+                if (dlg.ShowDialog() != DialogResult.OK) return;
+                prefix = dlg.Prefix;
+                suffix = dlg.Suffix;
+                startNum = dlg.StartNumber;
+                replaceOriginal = dlg.ReplaceOriginal;
+            }
             var items = new List<KeyValuePair<Point3d, ObjectId>>();
             using (var tr = Db.TransactionManager.StartTransaction())
             {
@@ -303,7 +293,7 @@ namespace CadToolkit
                 {
                     var ent = tr.GetObject(items[i].Value, OpenMode.ForWrite);
                     string numStr = prefix + (startNum + i).ToString() + suffix;
-                    if (chkReplace.Checked)
+                    if (replaceOriginal)
                     {
                         if (ent is DBText) { var _dt = (DBText)ent; _dt.TextString = numStr; count++; }
                         else if (ent is MText) { var _mt = (MText)ent; _mt.Contents = numStr; count++; }
