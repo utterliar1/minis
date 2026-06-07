@@ -8,7 +8,7 @@ echo ========================================
 set "MSBUILD=C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe"
 set "BASE=%~dp0"
 set "DEPLOY=C:\CadToolkit"
-set "CT_VERSION=v1.23.2"
+set "CT_VERSION=v1.23.3"
 
 for /f "tokens=2 delims=()" %%V in ('findstr /C:"AssemblyVersion" "%BASE%src\CadToolkit.Core\Properties\AssemblyInfo.cs"') do (
     set "ASM_VERSION=%%~V"
@@ -56,7 +56,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content '%BASE%auto
 if exist "%DEPLOY%\acad\autoload.lsp" del /q "%DEPLOY%\acad\autoload.lsp"
 if exist "%DEPLOY%\zwcad\autoload.lsp" del /q "%DEPLOY%\zwcad\autoload.lsp"
 if exist "%DEPLOY%\gcad\autoload.lsp" del /q "%DEPLOY%\gcad\autoload.lsp"
-copy /Y "%BASE%CadToolkit.ini" "%DEPLOY%\"
+copy /Y "%BASE%CadToolkit.default.ini" "%DEPLOY%\CadToolkit.default.ini"
+if not exist "%DEPLOY%\CadToolkit.ini" (
+    copy /Y "%BASE%CadToolkit.default.ini" "%DEPLOY%\CadToolkit.ini"
+    echo   Config: created CadToolkit.ini from default template
+) else (
+    echo   Config: existing CadToolkit.ini preserved
+)
 if exist "%DEPLOY%\acad\CadToolkit.ini" del /q "%DEPLOY%\acad\CadToolkit.ini"
 if exist "%DEPLOY%\zwcad\CadToolkit.ini" del /q "%DEPLOY%\zwcad\CadToolkit.ini"
 if exist "%DEPLOY%\gcad\CadToolkit.ini" del /q "%DEPLOY%\gcad\CadToolkit.ini"

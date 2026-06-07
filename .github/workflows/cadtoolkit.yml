@@ -95,7 +95,7 @@ jobs:
           $autoload = Get-Content "${{ github.workspace }}\CadToolkit\autoload.lsp" -Raw
           $autoload = $autoload -replace 'CadToolkit v[0-9.]+ ready', "CadToolkit v$ver ready"
           Set-Content "$pkg\autoload.lsp" $autoload -Encoding UTF8
-          Copy-Item "${{ github.workspace }}\CadToolkit\CadToolkit.ini" "$pkg\"
+          Copy-Item "${{ github.workspace }}\CadToolkit\CadToolkit.default.ini" "$pkg\"
 
           $zip = "${{ github.workspace }}\release\CadToolkit-v$ver.zip"
           Compress-Archive -Path "$pkg\*" -DestinationPath $zip -Force
@@ -119,6 +119,7 @@ jobs:
             1. 解压到 `C:\CadToolkit`
             2. CAD 中执行 `(load "C:/CadToolkit/autoload.lsp")`
             3. 输入 `CC` 打开工具面板
+            4. 首次启动会自动创建 `CadToolkit.ini`；升级时不要覆盖已有配置
 
             ### 包含
             | 平台 | 文件 |

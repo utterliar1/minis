@@ -255,11 +255,40 @@ namespace CadToolkit
                 foreach (string alias in rule.Aliases)
                 {
                     if (alias.Length == 0) continue;
-                    if (layerName.IndexOf(alias, StringComparison.OrdinalIgnoreCase) >= 0)
+                    if (IsLayerAliasMatch(layerName, alias))
                         return rule;
                 }
             }
             return null;
+        }
+
+        static bool IsLayerAliasMatch(string layerName, string alias)
+        {
+            if (string.IsNullOrEmpty(layerName) || string.IsNullOrEmpty(alias)) return false;
+            bool hasDigit = false;
+            for (int i = 0; i < alias.Length; i++)
+            {
+                if (char.IsDigit(alias[i])) { hasDigit = true; break; }
+            }
+            if (!hasDigit)
+                return layerName.IndexOf(alias, StringComparison.OrdinalIgnoreCase) >= 0;
+
+            int start = 0;
+            while (start <= layerName.Length - alias.Length)
+            {
+                int index = layerName.IndexOf(alias, start, StringComparison.OrdinalIgnoreCase);
+                if (index < 0) return false;
+                if (IsLayerAliasBoundary(layerName, index - 1) && IsLayerAliasBoundary(layerName, index + alias.Length))
+                    return true;
+                start = index + 1;
+            }
+            return false;
+        }
+
+        static bool IsLayerAliasBoundary(string text, int index)
+        {
+            if (index < 0 || index >= text.Length) return true;
+            return !char.IsLetterOrDigit(text[index]);
         }
 
         static bool SimpleWildcardMatch(string text, string pattern)

@@ -91,6 +91,8 @@ AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱。
 
 配置文件统一放在 `CadToolkit` 根目录，三端共享同一份 `CadToolkit.ini`，修改一次即可对 AutoCAD / ZWCAD / GstarCAD 生效。
 
+升级或重新部署时不要覆盖已有 `CadToolkit.ini`。发布包提供 `CadToolkit.default.ini` 作为默认模板；如果根目录没有 `CadToolkit.ini`，插件首次启动会自动生成一份。
+
 > 配置值中如需使用 `#` 或 `;`，不要让它们出现在值开头或空格之后。当前 INI 解析器会把这种写法识别为行内注释。
 
 ```ini
@@ -201,7 +203,8 @@ LayerStandardWhitelist=0,Defpoints,*图框*,*视口*,*原有*,*新增*
 ```
 CadToolkit/
 ├── autoload.lsp            # CAD 自动加载脚本
-├── CadToolkit.ini          # 配置文件（共享）
+├── CadToolkit.ini          # 用户配置文件（共享，升级时保留）
+├── CadToolkit.default.ini  # 默认配置模板
 ├── build-all.bat           # 编译部署脚本
 ├── acad/                   # AutoCAD 专用 DLL
 │   ├── CadToolkit.dll

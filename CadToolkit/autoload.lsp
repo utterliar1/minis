@@ -40,7 +40,7 @@
             (setvar "CMDECHO" 0)
             (vl-cmdf "NETLOAD" _ct-dll)
             (setvar "CMDECHO" 1)
-            (princ "\nCadToolkit v1.23.2 ready. Type CC to start.")
+            (princ "\nCadToolkit v1.23.3 ready. Type CC to start.")
           )
           (princ (strcat "\n[CadToolkit] DLL not found: " _ct-dll))
         )

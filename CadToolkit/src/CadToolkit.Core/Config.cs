@@ -110,13 +110,13 @@ namespace CadToolkit.Core
             sb.AppendLine("11-\u586B\u5145=8|CONTINUOUS|Default|true");
             sb.AppendLine();
             sb.AppendLine("[LayerMap]");
-            sb.AppendLine("0-\u8BBE\u5907\u5C42=\u8BBE\u5907,0-4");
-            sb.AppendLine("1-\u4E2D\u5FC3\u7EBF\u5C42=\u4E2D\u5FC3,\u4E2D\u5FC3\u7EBF,CENTER,0-1");
-            sb.AppendLine("2-\u865A\u7EBF\u5C42=\u865A\u7EBF,HIDDEN,DASH");
+            sb.AppendLine("0-\u8BBE\u5907\u5C42=\u8BBE\u5907,0-4,VIS35");
+            sb.AppendLine("1-\u4E2D\u5FC3\u7EBF\u5C42=\u4E2D\u5FC3,\u4E2D\u5FC3\u7EBF,CENTER,0-1,1");
+            sb.AppendLine("2-\u865A\u7EBF\u5C42=\u865A\u7EBF,HIDDEN,DASH,HID");
             sb.AppendLine("3-\u6587\u5B57\u5C42=\u6587\u5B57,\u8BF4\u660E,\u7F16\u53F7,TEXT,txt");
             sb.AppendLine("4-\u6807\u6CE8\u5C42=\u6807\u6CE8,\u5C3A\u5BF8,DIM,dim");
             sb.AppendLine("5-\u98CE\u7F51=\u98CE\u7F51,\u98CE\u7BA1,\u98CE\u9053,0-5");
-            sb.AppendLine("6-\u6E9C\u7BA1=\u6E9C\u7BA1");
+            sb.AppendLine("6-\u6E9C\u7BA1=\u6E9C\u7BA1,\u538B\u8FD0,VIS5");
             sb.AppendLine("7-\u6D1E\u5B54=\u6D1E\u53E3,\u6D1E\u5B54,\u5F00\u6D1E");
             sb.AppendLine("8-\u53D7\u529B\u70B9=\u53D7\u529B,\u53D7\u529B\u70B9,\u540A\u70B9");
             sb.AppendLine("9-\u5EFA\u7B51=\u5EFA\u7B51,ARCH");
@@ -177,7 +177,7 @@ namespace CadToolkit.Core
                     }
                 }
                 catch (Exception ex) { LogConfigError("Read assembly version failed: " + ex.Message); }
-                return "v1.23.2";
+                return "v1.23.3";
             }
         }
 

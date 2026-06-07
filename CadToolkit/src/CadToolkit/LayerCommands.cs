@@ -57,15 +57,7 @@ namespace CadToolkit
             var layerCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             using (var tr = Db.TransactionManager.StartTransaction())
             {
-                var space = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForRead);
-                foreach (ObjectId id in space)
-                {
-                    var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
-                    if (ent == null) continue;
-                    string layer = ent.Layer;
-                    if (!layerCounts.ContainsKey(layer)) layerCounts[layer] = 0;
-                    layerCounts[layer]++;
-                }
+                CountLayerStandardEntities(tr, GetLayerStandardScopeIds(tr), layerCounts);
                 tr.Commit();
             }
 
@@ -154,34 +146,17 @@ namespace CadToolkit
                     if (fallbackTo0)
                         foreach (var p in fallbackPlans) targetBySource[p.SourceLayer] = p.TargetLayer;
 
-                    var space = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForRead);
-                    foreach (ObjectId id in space)
-                    {
-                        var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
-                        if (ent == null) continue;
-                        string target;
-                        if (!targetBySource.TryGetValue(ent.Layer, out target)) continue;
-                        try
-                        {
-                            ent.UpgradeOpen();
-                            ent.Layer = target;
-                            if (setByLayer)
-                            {
-                                ent.ColorIndex = 256;
-                                ent.Linetype = "ByLayer";
-                                try { ent.LineWeight = LineWeight.ByLayer; } catch (System.Exception ex) { Log("Set entity lineweight ByLayer failed: " + ex.Message); }
-                            }
-                            moved++;
-                        }
-                        catch { failed++; }
-                    }
+                    moved += MoveLayerStandardEntities(tr, GetLayerStandardScopeIds(tr), targetBySource, setByLayer, ref failed);
 
                     if (deleteEmpty)
                     {
                         var oldLayers = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                         foreach (var p in plans) oldLayers[p.SourceLayer] = true;
                         if (fallbackTo0)
+                        {
                             foreach (var p in fallbackPlans) oldLayers[p.SourceLayer] = true;
+                            AddLayerStandardCleanupCandidates(tr, lt, rules, layerWhitelist, oldLayers);
+                        }
                         foreach (string oldLayer in new List<string>(oldLayers.Keys))
                         {
                             try
@@ -201,6 +176,163 @@ namespace CadToolkit
             if (!changed) return;
 
             Ed.WriteMessage(string.Format("\n\u56fe\u5c42\u89c4\u8303\u5316\u5b8c\u6210\uff1a\u8fc1\u79fb {0} \u4e2a\u5bf9\u8c61\uff0c\u5931\u8d25 {1} \u4e2a\uff0c\u5220\u9664\u7a7a\u65e7\u5c42 {2} \u4e2a\u3002", moved, failed, deleted));
+        }
+
+        static List<ObjectId> GetLayerStandardScopeIds(Transaction tr)
+        {
+            var ids = new List<ObjectId>();
+            var bt = (BlockTable)tr.GetObject(Db.BlockTableId, OpenMode.ForRead);
+            foreach (ObjectId btrId in bt)
+            {
+                try
+                {
+                    var btr = tr.GetObject(btrId, OpenMode.ForRead) as BlockTableRecord;
+                    if (btr == null || IsExternalBlockRecord(btr)) continue;
+                    ids.Add(btrId);
+                }
+                catch (System.Exception ex) { Log("Read layer standard scope failed: " + ex.Message); }
+            }
+            return ids;
+        }
+
+        static bool IsExternalBlockRecord(BlockTableRecord btr)
+        {
+            return TryGetBoolProperty(btr, "IsFromExternalReference")
+                || TryGetBoolProperty(btr, "IsFromOverlayReference")
+                || TryGetBoolProperty(btr, "IsDependent");
+        }
+
+        static bool TryGetBoolProperty(object target, string propertyName)
+        {
+            try
+            {
+                if (target == null) return false;
+                var prop = target.GetType().GetProperty(propertyName);
+                if (prop == null || prop.PropertyType != typeof(bool)) return false;
+                return (bool)prop.GetValue(target, null);
+            }
+            catch { return false; }
+        }
+
+        static void CountLayerStandardEntities(Transaction tr, List<ObjectId> scopeIds, Dictionary<string, int> layerCounts)
+        {
+            foreach (ObjectId btrId in scopeIds)
+            {
+                var btr = tr.GetObject(btrId, OpenMode.ForRead) as BlockTableRecord;
+                if (btr == null) continue;
+                foreach (ObjectId id in btr)
+                {
+                    var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                    if (ent == null) continue;
+                    AddLayerCount(layerCounts, ent.Layer);
+                    CountBlockReferenceAttributes(tr, ent as BlockReference, layerCounts);
+                }
+            }
+        }
+
+        static void AddLayerCount(Dictionary<string, int> layerCounts, string layer)
+        {
+            if (string.IsNullOrEmpty(layer)) return;
+            if (!layerCounts.ContainsKey(layer)) layerCounts[layer] = 0;
+            layerCounts[layer]++;
+        }
+
+        static void CountBlockReferenceAttributes(Transaction tr, BlockReference br, Dictionary<string, int> layerCounts)
+        {
+            if (br == null || br.AttributeCollection == null) return;
+            try
+            {
+                foreach (ObjectId attId in br.AttributeCollection)
+                {
+                    var att = tr.GetObject(attId, OpenMode.ForRead) as AttributeReference;
+                    if (att == null) continue;
+                    AddLayerCount(layerCounts, att.Layer);
+                }
+            }
+            catch (System.Exception ex) { Log("Count block attributes failed: " + ex.Message); }
+        }
+
+        static int MoveLayerStandardEntities(Transaction tr, List<ObjectId> scopeIds, Dictionary<string, string> targetBySource, bool setByLayer, ref int failed)
+        {
+            int moved = 0;
+            foreach (ObjectId btrId in scopeIds)
+            {
+                var btr = tr.GetObject(btrId, OpenMode.ForRead) as BlockTableRecord;
+                if (btr == null) continue;
+                foreach (ObjectId id in btr)
+                {
+                    var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                    if (ent == null) continue;
+                    if (MoveLayerStandardEntity(ent, targetBySource, setByLayer, ref failed)) moved++;
+                    moved += MoveBlockReferenceAttributes(tr, ent as BlockReference, targetBySource, setByLayer, ref failed);
+                }
+            }
+            return moved;
+        }
+
+        static bool MoveLayerStandardEntity(Entity ent, Dictionary<string, string> targetBySource, bool setByLayer, ref int failed)
+        {
+            string target;
+            if (!targetBySource.TryGetValue(ent.Layer, out target)) return false;
+            try
+            {
+                ent.UpgradeOpen();
+                ent.Layer = target;
+                if (setByLayer) ApplyByLayer(ent);
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                failed++;
+                Log("Move layer standard entity failed: " + ex.Message);
+                return false;
+            }
+        }
+
+        static int MoveBlockReferenceAttributes(Transaction tr, BlockReference br, Dictionary<string, string> targetBySource, bool setByLayer, ref int failed)
+        {
+            if (br == null || br.AttributeCollection == null) return 0;
+            int moved = 0;
+            try
+            {
+                foreach (ObjectId attId in br.AttributeCollection)
+                {
+                    var att = tr.GetObject(attId, OpenMode.ForRead) as AttributeReference;
+                    if (att == null) continue;
+                    if (MoveLayerStandardEntity(att, targetBySource, setByLayer, ref failed)) moved++;
+                }
+            }
+            catch (System.Exception ex) { Log("Move block attributes failed: " + ex.Message); }
+            return moved;
+        }
+
+        static void ApplyByLayer(Entity ent)
+        {
+            ent.ColorIndex = 256;
+            ent.Linetype = "ByLayer";
+            try { ent.LineWeight = LineWeight.ByLayer; } catch (System.Exception ex) { Log("Set entity lineweight ByLayer failed: " + ex.Message); }
+        }
+
+        static void AddLayerStandardCleanupCandidates(Transaction tr, LayerTable lt, List<LayerStandardRule> rules, string whitelist, Dictionary<string, bool> oldLayers)
+        {
+            foreach (ObjectId layerId in lt)
+            {
+                try
+                {
+                    var ltr = tr.GetObject(layerId, OpenMode.ForRead) as LayerTableRecord;
+                    if (ltr == null || string.IsNullOrEmpty(ltr.Name) || ltr.IsDependent) continue;
+                    if (ltr.Name == "0" || IsLayerWhitelisted(ltr.Name, whitelist) || IsStandardLayer(ltr.Name, rules)) continue;
+                    oldLayers[ltr.Name] = true;
+                }
+                catch (System.Exception ex) { Log("Collect empty old layer candidate failed: " + ex.Message); }
+            }
+        }
+
+        static bool IsStandardLayer(string layerName, List<LayerStandardRule> rules)
+        {
+            foreach (var rule in rules)
+                if (rule.Name.Equals(layerName, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
         }
 
 [CommandMethod("CT_SETLAYER0")]
