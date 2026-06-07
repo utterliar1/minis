@@ -206,10 +206,8 @@ namespace CadToolkit
 [CommandMethod("CT_SETLAYER0")]
         public void SetLayer0()
         {
-            EnsureInit();
-            if (!CheckDoc()) return;
-            var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
+            ObjectId[] selectedIds = GetSelectionOrAbort();
+            if (selectedIds == null) return;
             int count = 0;
             bool hasBlocks = false;
             bool changed = RunWithUndo("CT_SETLAYER0", delegate
@@ -225,7 +223,7 @@ namespace CadToolkit
                         lt.Add(ltr);
                         tr.AddNewlyCreatedDBObject(ltr, true);
                     }
-                    foreach (ObjectId id in psr.Value.GetObjectIds())
+                    foreach (ObjectId id in selectedIds)
                     {
                         var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
                         if (ent == null) continue;
@@ -363,4 +361,5 @@ namespace CadToolkit
         }
     }
 }
+
 

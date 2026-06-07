@@ -72,10 +72,8 @@ namespace CadToolkit
 [CommandMethod("CT_ALIGN")]
         public void AlignText()
         {
-            EnsureInit();
-            if (!CheckDoc()) return;
-            var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
+            ObjectId[] selectedIds = GetSelectionOrAbort();
+            if (selectedIds == null) return;
             using (var dlg = new AlignDialog())
             {
                 if (dlg.ShowDialog() != DialogResult.OK) return;
@@ -89,7 +87,7 @@ namespace CadToolkit
                 {
                     using (var tr = Db.TransactionManager.StartTransaction())
                     {
-                        foreach (ObjectId id in psr.Value.GetObjectIds())
+                        foreach (ObjectId id in selectedIds)
                         {
                             var ent = tr.GetObject(id, OpenMode.ForRead);
                             if (ent is DBText) texts.Add((DBText)ent);
@@ -143,16 +141,14 @@ namespace CadToolkit
 [CommandMethod("CT_UNDERLINE")]
         public void UnderlineText()
         {
-            EnsureInit();
-            if (!CheckDoc()) return;
-            var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
+            ObjectId[] selectedIds = GetSelectionOrAbort();
+            if (selectedIds == null) return;
             bool keep = Config.KeepOriginal;
             int count = 0;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
                 var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
-                foreach (ObjectId id in psr.Value.GetObjectIds())
+                foreach (ObjectId id in selectedIds)
                 {
                     var ent = tr.GetObject(id, OpenMode.ForRead);
                     if (!(ent is DBText)) continue;
@@ -194,12 +190,12 @@ namespace CadToolkit
                 else { var mt = (MText)ent; srcLayer = mt.Layer; srcColor = mt.ColorIndex; srcHeight = mt.TextHeight; srcStyle = mt.TextStyleName; }
                 tr.Commit();
             }
-            var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u76ee\u6807\u6587\u5b57\u3002"); return; }
+            ObjectId[] selectedIds = GetSelectionOrAbort("\n\u672a\u9009\u62e9\u76ee\u6807\u6587\u5b57\u3002");
+            if (selectedIds == null) return;
             int count = 0;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
-                foreach (ObjectId id in psr.Value.GetObjectIds())
+                foreach (ObjectId id in selectedIds)
                 {
                     var ent = tr.GetObject(id, OpenMode.ForWrite);
                     if (ent is DBText) { var dt = (DBText)ent; dt.Layer = srcLayer; dt.ColorIndex = srcColor; dt.Height = srcHeight; dt.TextStyleId = GetTextStyleId(tr, srcStyle); count++; }
@@ -213,16 +209,14 @@ namespace CadToolkit
 [CommandMethod("CT_TEXTMERGE")]
         public void TextMerge()
         {
-            EnsureInit();
-            if (!CheckDoc()) return;
-            var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
+            ObjectId[] selectedIds = GetSelectionOrAbort();
+            if (selectedIds == null) return;
             var texts = new List<KeyValuePair<double, string>>();
             double maxHeight = 0;
             double posX = 0;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
-                foreach (ObjectId id in psr.Value.GetObjectIds())
+                foreach (ObjectId id in selectedIds)
                 {
                     var ent = tr.GetObject(id, OpenMode.ForRead);
                     string txt = null; double y = 0; double h = 0;
@@ -258,10 +252,8 @@ namespace CadToolkit
 [CommandMethod("CT_TEXTNUMBER")]
         public void TextNumber()
         {
-            EnsureInit();
-            if (!CheckDoc()) return;
-            var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
+            ObjectId[] selectedIds = GetSelectionOrAbort();
+            if (selectedIds == null) return;
             var f = new Form();
             f.Text = "\u6587\u5b57\u7f16\u53f7";
             f.StartPosition = FormStartPosition.CenterParent;
@@ -287,7 +279,7 @@ namespace CadToolkit
             var items = new List<KeyValuePair<Point3d, ObjectId>>();
             using (var tr = Db.TransactionManager.StartTransaction())
             {
-                foreach (ObjectId id in psr.Value.GetObjectIds())
+                foreach (ObjectId id in selectedIds)
                 {
                     var ent = tr.GetObject(id, OpenMode.ForRead);
                     Point3d pos = Point3d.Origin;
@@ -328,4 +320,5 @@ namespace CadToolkit
         }
     }
 }
+
 

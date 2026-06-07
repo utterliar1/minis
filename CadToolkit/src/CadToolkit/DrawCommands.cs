@@ -44,10 +44,8 @@ namespace CadToolkit
 [CommandMethod("CT_CENTERLINE")]
         public void DrawCenterLine()
         {
-            EnsureInit();
-            if (!CheckDoc()) return;
-            var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
+            ObjectId[] selectedIds = GetSelectionOrAbort();
+            if (selectedIds == null) return;
             string ltName = "Continuous";
             using (var tr = Db.TransactionManager.StartTransaction())
             {
@@ -75,7 +73,7 @@ namespace CadToolkit
             using (var tr = Db.TransactionManager.StartTransaction())
             {
                 var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
-                foreach (ObjectId id in psr.Value.GetObjectIds())
+                foreach (ObjectId id in selectedIds)
                 {
                     var ent = tr.GetObject(id, OpenMode.ForRead);
                     Point3d center = Point3d.Origin;
@@ -139,15 +137,13 @@ namespace CadToolkit
 [CommandMethod("CT_QUICKDIM")]
         public void QuickDim()
         {
-            EnsureInit();
-            if (!CheckDoc()) return;
-            var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
+            ObjectId[] selectedIds = GetSelectionOrAbort();
+            if (selectedIds == null) return;
             double minX = double.MaxValue, minY = double.MaxValue;
             double maxX = double.MinValue, maxY = double.MinValue;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
-                foreach (ObjectId id in psr.Value.GetObjectIds())
+                foreach (ObjectId id in selectedIds)
                 {
                     var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
                     if (ent == null) continue;
@@ -189,15 +185,13 @@ namespace CadToolkit
 [CommandMethod("CT_INCCOPY")]
         public void IncCopy()
         {
-            EnsureInit();
-            if (!CheckDoc()) return;
-            var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
+            ObjectId[] selectedIds = GetSelectionOrAbort();
+            if (selectedIds == null) return;
             string baseText = null;
             Point3d anchor = Point3d.Origin;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
-                foreach (ObjectId id in psr.Value.GetObjectIds())
+                foreach (ObjectId id in selectedIds)
                 {
                     var ent = tr.GetObject(id, OpenMode.ForRead);
                     if (ent is DBText) { baseText = ((DBText)ent).TextString; anchor = ((DBText)ent).Position; break; }
@@ -228,7 +222,7 @@ namespace CadToolkit
                 using (var tr = Db.TransactionManager.StartTransaction())
                 {
                     var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
-                    foreach (ObjectId id in psr.Value.GetObjectIds())
+                    foreach (ObjectId id in selectedIds)
                     {
                         var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
                         if (ent == null) continue;
@@ -249,14 +243,12 @@ namespace CadToolkit
 [CommandMethod("CT_FLATTEN")]
         public void FlattenZ()
         {
-            EnsureInit();
-            if (!CheckDoc()) return;
-            var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
+            ObjectId[] selectedIds = GetSelectionOrAbort();
+            if (selectedIds == null) return;
             int count = 0;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
-                foreach (ObjectId id in psr.Value.GetObjectIds())
+                foreach (ObjectId id in selectedIds)
                 {
                     var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
                     if (ent == null) continue;
@@ -378,4 +370,6 @@ namespace CadToolkit
         }
     }
 }
+
+
 

@@ -104,10 +104,8 @@ namespace CadToolkit
 [CommandMethod("CT_QUICKBLOCK")]
         public void QuickBlock()
         {
-            EnsureInit();
-            if (!CheckDoc()) return;
-            var psr = GetPendingOrSelection();
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
+            ObjectId[] selectedIds = GetSelectionOrAbort();
+            if (selectedIds == null) return;
             var ppr = Ed.GetPoint("\n\u6307\u5b9a\u5757\u57fa\u70b9\uff1a");
             if (ppr.Status != PromptStatus.OK) return;
             string prefix = Config.Prefix;
@@ -127,7 +125,7 @@ namespace CadToolkit
                     btr.Origin = ppr.Value;
                     bt.Add(btr);
                     tr.AddNewlyCreatedDBObject(btr, true);
-                    var ids = new ObjectIdCollection(psr.Value.GetObjectIds());
+                    var ids = new ObjectIdCollection(selectedIds);
                     var mapping = new IdMapping();
                     Db.DeepCloneObjects(ids, btr.Id, mapping, false);
                     var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
@@ -136,7 +134,7 @@ namespace CadToolkit
                     tr.AddNewlyCreatedDBObject(br, true);
                     if (del)
                     {
-                        foreach (ObjectId id in psr.Value.GetObjectIds())
+                        foreach (ObjectId id in selectedIds)
                         {
                             tr.GetObject(id, OpenMode.ForWrite).Erase();
                         }

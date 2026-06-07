@@ -162,6 +162,24 @@ namespace CadToolkit
             return Ed.GetSelection();
         }
 
+        static ObjectId[] GetSelectionOrAbort()
+        {
+            return GetSelectionOrAbort("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002");
+        }
+
+        static ObjectId[] GetSelectionOrAbort(string emptyMessage)
+        {
+            EnsureInit();
+            if (!CheckDoc()) return null;
+            var psr = GetPendingOrSelection();
+            if (psr.Status != PromptStatus.OK || psr.Value == null || psr.Value.Count == 0)
+            {
+                Ed.WriteMessage(emptyMessage);
+                return null;
+            }
+            return psr.Value.GetObjectIds();
+        }
+
         internal static void Log(string msg)
         {
             try
@@ -404,12 +422,18 @@ namespace CadToolkit
             return sb.ToString();
         }
 
+        static double _uiScaleFactor;
+
         static int UiScale(int value)
         {
             try
             {
-                using (var g = Graphics.FromHwnd(IntPtr.Zero))
-                    return Math.Max(1, (int)Math.Round(value * g.DpiX / 96.0));
+                if (_uiScaleFactor <= 0)
+                {
+                    using (var g = Graphics.FromHwnd(IntPtr.Zero))
+                        _uiScaleFactor = g.DpiX / 96.0;
+                }
+                return Math.Max(1, (int)Math.Round(value * _uiScaleFactor));
             }
             catch { return value; }
         }
