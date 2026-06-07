@@ -1,78 +1,72 @@
-﻿# CadToolkit Refactoring Design
+﻿# CadToolkit 重构设计
 
-**Date:** 2026-06-07
-**Status:** Approved
-**Scope:** CadToolkit plugin code quality and maintainability improvement
+**日期：** 2026-06-07
+**状态：** 已批准
+**范围：** CadToolkit 插件代码质量与可维护性提升
 
-## Problem
+## 问题
 
-Plugin.cs is 1710 lines with 19 command methods, helper methods, UI construction, and dialog logic all in one file. There are 21 silent `catch { }` blocks, no Undo groups for batch operations, duplicated selection patterns across 12 commands, and scattered UI construction code. Version numbers are hardcoded in 3 places.
+`Plugin.cs` 有 1710 行，19 个命令方法、辅助方法、UI 构建和对话框逻辑全部堆在一个文件里。存在 21 处静默 `catch { }`、批量操作没有 Undo 组、12 个命令重复相同的选择模式、UI 构建代码散落各处。版本号在 3 个地方硬编码。
 
-## Phased Approach
+## 分阶段方案
 
-### Phase 1: Zero-risk immediate wins
+### 阶段 1：零风险即时收益
 
-**Undo groups** for 5 batch commands:
-- CT_LAYERSTANDARD
-- CT_ALIGN
-- CT_QUICKBLOCK
-- CT_SETLAYER0
-- CT_TEXTMERGE
+**Undo 组** — 为 5 个批量命令添加撤销组：
+- `CT_LAYERSTANDARD`
+- `CT_ALIGN`
+- `CT_QUICKBLOCK`
+- `CT_SETLAYER0`
+- `CT_TEXTMERGE`
 
-Wrap each command body in `Db.StartUndoMark()` / `Db.EndUndoMark()` so Ctrl+Z reverts the entire operation at once.
+在每个命令外层包裹 `Db.StartUndoMark()` / `Db.EndUndoMark()`，让用户 Ctrl+Z 一次回退整个操作。
 
-**Catch improvements:**
-Replace silent `catch { }` with tiered handling:
-- Critical path (LayerStandard, QuickBlock, CenterLine): `catch (Exception ex) { Ed.WriteMessage("\nwarning: " + ex.Message); }`
-- Config read/write: `catch (Exception ex) { Log("Config: " + ex.Message); }`
-- Best-effort operations (EnsureLineType, ApplyLayerRule attributes): keep silent but log
+**异常处理改进：**
+将静默 `catch { }` 替换为分级处理：
+- 关键路径（LayerStandard、QuickBlock、CenterLine）：`catch (Exception ex) { Ed.WriteMessage("\n警告：" + ex.Message); }`
+- 配置读写：`catch (Exception ex) { Log("配置：" + ex.Message); }`
+- 非关键操作（EnsureLineType、ApplyLayerRule 属性设置）：保留静默但记录日志
 
-### Phase 2: Structural reorganization
+### 阶段 2：结构重组
 
-**File split** using `partial class CadCommands`:
+**文件拆分** — 使用 `partial class CadCommands`：
 
-| File | Content | Est. lines |
-|------|---------|-----------|
-| `Plugin.cs` | Entry, EnsureInit, shared helpers (CheckDoc, GetPendingOrSelection, Log, SimpleWildcardMatch, IsLayerWhitelisted, UiScale cache) | ~200 |
-| `TextCommands.cs` | CT_FINDREPLACE, CT_ALIGN, CT_UNDERLINE, CT_TEXTBRUSH, CT_TEXTMERGE, CT_TEXTNUMBER | ~400 |
-| `LayerCommands.cs` | CT_SETLAYER0, CT_LAYERSTANDARD, CT_ISOLAYER, CT_SELECTBYLAYER, CT_SELECTBYCOLOR | ~350 |
-| `BlockCommands.cs` | CT_RENAMEBLOCK, CT_QUICKBLOCK, CT_SELECTBYBLOCK | ~200 |
-| `DrawCommands.cs` | CT_CENTERLINE, CT_QUICKDIM, CT_INCCOPY, CT_FLATTEN | ~350 |
+| 文件 | 内容 | 预估行数 |
+|------|------|---------|
+| `Plugin.cs` | 入口、EnsureInit、公共辅助方法（CheckDoc、GetPendingOrSelection、Log、SimpleWildcardMatch、IsLayerWhitelisted、UiScale 缓存） | ~200 |
+| `TextCommands.cs` | CT_FINDREPLACE、CT_ALIGN、CT_UNDERLINE、CT_TEXTBRUSH、CT_TEXTMERGE、CT_TEXTNUMBER | ~400 |
+| `LayerCommands.cs` | CT_SETLAYER0、CT_LAYERSTANDARD、CT_ISOLAYER、CT_SELECTBYLAYER、CT_SELECTBYCOLOR | ~350 |
+| `BlockCommands.cs` | CT_RENAMEBLOCK、CT_QUICKBLOCK、CT_SELECTBYBLOCK | ~200 |
+| `DrawCommands.cs` | CT_CENTERLINE、CT_QUICKDIM、CT_INCCOPY、CT_FLATTEN | ~350 |
 
-**Pattern extraction:**
-Extract `GetSelectionOrAbort()` to eliminate 12 copies of:
-```
-EnsureInit();
-if (!CheckDoc()) return;
-var psr = GetPendingOrSelection();
-if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n未选择对象。"); return; }
-```
+**重复模式提取：**
+提取 `GetSelectionOrAbort()` 方法，消除 12 处重复的选择初始化代码。
 
-**UiScale caching:**
-Cache DPI factor once instead of calling `Graphics.FromHwnd(IntPtr.Zero)` 33 times.
+**UiScale 缓存：**
+缓存 DPI 系数，替代 33 次 `Graphics.FromHwnd(IntPtr.Zero)` 调用。
 
-**TextNumber dialog:**
-Move inline dialog code from Plugin.cs to `CadToolkit.UI/Dialogs.cs` as `TextNumberDialog`.
+**TextNumber 对话框：**
+将 Plugin.cs 中的内联对话框代码移到 `CadToolkit.UI/Dialogs.cs`，命名为 `TextNumberDialog`。
 
-### Phase 3: Polish
+### 阶段 3：收尾打磨
 
-**Version unification:**
-Read version from `AssemblyVersion` attribute in csproj. Inject into autoload.lsp output and INI default config at build time via CI or build-all.bat.
+**版本号统一：**
+从 csproj 的 `AssemblyVersion` 属性读取版本号。通过 CI 或 build-all.bat 在构建时注入到 autoload.lsp 输出和 INI 默认配置中。
 
-**Config documentation:**
-Add clear comments to `StripInlineComment` behavior and document limitations (no `#` or `;` at start of values).
+**配置文档：**
+为 `StripInlineComment` 行为添加注释，说明限制（值不能以 `#` 或 `;` 开头）。
 
-**PanelBuilder:**
-Extract ShowPanel layout logic (~180 lines) to `CadToolkit.UI/PanelBuilder.cs`.
+**PanelBuilder：**
+将 ShowPanel 布局逻辑（~180 行）提取到 `CadToolkit.UI/PanelBuilder.cs`。
 
-## Verification
+## 验证方式
 
-- Phase 1: Load plugin in CAD, run CT_LAYERSTANDARD + CT_ALIGN, verify Ctrl+Z reverts entire operation. Test error path by temporarily renaming CadToolkit.ini.
-- Phase 2: Build all 3 platforms (build-all.bat). Verify all 18 commands still load and execute. Check that partial class compiles cleanly.
-- Phase 3: Verify `CC` command shows correct version. Verify autoload.lsp prints correct version on load.
+- 阶段 1：在 CAD 中加载插件，运行 CT_LAYERSTANDARD + CT_ALIGN，验证 Ctrl+Z 可一次回退整个操作。临时重命名 CadToolkit.ini 测试错误路径。
+- 阶段 2：运行 build-all.bat 编译全部 3 个平台。验证 18 个命令均可正常加载和执行。检查 partial class 编译无报错。
+- 阶段 3：验证 `CC` 命令显示正确版本号。验证 autoload.lsp 加载时输出正确版本。
 
-## Risks
+## 风险
 
-- File split requires updating all 3 csproj files to include new .cs files
-- Undo mark + Transaction nesting needs care: StartUndoMark must be before transaction, EndUndoMark after commit
-- PanelBuilder extraction may break GstarCAD's IExtensionApplication registration if class visibility changes
+- 文件拆分需要更新 3 个 csproj 文件以包含新的 .cs 文件
+- Undo 标记与 Transaction 嵌套需要注意：StartUndoMark 必须在事务之前，EndUndoMark 在提交之后
+- PanelBuilder 提取可能影响 GstarCAD 的 IExtensionApplication 注册（类可见性变化）
