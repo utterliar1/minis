@@ -8,7 +8,7 @@ echo ========================================
 set "MSBUILD=C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe"
 set "BASE=%~dp0"
 set "DEPLOY=C:\CadToolkit"
-set "CT_VERSION=v1.22"
+set "CT_VERSION=v1.23"
 
 for /f "tokens=2 delims=()" %%V in ('findstr /C:"AssemblyVersion" "%BASE%src\CadToolkit.Core\Properties\AssemblyInfo.cs"') do (
     set "ASM_VERSION=%%~V"
@@ -54,9 +54,9 @@ copy /Y "%DEPLOY%\autoload.lsp" "%DEPLOY%\acad\"
 copy /Y "%DEPLOY%\autoload.lsp" "%DEPLOY%\zwcad\"
 copy /Y "%DEPLOY%\autoload.lsp" "%DEPLOY%\gcad\"
 copy /Y "%BASE%CadToolkit.ini" "%DEPLOY%\"
-copy /Y "%BASE%CadToolkit.ini" "%DEPLOY%\acad\"
-copy /Y "%BASE%CadToolkit.ini" "%DEPLOY%\zwcad\"
-copy /Y "%BASE%CadToolkit.ini" "%DEPLOY%\gcad\"
+if exist "%DEPLOY%\acad\CadToolkit.ini" del /q "%DEPLOY%\acad\CadToolkit.ini"
+if exist "%DEPLOY%\zwcad\CadToolkit.ini" del /q "%DEPLOY%\zwcad\CadToolkit.ini"
+if exist "%DEPLOY%\gcad\CadToolkit.ini" del /q "%DEPLOY%\gcad\CadToolkit.ini"
 
 echo ========================================
 echo   Done! Output: %DEPLOY%

@@ -172,7 +172,7 @@ namespace CadToolkit.Core
                     if (v != null) return "v" + v.Major + "." + v.Minor;
                 }
                 catch (Exception ex) { LogConfigError("Read assembly version failed: " + ex.Message); }
-                return "v1.22";
+                return "v1.23";
             }
         }
 
