@@ -129,19 +129,3 @@ jobs:
             | 命令 | 功能 |
             |------|------|
             | `CC` | 打开工具面板 |
-            | `CT_FINDREPLACE` | 查找替换 |
-            | `CT_ALIGN` | 文字对齐 |
-            | `CT_UNDERLINE` | 加下划线 |
-            | `CT_RENAMEBLOCK` | 重命名块 |
-            | `CT_QUICKBLOCK` | 快捷建块 |
-            | `CT_SETLAYER0` | 图层归零 |
-            | `CT_CENTERLINE` | 画中心线 |
-            | `CT_ISOLAYER` | 孤立图层 |
-            | `CT_TEXTBRUSH` | 格式复制 |
-            | `CT_TEXTMERGE` | 文字合并 |
-            | `CT_TEXTNUMBER` | 文字编号 |
-            | `CT_QUICKDIM` | 快速标注 |
-            | `CT_INCCOPY` | 递增复制 |
-            | `CT_SELECTBYLAYER` | 按层选择 |
-            | `CT_SELECTBYCOLOR` | 按色选择 |
-            | `CT_SELECTBYBLOCK` | 按块选择 |

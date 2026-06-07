@@ -1,7 +1,19 @@
 (vl-load-com)
 
+(defun _ct-root-from-load-dir (dir / base)
+  (setq base (strcase (vl-filename-base dir)))
+  (if (member base '("ACAD" "ZWCAD" "GCAD"))
+    (vl-filename-directory dir)
+    dir
+  )
+)
+
 (setq _ct-dir
   (cond
+    ((and (boundp '*load-truename*) *load-truename*)
+      (_ct-root-from-load-dir (vl-filename-directory *load-truename*)))
+    ((findfile "autoload.lsp")
+      (_ct-root-from-load-dir (vl-filename-directory (findfile "autoload.lsp"))))
     ((vl-file-directory-p "C:\\CadToolkit") "C:\\CadToolkit")
     ((vl-file-directory-p "D:\\CadToolkit") "D:\\CadToolkit")
     (T nil)
@@ -14,8 +26,8 @@
     (setq _ct-plat
       (cond
         ((not _ct-prog) "zwcad")
-        ((wcmatch (strcase _ct-prog) "*ACAD*") "acad")
         ((wcmatch (strcase _ct-prog) "*ZWCAD*") "zwcad")
+        ((wcmatch (strcase _ct-prog) "*ACAD*") "acad")
         (T "gcad")
       )
     )
@@ -28,7 +40,7 @@
             (setvar "CMDECHO" 0)
             (vl-cmdf "NETLOAD" _ct-dll)
             (setvar "CMDECHO" 1)
-            (princ "\nCadToolkit v1.22 已就绪，输入 CC 启动。")
+            (princ "\nCadToolkit v1.22 ready. Type CC to start.")
           )
           (princ (strcat "\n[CadToolkit] DLL not found: " _ct-dll))
         )

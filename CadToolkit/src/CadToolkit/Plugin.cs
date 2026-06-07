@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections;
 using CadToolkit.Core;
 using CadToolkit.UI;
+using LayerStandardRule = CadToolkit.Core.Config.LayerStandardRule;
 
 #if AUTOCAD
 using Autodesk.AutoCAD.ApplicationServices;
@@ -13,6 +14,8 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
+using CadColor = Autodesk.AutoCAD.Colors.Color;
+using CadColorMethod = Autodesk.AutoCAD.Colors.ColorMethod;
 using CadApp = Autodesk.AutoCAD.ApplicationServices.Application;
 #elif GSTARCAD
 using GrxCAD.ApplicationServices;
@@ -20,6 +23,8 @@ using GrxCAD.DatabaseServices;
 using GrxCAD.EditorInput;
 using GrxCAD.Geometry;
 using GrxCAD.Runtime;
+using CadColor = GrxCAD.Colors.Color;
+using CadColorMethod = GrxCAD.Colors.ColorMethod;
 using CadApp = GrxCAD.ApplicationServices.Application;
 #elif ZWCAD
 using ZwSoft.ZwCAD.ApplicationServices;
@@ -27,6 +32,8 @@ using ZwSoft.ZwCAD.DatabaseServices;
 using ZwSoft.ZwCAD.EditorInput;
 using ZwSoft.ZwCAD.Geometry;
 using ZwSoft.ZwCAD.Runtime;
+using CadColor = ZwSoft.ZwCAD.Colors.Color;
+using CadColorMethod = ZwSoft.ZwCAD.Colors.ColorMethod;
 using CadApp = ZwSoft.ZwCAD.ApplicationServices.Application;
 #endif
 
@@ -164,6 +171,202 @@ namespace CadToolkit
             }
             catch { }
         }
+
+        class LayerStandardPlan
+        {
+            public string SourceLayer;
+            public string TargetLayer;
+            public int Count;
+            public LayerStandardRule Rule;
+        }
+
+        static LayerStandardRule MatchLayerRule(string layerName, List<LayerStandardRule> rules)
+        {
+            foreach (var rule in rules)
+                if (rule.Name.Equals(layerName, StringComparison.OrdinalIgnoreCase)) return rule;
+
+            foreach (var rule in rules)
+            {
+                foreach (string alias in rule.Aliases)
+                {
+                    if (alias.Length == 0) continue;
+                    if (layerName.IndexOf(alias, StringComparison.OrdinalIgnoreCase) >= 0)
+                        return rule;
+                }
+            }
+            return null;
+        }
+
+        static bool SimpleWildcardMatch(string text, string pattern)
+        {
+            if (string.IsNullOrEmpty(pattern)) return false;
+            if (pattern == "*") return true;
+            if (pattern.StartsWith("*") && pattern.EndsWith("*") && pattern.Length > 2)
+                return text.IndexOf(pattern.Substring(1, pattern.Length - 2), StringComparison.OrdinalIgnoreCase) >= 0;
+            if (pattern.StartsWith("*"))
+                return text.EndsWith(pattern.Substring(1), StringComparison.OrdinalIgnoreCase);
+            if (pattern.EndsWith("*"))
+                return text.StartsWith(pattern.Substring(0, pattern.Length - 1), StringComparison.OrdinalIgnoreCase);
+            return text.Equals(pattern, StringComparison.OrdinalIgnoreCase);
+        }
+
+        static bool IsLayerWhitelisted(string layerName, string whitelist)
+        {
+            string[] items = SafeStr(whitelist).Split(',');
+            foreach (string item in items)
+            {
+                string pattern = item.Trim();
+                if (SimpleWildcardMatch(layerName, pattern)) return true;
+            }
+            return false;
+        }
+
+        static ObjectId[] GetSelectionInScopeOrAll(SelectionFilter sf, string message, Func<Entity, Transaction, bool> matches)
+        {
+            var pso = new PromptSelectionOptions();
+            pso.MessageForAdding = message;
+            var psr = Ed.GetSelection(pso);
+            if (psr.Status == PromptStatus.OK)
+                return FilterObjectIds(psr.Value.GetObjectIds(), matches);
+            if (psr.Status == PromptStatus.Cancel) return null;
+
+            Ed.WriteMessage("\n\u672a\u9009\u62e9\u8303\u56f4\uff0c\u6539\u4e3a\u641c\u7d22\u5168\u56fe\u3002");
+            psr = Ed.SelectAll(sf);
+            if (psr.Status != PromptStatus.OK || psr.Value == null)
+                return new ObjectId[0];
+            return psr.Value.GetObjectIds();
+        }
+
+        static ObjectId[] FilterObjectIds(ObjectId[] sourceIds, Func<Entity, Transaction, bool> matches)
+        {
+            var result = new List<ObjectId>();
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                foreach (ObjectId id in sourceIds)
+                {
+                    try
+                    {
+                        var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                        if (ent != null && matches(ent, tr)) result.Add(id);
+                    }
+                    catch { }
+                }
+                tr.Commit();
+            }
+            return result.ToArray();
+        }
+
+        static LineWeight ParseLineWeight(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return (LineWeight)(-3);
+            string t = value.Trim();
+            if (t.Equals("Default", StringComparison.OrdinalIgnoreCase) || t == "\u9ed8\u8ba4")
+                return (LineWeight)(-3);
+            if (t.Equals("ByLayer", StringComparison.OrdinalIgnoreCase)) return LineWeight.ByLayer;
+            if (t.Equals("ByBlock", StringComparison.OrdinalIgnoreCase)) return LineWeight.ByBlock;
+
+            double mm;
+            if (double.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out mm))
+                return (LineWeight)(int)Math.Round(mm * 100.0);
+            return (LineWeight)(-3);
+        }
+
+        static void EnsureLineType(Transaction tr, string lineTypeName)
+        {
+            if (string.IsNullOrEmpty(lineTypeName)) return;
+            try
+            {
+                var lt = (LinetypeTable)tr.GetObject(Db.LinetypeTableId, OpenMode.ForRead);
+                if (lt.Has(lineTypeName)) return;
+                string fileName = "acad.lin";
+#if ZWCAD
+                fileName = "zwcad.lin";
+#elif GSTARCAD
+                fileName = "gcad.lin";
+#endif
+                Db.LoadLineTypeFile(lineTypeName, fileName);
+            }
+            catch { }
+        }
+
+        static void ApplyLayerRule(Transaction tr, LayerTable lt, LayerStandardRule rule)
+        {
+            EnsureLineType(tr, rule.Linetype);
+            LayerTableRecord ltr;
+            if (lt.Has(rule.Name))
+            {
+                ltr = (LayerTableRecord)tr.GetObject(lt[rule.Name], OpenMode.ForWrite);
+            }
+            else
+            {
+                lt.UpgradeOpen();
+                ltr = new LayerTableRecord();
+                ltr.Name = rule.Name;
+                lt.Add(ltr);
+                tr.AddNewlyCreatedDBObject(ltr, true);
+            }
+
+            try { ltr.Color = CadColor.FromColorIndex(CadColorMethod.ByAci, (short)rule.ColorIndex); } catch { }
+            try { ltr.LineWeight = ParseLineWeight(rule.LineWeight); } catch { }
+            try { ltr.IsPlottable = rule.Plot; } catch { }
+            try
+            {
+                var lineTypes = (LinetypeTable)tr.GetObject(Db.LinetypeTableId, OpenMode.ForRead);
+                if (lineTypes.Has(rule.Linetype)) ltr.LinetypeObjectId = lineTypes[rule.Linetype];
+            }
+            catch { }
+        }
+
+        static string FormatLayerPlan(List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("\u672c\u6b21\u4f1a\u68c0\u67e5\u5e76\u7edf\u4e00\u8fd9\u4e9b\u6807\u51c6\u56fe\u5c42\uff1a" + rules.Count + " \u4e2a");
+            sb.AppendLine();
+            sb.AppendLine("\u5df2\u8bc6\u522b\u7684\u65e7\u56fe\u5c42\uff08\u6267\u884c\u540e\u4f1a\u8fc1\u79fb\u5230\u5bf9\u5e94\u6807\u51c6\u56fe\u5c42\uff09\uff1a");
+            if (plans.Count == 0)
+            {
+                sb.AppendLine("  \u6ca1\u6709\u627e\u5230\u9700\u8981\u8fc1\u79fb\u7684\u65e7\u56fe\u5c42\u3002");
+            }
+            else
+            {
+                foreach (var p in plans)
+                    sb.AppendLine(string.Format("  {0}  ->  {1}    {2} \u4e2a\u5bf9\u8c61", p.SourceLayer, p.TargetLayer, p.Count));
+            }
+            sb.AppendLine();
+            sb.AppendLine("\u672a\u8bc6\u522b\u56fe\u5c42\u7684\u5904\u7406\u65b9\u5f0f\uff1a" + (fallbackTo0 ? "\u5f00\u542f\uff08\u4e0d\u5728\u767d\u540d\u5355\u91cc\u7684\u672a\u8bc6\u522b\u56fe\u5c42\u4f1a\u5f52\u5230 0 \u5c42\uff09" : "\u5173\u95ed\uff08\u672a\u8bc6\u522b\u56fe\u5c42\u4fdd\u6301\u539f\u6837\uff09"));
+            if (fallbackPlans.Count == 0)
+            {
+                sb.AppendLine("  \u6ca1\u6709\u672a\u8bc6\u522b\u7684\u975e\u767d\u540d\u5355\u56fe\u5c42\u3002");
+            }
+            else
+            {
+                foreach (var p in fallbackPlans)
+                    sb.AppendLine(string.Format("  {0}  ->  0    {1} \u4e2a\u5bf9\u8c61", p.SourceLayer, p.Count));
+            }
+            sb.AppendLine();
+            sb.AppendLine("\u767d\u540d\u5355\u56fe\u5c42\uff08\u4fdd\u6301\u539f\u6837\uff0c\u4e0d\u53c2\u4e0e\u89c4\u8303\u5316\uff0c\u4e5f\u4e0d\u4f1a\u5f52\u5230 0 \u5c42\uff09\uff1a");
+            if (whitelistPlans.Count == 0)
+            {
+                sb.AppendLine("  \u6ca1\u6709\u547d\u4e2d\u767d\u540d\u5355\u7684\u56fe\u5c42\u3002");
+            }
+            else
+            {
+                foreach (var p in whitelistPlans)
+                    sb.AppendLine(string.Format("  {0}    {1} \u4e2a\u5bf9\u8c61", p.SourceLayer, p.Count));
+            }
+            return sb.ToString();
+        }
+
+        static int UiScale(int value)
+        {
+            try
+            {
+                using (var g = Graphics.FromHwnd(IntPtr.Zero))
+                    return Math.Max(1, (int)Math.Round(value * g.DpiX / 96.0));
+            }
+            catch { return value; }
+        }
+
         [CommandMethod("CT_PANEL")]
         public void ShowPanel()
         {
@@ -179,9 +382,9 @@ namespace CadToolkit
 
             int groupCols = groups.Count <= 4 ? 2 : (groups.Count <= 9 ? 3 : 4);
             int innerCols = 2;
-            int bw = 96, bh = 28, gap = 3;
-            int headerH = 22;
-            int cellPad = 6;
+            int bw = UiScale(104), bh = UiScale(30), gap = UiScale(4);
+            int headerH = UiScale(24);
+            int cellPad = UiScale(7);
 
             int maxRows = 0;
             foreach (var g in groups)
@@ -192,21 +395,35 @@ namespace CadToolkit
 
             int cellW = cellPad + innerCols * (bw + gap) - gap + cellPad;
             int cellH = headerH + cellPad + maxRows * (bh + gap) - gap + cellPad;
-            int groupGap = 6;
+            int groupGap = UiScale(6);
             int totalW = groupGap + groupCols * (cellW + groupGap);
             int groupRows = (int)Math.Ceiling(groups.Count / (double)groupCols);
-            int totalH = groupGap + groupRows * (cellH + groupGap) + 32;
+            int barH = UiScale(34);
+            int totalH = groupGap + groupRows * (cellH + groupGap) + barH;
+            var work = Screen.FromPoint(Cursor.Position).WorkingArea;
+            int clientW = Math.Min(totalW, Math.Max(UiScale(360), work.Width - UiScale(80)));
+            int clientH = Math.Min(totalH, Math.Max(UiScale(260), work.Height - UiScale(100)));
 
             var f = new Form();
             f.Text = "CadToolkit - " + PlatformName;
             f.StartPosition = FormStartPosition.CenterScreen;
             f.FormBorderStyle = FormBorderStyle.FixedToolWindow;
-            f.TopMost = true;
+            f.TopMost = false;
             f.ShowInTaskbar = false;
-            f.AutoScaleDimensions = new System.Drawing.SizeF(96f, 96f);
-            f.AutoScaleMode = AutoScaleMode.Dpi;
-            f.ClientSize = new Size(totalW, totalH);
+            f.AutoScaleMode = AutoScaleMode.None;
+            f.ClientSize = new Size(clientW, clientH);
             f.BackColor = Color.FromArgb(240, 240, 240);
+
+            var content = new Panel();
+            content.Dock = DockStyle.Fill;
+            content.AutoScroll = true;
+            content.BackColor = Color.FromArgb(240, 240, 240);
+            content.AutoScrollMinSize = new Size(totalW, totalH - barH);
+
+            var bar = new Panel();
+            bar.Dock = DockStyle.Bottom;
+            bar.Height = barH;
+            bar.BackColor = Color.FromArgb(240, 240, 240);
 
             var btnCancel = new Button();
             btnCancel.DialogResult = DialogResult.Cancel;
@@ -256,13 +473,8 @@ namespace CadToolkit
                     b.Click += delegate { action = "CMD:" + cmdName; f.Close(); };
                     pnl.Controls.Add(b);
                 }
-                f.Controls.Add(pnl);
+                content.Controls.Add(pnl);
             }
-
-            var bar = new Panel();
-            bar.Location = new Point(0, totalH - 30);
-            bar.Size = new Size(totalW, 30);
-            bar.BackColor = Color.FromArgb(240, 240, 240);
 
             var btnAdd = new Button();
             btnAdd.Text = "+";
@@ -270,8 +482,8 @@ namespace CadToolkit
             btnAdd.FlatAppearance.BorderColor = Color.FromArgb(180, 180, 180);
             btnAdd.BackColor = Color.White;
             btnAdd.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            btnAdd.Size = new Size(24, 22);
-            btnAdd.Location = new Point(totalW - 56, 4);
+            btnAdd.Size = new Size(UiScale(28), UiScale(24));
+            btnAdd.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnAdd.Click += delegate { action = "ADD"; f.Close(); };
 
             var btnManage = new Button();
@@ -280,15 +492,15 @@ namespace CadToolkit
             btnManage.FlatAppearance.BorderColor = Color.FromArgb(180, 180, 180);
             btnManage.BackColor = Color.White;
             btnManage.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            btnManage.Size = new Size(24, 22);
-            btnManage.Location = new Point(totalW - 26, 4);
+            btnManage.Size = new Size(UiScale(28), UiScale(24));
+            btnManage.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnManage.Click += delegate { action = "MANAGE"; f.Close(); };
 
             var lblAuthor = new Label();
             lblAuthor.Text = Config.Version + " | WLUP";
             lblAuthor.AutoSize = false;
-            lblAuthor.Size = new Size(120, 22);
-            lblAuthor.Location = new Point(groupGap, 4);
+            lblAuthor.Size = new Size(UiScale(150), UiScale(24));
+            lblAuthor.Location = new Point(groupGap, UiScale(5));
             lblAuthor.TextAlign = ContentAlignment.MiddleLeft;
             lblAuthor.ForeColor = Color.FromArgb(160, 160, 160);
             lblAuthor.Font = new System.Drawing.Font("Microsoft YaHei", 7.5f);
@@ -296,6 +508,14 @@ namespace CadToolkit
             bar.Controls.Add(btnAdd);
             bar.Controls.Add(btnManage);
             bar.Controls.Add(lblAuthor);
+            bar.Resize += delegate
+            {
+                btnManage.Location = new Point(bar.ClientSize.Width - groupGap - btnManage.Width, UiScale(5));
+                btnAdd.Location = new Point(btnManage.Left - UiScale(6) - btnAdd.Width, UiScale(5));
+            };
+            btnManage.Location = new Point(bar.ClientSize.Width - groupGap - btnManage.Width, UiScale(5));
+            btnAdd.Location = new Point(btnManage.Left - UiScale(6) - btnAdd.Width, UiScale(5));
+            f.Controls.Add(content);
             f.Controls.Add(bar);
 
             if (!CheckDoc()) return;
@@ -524,7 +744,7 @@ namespace CadToolkit
         {
             EnsureInit();
             if (!CheckDoc()) return;
-            var psr = GetPendingOrSelection();
+            var psr = Ed.SelectImplied();
             ObjectId pickedId = default(ObjectId);
             if (psr.Status == PromptStatus.OK && psr.Value != null && psr.Value.Count > 0)
             {
@@ -617,7 +837,164 @@ namespace CadToolkit
                 tr.Commit();
                 Ed.WriteMessage(string.Format("\n\u5df2\u521b\u5efa\u5757 \"{0}\" \uff0c\u5305\u542b {1} \u4e2a\u5bf9\u8c61\u3002", name, ids.Count));
             }
-        }        [CommandMethod("CT_SETLAYER0")]
+        }        [CommandMethod("CT_LAYERSTANDARD")]
+        public void LayerStandard()
+        {
+            EnsureInit();
+            if (!CheckDoc()) return;
+
+            var rules = Config.GetLayerStandards();
+            if (rules.Count == 0)
+            {
+                Ed.WriteMessage("\n\u672a\u914d\u7f6e [LayerStandard] \u56fe\u5c42\u89c4\u8303\u3002");
+                return;
+            }
+
+            var layerCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                var space = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForRead);
+                foreach (ObjectId id in space)
+                {
+                    var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                    if (ent == null) continue;
+                    string layer = ent.Layer;
+                    if (!layerCounts.ContainsKey(layer)) layerCounts[layer] = 0;
+                    layerCounts[layer]++;
+                }
+                tr.Commit();
+            }
+
+            var plans = new List<LayerStandardPlan>();
+            var fallbackPlans = new List<LayerStandardPlan>();
+            var whitelistPlans = new List<LayerStandardPlan>();
+            string layerWhitelist = Config.LayerStandardWhitelist;
+            foreach (var pair in layerCounts)
+            {
+                if (IsLayerWhitelisted(pair.Key, layerWhitelist))
+                {
+                    whitelistPlans.Add(new LayerStandardPlan { SourceLayer = pair.Key, TargetLayer = "", Count = pair.Value, Rule = null });
+                    continue;
+                }
+                var rule = MatchLayerRule(pair.Key, rules);
+                if (rule == null)
+                {
+                    fallbackPlans.Add(new LayerStandardPlan { SourceLayer = pair.Key, TargetLayer = "0", Count = pair.Value, Rule = null });
+                    continue;
+                }
+                if (pair.Key.Equals(rule.Name, StringComparison.OrdinalIgnoreCase)) continue;
+                plans.Add(new LayerStandardPlan { SourceLayer = pair.Key, TargetLayer = rule.Name, Count = pair.Value, Rule = rule });
+            }
+            plans.Sort(delegate(LayerStandardPlan a, LayerStandardPlan b) { return a.TargetLayer.CompareTo(b.TargetLayer); });
+            fallbackPlans.Sort(delegate(LayerStandardPlan a, LayerStandardPlan b) { return a.SourceLayer.CompareTo(b.SourceLayer); });
+            whitelistPlans.Sort(delegate(LayerStandardPlan a, LayerStandardPlan b) { return a.SourceLayer.CompareTo(b.SourceLayer); });
+
+            bool setByLayer = true;
+            bool deleteEmpty = false;
+            bool fallbackTo0 = Config.LayerStandardFallbackTo0;
+            var f = new Form();
+            f.Text = "\u56fe\u5c42\u89c4\u8303\u5316";
+            f.StartPosition = FormStartPosition.CenterScreen;
+            f.FormBorderStyle = FormBorderStyle.FixedDialog;
+            f.MaximizeBox = false; f.MinimizeBox = false; f.ShowInTaskbar = false;
+            f.AutoScaleMode = AutoScaleMode.None; f.AutoScroll = true; f.ClientSize = new Size(UiScale(560), UiScale(470));
+
+            var txt = new TextBox();
+            txt.Multiline = true; txt.ReadOnly = true; txt.ScrollBars = ScrollBars.Both;
+            txt.WordWrap = false; txt.Font = new System.Drawing.Font("Consolas", 9f);
+            txt.Left = UiScale(12); txt.Top = UiScale(12); txt.Width = UiScale(536); txt.Height = UiScale(300);
+            txt.Text = FormatLayerPlan(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0);
+
+            var chkByLayer = new CheckBox();
+            chkByLayer.Text = "\u5c06\u8fc1\u79fb\u5bf9\u8c61\u7684\u989c\u8272/\u7ebf\u578b/\u7ebf\u5bbd\u6539\u4e3a ByLayer";
+            chkByLayer.Left = UiScale(12); chkByLayer.Top = UiScale(322); chkByLayer.Width = UiScale(536); chkByLayer.Height = UiScale(24); chkByLayer.Checked = true;
+            chkByLayer.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
+            var chkDelete = new CheckBox();
+            chkDelete.Text = "\u5220\u9664\u7a7a\u7684\u65e7\u56fe\u5c42";
+            chkDelete.Left = UiScale(12); chkDelete.Top = UiScale(350); chkDelete.Width = UiScale(190); chkDelete.Height = UiScale(24); chkDelete.Checked = false;
+            chkDelete.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
+            var chkFallback = new CheckBox();
+            chkFallback.Text = "\u672a\u8bc6\u522b\u56fe\u5c42\u5f52 0 \u5c42\uff08\u767d\u540d\u5355\u4e0d\u5904\u7406\uff09";
+            chkFallback.Left = UiScale(12); chkFallback.Top = UiScale(378); chkFallback.Width = UiScale(536); chkFallback.Height = UiScale(24); chkFallback.Checked = fallbackTo0;
+            chkFallback.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            chkFallback.CheckedChanged += delegate { txt.Text = FormatLayerPlan(plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked); };
+
+            var ok = new Button();
+            ok.Text = "\u6267\u884c"; ok.DialogResult = DialogResult.OK;
+            ok.Left = UiScale(376); ok.Top = UiScale(426); ok.Width = UiScale(80); ok.Height = UiScale(28); ok.FlatStyle = FlatStyle.System;
+
+            var cancel = new Button();
+            cancel.Text = "\u53d6\u6d88"; cancel.DialogResult = DialogResult.Cancel;
+            cancel.Left = UiScale(468); cancel.Top = UiScale(426); cancel.Width = UiScale(80); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
+
+            f.Controls.AddRange(new Control[] { txt, chkByLayer, chkDelete, chkFallback, ok, cancel });
+            f.AcceptButton = ok; f.CancelButton = cancel;
+            if (f.ShowDialog() != DialogResult.OK) { f.Dispose(); return; }
+            setByLayer = chkByLayer.Checked;
+            deleteEmpty = chkDelete.Checked;
+            fallbackTo0 = chkFallback.Checked;
+            f.Dispose();
+
+            int moved = 0, failed = 0, deleted = 0;
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                var lt = (LayerTable)tr.GetObject(Db.LayerTableId, OpenMode.ForRead);
+                foreach (var rule in rules) ApplyLayerRule(tr, lt, rule);
+
+                var targetBySource = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var p in plans) targetBySource[p.SourceLayer] = p.TargetLayer;
+                if (fallbackTo0)
+                    foreach (var p in fallbackPlans) targetBySource[p.SourceLayer] = p.TargetLayer;
+
+                var space = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForRead);
+                foreach (ObjectId id in space)
+                {
+                    var ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                    if (ent == null) continue;
+                    string target;
+                    if (!targetBySource.TryGetValue(ent.Layer, out target)) continue;
+                    try
+                    {
+                        ent.UpgradeOpen();
+                        ent.Layer = target;
+                        if (setByLayer)
+                        {
+                            ent.ColorIndex = 256;
+                            ent.Linetype = "ByLayer";
+                            try { ent.LineWeight = LineWeight.ByLayer; } catch { }
+                        }
+                        moved++;
+                    }
+                    catch { failed++; }
+                }
+
+                if (deleteEmpty)
+                {
+                    var oldLayers = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var p in plans) oldLayers[p.SourceLayer] = true;
+                    if (fallbackTo0)
+                        foreach (var p in fallbackPlans) oldLayers[p.SourceLayer] = true;
+                    foreach (string oldLayer in new List<string>(oldLayers.Keys))
+                    {
+                        try
+                        {
+                            if (oldLayer == "0" || !lt.Has(oldLayer) || Db.Clayer == lt[oldLayer]) continue;
+                            var ltr = (LayerTableRecord)tr.GetObject(lt[oldLayer], OpenMode.ForWrite);
+                            ltr.Erase();
+                            deleted++;
+                        }
+                        catch { }
+                    }
+                }
+                tr.Commit();
+            }
+
+            Ed.WriteMessage(string.Format("\n\u56fe\u5c42\u89c4\u8303\u5316\u5b8c\u6210\uff1a\u8fc1\u79fb {0} \u4e2a\u5bf9\u8c61\uff0c\u5931\u8d25 {1} \u4e2a\uff0c\u5220\u9664\u7a7a\u65e7\u5c42 {2} \u4e2a\u3002", moved, failed, deleted));
+        }
+
+        [CommandMethod("CT_SETLAYER0")]
         public void SetLayer0()
         {
             EnsureInit();
@@ -789,7 +1166,9 @@ namespace CadToolkit
                 tr.Commit();
             }
             Ed.WriteMessage(string.Format("\n\u5df2\u4e3a {0} \u4e2a\u5bf9\u8c61\u7ed8\u5236\u4e2d\u5fc3\u7ebf\u3002", count));
-        }        [CommandMethod("CT_SELECTBYLAYER")]
+        }
+
+        [CommandMethod("CT_SELECTBYLAYER")]
         public void SelectByLayer()
         {
             EnsureInit();
@@ -806,10 +1185,11 @@ namespace CadToolkit
             }
             var filter = new TypedValue[] { new TypedValue(8, layerName) };
             var sf = new SelectionFilter(filter);
-            var psr = Ed.GetSelection(sf);
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
-            Ed.SetImpliedSelection(psr.Value.GetObjectIds());
-            Ed.WriteMessage(string.Format("\n\u5df2\u9009\u62e9\u56fe\u5c42 \"{0}\" \u4e0a\u7684 {1} \u4e2a\u5bf9\u8c61\u3002", layerName, psr.Value.Count));
+            var ids = GetSelectionInScopeOrAll(sf, "\n\u9009\u62e9\u8303\u56f4=\u8303\u56f4\u5185\u540c\u56fe\u5c42\uff1b\u56de\u8f66=\u5168\u56fe\u540c\u56fe\u5c42\uff1a", delegate(Entity ent, Transaction tr) { return ent.Layer.Equals(layerName, StringComparison.OrdinalIgnoreCase); });
+            if (ids == null) return;
+            if (ids.Length == 0) { Ed.WriteMessage("\n\u672a\u627e\u5230\u5339\u914d\u5bf9\u8c61\u3002"); return; }
+            Ed.SetImpliedSelection(ids);
+            Ed.WriteMessage(string.Format("\n\u5df2\u9009\u62e9\u56fe\u5c42 \"{0}\" \u4e0a\u7684 {1} \u4e2a\u5bf9\u8c61\u3002", layerName, ids.Length));
         }
         [CommandMethod("CT_SELECTBYCOLOR")]
         public void SelectByColor()
@@ -828,11 +1208,12 @@ namespace CadToolkit
             }
             var filter = new TypedValue[] { new TypedValue(62, colorIndex) };
             var sf = new SelectionFilter(filter);
-            var psr = Ed.GetSelection(sf);
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
-            Ed.SetImpliedSelection(psr.Value.GetObjectIds());
+            var ids = GetSelectionInScopeOrAll(sf, "\n\u9009\u62e9\u8303\u56f4=\u8303\u56f4\u5185\u540c\u989c\u8272\uff1b\u56de\u8f66=\u5168\u56fe\u540c\u989c\u8272\uff1a", delegate(Entity ent, Transaction tr) { return ent.ColorIndex == colorIndex; });
+            if (ids == null) return;
+            if (ids.Length == 0) { Ed.WriteMessage("\n\u672a\u627e\u5230\u5339\u914d\u5bf9\u8c61\u3002"); return; }
+            Ed.SetImpliedSelection(ids);
             string colorName = colorIndex == 256 ? "ByLayer" : (colorIndex == 0 ? "ByBlock" : colorIndex.ToString());
-            Ed.WriteMessage(string.Format("\n\u5df2\u9009\u62e9\u989c\u8272 {0} \u7684 {1} \u4e2a\u5bf9\u8c61\u3002", colorName, psr.Value.Count));
+            Ed.WriteMessage(string.Format("\n\u5df2\u9009\u62e9\u989c\u8272 {0} \u7684 {1} \u4e2a\u5bf9\u8c61\u3002", colorName, ids.Length));
         }
         [CommandMethod("CT_SELECTBYBLOCK")]
         public void SelectByBlock()
@@ -854,11 +1235,20 @@ namespace CadToolkit
             }
             var filter = new TypedValue[] { new TypedValue(0, "INSERT"), new TypedValue(2, blockName) };
             var sf = new SelectionFilter(filter);
-            var psr = Ed.GetSelection(sf);
-            if (psr.Status != PromptStatus.OK) { Ed.WriteMessage("\n\u672a\u9009\u62e9\u5bf9\u8c61\u3002"); return; }
-            Ed.SetImpliedSelection(psr.Value.GetObjectIds());
-            Ed.WriteMessage(string.Format("\n\u5df2\u9009\u62e9\u5757 \"{0}\" \u7684 {1} \u4e2a\u53c2\u7167\u3002", blockName, psr.Value.Count));
-        }        [CommandMethod("CT_TEXTBRUSH")]
+            var ids = GetSelectionInScopeOrAll(sf, "\n\u9009\u62e9\u8303\u56f4=\u8303\u56f4\u5185\u540c\u540d\u5757\uff1b\u56de\u8f66=\u5168\u56fe\u540c\u540d\u5757\uff1a", delegate(Entity ent, Transaction tr)
+            {
+                var br = ent as BlockReference;
+                if (br == null) return false;
+                var btr = (BlockTableRecord)tr.GetObject(br.BlockTableRecord, OpenMode.ForRead);
+                return btr.Name.Equals(blockName, StringComparison.OrdinalIgnoreCase);
+            });
+            if (ids == null) return;
+            if (ids.Length == 0) { Ed.WriteMessage("\n\u672a\u627e\u5230\u5339\u914d\u5bf9\u8c61\u3002"); return; }
+            Ed.SetImpliedSelection(ids);
+            Ed.WriteMessage(string.Format("\n\u5df2\u9009\u62e9\u5757 \"{0}\" \u7684 {1} \u4e2a\u53c2\u7167\u3002", blockName, ids.Length));
+        }
+
+        [CommandMethod("CT_TEXTBRUSH")]
         public void TextBrush()
         {
             EnsureInit();
@@ -942,16 +1332,16 @@ namespace CadToolkit
             f.StartPosition = FormStartPosition.CenterParent;
             f.FormBorderStyle = FormBorderStyle.FixedDialog;
             f.MaximizeBox = false; f.MinimizeBox = false; f.ShowInTaskbar = false;
-            f.ClientSize = new Size(300, 120);
-            var l1 = new Label(); l1.Text = "\u524d\u7f00\uff1a"; l1.Left = 16; l1.Top = 16; l1.AutoSize = true; l1.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
-            var t1 = new TextBox(); t1.Left = 76; t1.Top = 12; t1.Width = 60; t1.Text = ""; t1.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            var l2 = new Label(); l2.Text = "\u540e\u7f00\uff1a"; l2.Left = 150; l2.Top = 16; l2.AutoSize = true; l2.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
-            var t2 = new TextBox(); t2.Left = 210; t2.Top = 12; t2.Width = 60; t2.Text = ""; t2.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            var l3 = new Label(); l3.Text = "\u8d77\u59cb\u53f7\uff1a"; l3.Left = 16; l3.Top = 52; l3.AutoSize = true; l3.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
-            var t3 = new TextBox(); t3.Left = 76; t3.Top = 48; t3.Width = 60; t3.Text = "1"; t3.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            var chkReplace = new CheckBox(); chkReplace.Text = "\u66ff\u6362\uff08\u7528\u7f16\u53f7\u66ff\u6362\u539f\u6587\uff09"; chkReplace.Left = 150; chkReplace.Top = 50; chkReplace.AutoSize = true; chkReplace.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            var ok = new Button(); ok.Text = "\u786e\u5b9a"; ok.DialogResult = DialogResult.OK; ok.Left = 120; ok.Top = 82; ok.Width = 80; ok.FlatStyle = FlatStyle.System;
-            var cancel = new Button(); cancel.Text = "\u53d6\u6d88"; cancel.DialogResult = DialogResult.Cancel; cancel.Left = 210; cancel.Top = 82; cancel.Width = 76; cancel.FlatStyle = FlatStyle.System;
+            f.AutoScaleMode = AutoScaleMode.None; f.AutoScroll = true; f.ClientSize = new Size(UiScale(320), UiScale(132));
+            var l1 = new Label(); l1.Text = "\u524d\u7f00\uff1a"; l1.Left = UiScale(16); l1.Top = UiScale(16); l1.AutoSize = true; l1.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var t1 = new TextBox(); t1.Left = UiScale(76); t1.Top = UiScale(12); t1.Width = UiScale(70); t1.Text = ""; t1.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
+            var l2 = new Label(); l2.Text = "\u540e\u7f00\uff1a"; l2.Left = UiScale(160); l2.Top = UiScale(16); l2.AutoSize = true; l2.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var t2 = new TextBox(); t2.Left = UiScale(220); t2.Top = UiScale(12); t2.Width = UiScale(70); t2.Text = ""; t2.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
+            var l3 = new Label(); l3.Text = "\u8d77\u59cb\u53f7\uff1a"; l3.Left = UiScale(16); l3.Top = UiScale(52); l3.AutoSize = true; l3.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var t3 = new TextBox(); t3.Left = UiScale(76); t3.Top = UiScale(48); t3.Width = UiScale(70); t3.Text = "1"; t3.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
+            var chkReplace = new CheckBox(); chkReplace.Text = "\u66ff\u6362\uff08\u7528\u7f16\u53f7\u66ff\u6362\u539f\u6587\uff09"; chkReplace.Left = UiScale(160); chkReplace.Top = UiScale(50); chkReplace.Width = UiScale(150); chkReplace.Height = UiScale(24); chkReplace.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            var ok = new Button(); ok.Text = "\u786e\u5b9a"; ok.DialogResult = DialogResult.OK; ok.Left = UiScale(132); ok.Top = UiScale(92); ok.Width = UiScale(80); ok.Height = UiScale(28); ok.FlatStyle = FlatStyle.System;
+            var cancel = new Button(); cancel.Text = "\u53d6\u6d88"; cancel.DialogResult = DialogResult.Cancel; cancel.Left = UiScale(224); cancel.Top = UiScale(92); cancel.Width = UiScale(76); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
             f.Controls.AddRange(new Control[] { l1, t1, l2, t2, l3, t3, chkReplace, ok, cancel });
             f.AcceptButton = ok; f.CancelButton = cancel;
             f.Shown += delegate { t1.Focus(); };
@@ -1011,7 +1401,6 @@ namespace CadToolkit
                 var frozen = _isoState[dk];
                 using (var tr = Db.TransactionManager.StartTransaction())
                 {
-                    var lt = (LayerTable)tr.GetObject(Db.LayerTableId, OpenMode.ForRead);
                     foreach (var lid in frozen)
                     {
                         if (!lid.IsValid) continue;
@@ -1040,10 +1429,14 @@ namespace CadToolkit
                 foreach (ObjectId lid in lt)
                 {
                     var ltr = (LayerTableRecord)tr.GetObject(lid, OpenMode.ForRead);
-                    if (ltr.Name == targetLayer || ltr.IsFrozen) continue;
-                    ltr.UpgradeOpen();
-                    ltr.IsFrozen = true;
-                    frozenList.Add(lid);
+                    if (ltr.Name == targetLayer || ltr.Name == "0" || ltr.IsFrozen || lid == Db.Clayer || ltr.IsDependent) continue;
+                    try
+                    {
+                        ltr.UpgradeOpen();
+                        ltr.IsFrozen = true;
+                        frozenList.Add(lid);
+                    }
+                    catch { }
                 }
                 tr.Commit();
             }

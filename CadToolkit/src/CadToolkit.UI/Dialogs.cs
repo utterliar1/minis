@@ -6,6 +6,38 @@ using CadToolkit.Core;
 
 namespace CadToolkit.UI
 {
+    internal static class DpiUtil
+    {
+        static int Scale(int value, float factor) { return Math.Max(1, (int)Math.Round(value * factor)); }
+
+        public static void Apply(Form form)
+        {
+            float factor = 1f;
+            try
+            {
+                using (var g = form.CreateGraphics()) factor = g.DpiX / 96f;
+            }
+            catch { }
+            if (factor <= 1.05f) return;
+
+            form.SuspendLayout();
+            form.AutoScaleMode = AutoScaleMode.None;
+            form.AutoScroll = true;
+            form.ClientSize = new Size(Scale(form.ClientSize.Width, factor), Scale(form.ClientSize.Height, factor));
+            ScaleControls(form.Controls, factor);
+            form.ResumeLayout(false);
+        }
+
+        static void ScaleControls(Control.ControlCollection controls, float factor)
+        {
+            foreach (Control c in controls)
+            {
+                c.SetBounds(Scale(c.Left, factor), Scale(c.Top, factor), Scale(c.Width, factor), Scale(c.Height, factor));
+                if (c.Controls.Count > 0) ScaleControls(c.Controls, factor);
+            }
+        }
+    }
+
     public class AlignDialog : Form
     {
         public int HorzIndex = 0;
@@ -21,7 +53,7 @@ namespace CadToolkit.UI
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
-            AutoScaleMode = AutoScaleMode.Dpi; ClientSize = new Size(360, 178);
+            AutoScaleMode = AutoScaleMode.None; ClientSize = new Size(360, 178);
 
             // Group 1: horizontal alignment
             var pnlH = new Panel();
@@ -93,6 +125,7 @@ namespace CadToolkit.UI
 
             Controls.AddRange(new Control[] { pnlH, pnlB, pnlS, ok, cancel });
             AcceptButton = ok; CancelButton = cancel;
+            DpiUtil.Apply(this);
         }
     }
     public class FindReplaceDialog : Form
@@ -107,7 +140,7 @@ namespace CadToolkit.UI
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
-            AutoScaleMode = AutoScaleMode.Dpi; ClientSize = new Size(400, 180);
+            AutoScaleMode = AutoScaleMode.None; ClientSize = new Size(400, 180);
 
             var l1 = new Label(); l1.Text = "\u67E5\u627E\uFF1A"; l1.Left = 16; l1.Top = 18; l1.AutoSize = true; l1.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
             var t1 = new TextBox(); t1.Left = 76; t1.Top = 14; t1.Width = 300; t1.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
@@ -119,6 +152,7 @@ namespace CadToolkit.UI
             ok.Click += delegate { FindText = t1.Text; ReplaceText = t2.Text; IgnoreCase = chk.Checked; };
             Controls.AddRange(new Control[] { l1, t1, l2, t2, chk, ok, cancel });
             AcceptButton = ok; CancelButton = cancel;
+            DpiUtil.Apply(this);
         }
     }
 
@@ -134,7 +168,7 @@ namespace CadToolkit.UI
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
-            AutoScaleMode = AutoScaleMode.Dpi; ClientSize = new Size(400, 150);
+            AutoScaleMode = AutoScaleMode.None; ClientSize = new Size(400, 150);
 
             var l1 = new Label(); l1.Text = "\u65E7\u540D\u79F0\uFF1A"; l1.Left = 16; l1.Top = 18; l1.AutoSize = true; l1.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
             var t1 = new TextBox(); t1.Left = 90; t1.Top = 14; t1.Width = 280; t1.Font = new System.Drawing.Font("Microsoft YaHei", 10f); t1.Text = OldName; if (OldName.Length > 0) t1.ReadOnly = true;
@@ -146,6 +180,7 @@ namespace CadToolkit.UI
             Controls.AddRange(new Control[] { l1, t1, l2, t2, ok, cancel });
             AcceptButton = ok; CancelButton = cancel;
             Shown += delegate { t2.Focus(); };
+            DpiUtil.Apply(this);
         }
     }
 
@@ -160,7 +195,7 @@ namespace CadToolkit.UI
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
-            AutoScaleMode = AutoScaleMode.Dpi; ClientSize = new Size(400, 150);
+            AutoScaleMode = AutoScaleMode.None; ClientSize = new Size(400, 150);
 
             var l1 = new Label(); l1.Text = "\u663E\u793A\u540D\u79F0\uFF1A"; l1.Left = 16; l1.Top = 18; l1.AutoSize = true; l1.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
             var t1 = new TextBox(); t1.Left = 100; t1.Top = 14; t1.Width = 270; t1.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
@@ -171,6 +206,7 @@ namespace CadToolkit.UI
             ok.Click += delegate { CmdLabel = t1.Text.Trim(); CmdName = t2.Text.Trim(); };
             Controls.AddRange(new Control[] { l1, t1, l2, t2, ok, cancel });
             AcceptButton = ok; CancelButton = cancel;
+            DpiUtil.Apply(this);
         }
     }
 
@@ -182,7 +218,7 @@ namespace CadToolkit.UI
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
-            AutoScaleMode = AutoScaleMode.Dpi; ClientSize = new Size(400, 300);
+            AutoScaleMode = AutoScaleMode.None; ClientSize = new Size(400, 300);
 
             var stored = new List<KeyValuePair<string, string>>(Config.GetCommands());
 
@@ -221,6 +257,7 @@ namespace CadToolkit.UI
             Controls.Add(btnDel);
             Controls.Add(btnClose);
             CancelButton = btnClose;
+            DpiUtil.Apply(this);
         }
     }
 }
