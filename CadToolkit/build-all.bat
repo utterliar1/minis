@@ -1,5 +1,6 @@
 ﻿@echo off
 chcp 65001 >nul
+setlocal EnableDelayedExpansion
 echo ========================================
 echo   CadToolkit Build
 echo ========================================
@@ -7,7 +8,15 @@ echo ========================================
 set "MSBUILD=C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe"
 set "BASE=%~dp0"
 set "DEPLOY=C:\CadToolkit"
+set "CT_VERSION=v1.22"
 
+for /f "tokens=2 delims=()" %%V in ('findstr /C:"AssemblyVersion" "%BASE%src\CadToolkit.Core\Properties\AssemblyInfo.cs"') do (
+    set "ASM_VERSION=%%~V"
+)
+if defined ASM_VERSION (
+    for /f "tokens=1,2 delims=." %%A in ("!ASM_VERSION!") do set "CT_VERSION=v%%A.%%B"
+)
+setlocal DisableDelayedExpansion
 if not exist "%DEPLOY%\acad" mkdir "%DEPLOY%\acad"
 if not exist "%DEPLOY%\zwcad" mkdir "%DEPLOY%\zwcad"
 if not exist "%DEPLOY%\gcad" mkdir "%DEPLOY%\gcad"
@@ -40,10 +49,10 @@ copy /Y "%BASE%src\CadToolkit.UI\bin\Release\CadToolkit.UI.dll" "%DEPLOY%\gcad\"
 echo   GstarCAD: OK
 
 echo.
-copy /Y "%BASE%autoload.lsp" "%DEPLOY%\"
-copy /Y "%BASE%autoload.lsp" "%DEPLOY%\acad\"
-copy /Y "%BASE%autoload.lsp" "%DEPLOY%\zwcad\"
-copy /Y "%BASE%autoload.lsp" "%DEPLOY%\gcad\"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content '%BASE%autoload.lsp' -Raw) -replace 'CadToolkit v[0-9.]+ ready', 'CadToolkit %CT_VERSION% ready' | Set-Content '%DEPLOY%\autoload.lsp' -Encoding UTF8"
+copy /Y "%DEPLOY%\autoload.lsp" "%DEPLOY%\acad\"
+copy /Y "%DEPLOY%\autoload.lsp" "%DEPLOY%\zwcad\"
+copy /Y "%DEPLOY%\autoload.lsp" "%DEPLOY%\gcad\"
 copy /Y "%BASE%CadToolkit.ini" "%DEPLOY%\"
 copy /Y "%BASE%CadToolkit.ini" "%DEPLOY%\acad\"
 copy /Y "%BASE%CadToolkit.ini" "%DEPLOY%\zwcad\"

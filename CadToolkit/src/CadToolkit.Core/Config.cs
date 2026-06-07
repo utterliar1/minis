@@ -55,7 +55,7 @@ namespace CadToolkit.Core
         {
             var sb = new StringBuilder();
             sb.AppendLine("# CadToolkit \u914D\u7F6E\u6587\u4EF6");
-            sb.AppendLine("Version=v1.22");
+            sb.AppendLine("Version=" + CurrentVersion);
             sb.AppendLine();
             sb.AppendLine("# \u5FEB\u6377\u5EFA\u5757");
             sb.AppendLine("QuickBlockPrefix=BK");
@@ -159,7 +159,21 @@ namespace CadToolkit.Core
         public static int GetInt(string key, int def) { int v; return int.TryParse(GetString(key, ""), out v) ? v : def; }
         public static bool GetBool(string key, bool def) { bool v; return bool.TryParse(GetString(key, ""), out v) ? v : def; }
 
-        public static string Version { get { return GetString("Version", "v1.0"); } }
+        public static string CurrentVersion
+        {
+            get
+            {
+                try
+                {
+                    var v = typeof(Config).Assembly.GetName().Version;
+                    if (v != null) return "v" + v.Major + "." + v.Minor;
+                }
+                catch (Exception ex) { LogConfigError("Read assembly version failed: " + ex.Message); }
+                return "v1.22";
+            }
+        }
+
+        public static string Version { get { return CurrentVersion; } }
         public static string Prefix { get { return GetString("QuickBlockPrefix", "BK"); } }
         public static bool DeleteOriginal { get { return GetBool("DeleteOriginal", true); } }
         public static bool KeepOriginal { get { return GetBool("KeepOriginal", false); } }

@@ -92,7 +92,9 @@ jobs:
             }
           }
 
-          Copy-Item "${{ github.workspace }}\CadToolkit\autoload.lsp" "$pkg\"
+          $autoload = Get-Content "${{ github.workspace }}\CadToolkit\autoload.lsp" -Raw
+          $autoload = $autoload -replace 'CadToolkit v[0-9.]+ ready', "CadToolkit v$ver ready"
+          Set-Content "$pkg\autoload.lsp" $autoload -Encoding UTF8
           Copy-Item "${{ github.workspace }}\CadToolkit\CadToolkit.ini" "$pkg\"
 
           $zip = "${{ github.workspace }}\release\CadToolkit-v$ver.zip"
