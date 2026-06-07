@@ -386,20 +386,30 @@ namespace CadToolkit
             int headerH = UiScale(24);
             int cellPad = UiScale(7);
 
-            int maxRows = 0;
+            var groupHeights = new List<int>();
             foreach (var g in groups)
             {
-                int rows = (int)Math.Ceiling(g.Commands.Count / (double)innerCols);
-                if (rows > maxRows) maxRows = rows;
+                int rows = Math.Max(1, (int)Math.Ceiling(g.Commands.Count / (double)innerCols));
+                groupHeights.Add(headerH + cellPad + rows * (bh + gap) - gap + cellPad);
             }
 
             int cellW = cellPad + innerCols * (bw + gap) - gap + cellPad;
-            int cellH = headerH + cellPad + maxRows * (bh + gap) - gap + cellPad;
             int groupGap = UiScale(6);
             int totalW = groupGap + groupCols * (cellW + groupGap);
-            int groupRows = (int)Math.Ceiling(groups.Count / (double)groupCols);
             int barH = UiScale(34);
-            int totalH = groupGap + groupRows * (cellH + groupGap) + barH;
+            int[] layoutHeights = new int[groupCols];
+            for (int i = 0; i < layoutHeights.Length; i++) layoutHeights[i] = groupGap;
+            foreach (int h in groupHeights)
+            {
+                int col = 0;
+                for (int c = 1; c < groupCols; c++)
+                    if (layoutHeights[c] < layoutHeights[col]) col = c;
+                layoutHeights[col] += h + groupGap;
+            }
+            int contentH = groupGap;
+            foreach (int h in layoutHeights)
+                if (h > contentH) contentH = h;
+            int totalH = contentH + barH;
             var work = Screen.FromPoint(Cursor.Position).WorkingArea;
             int clientW = Math.Min(totalW, Math.Max(UiScale(360), work.Width - UiScale(80)));
             int clientH = Math.Min(totalH, Math.Max(UiScale(260), work.Height - UiScale(100)));
@@ -418,7 +428,7 @@ namespace CadToolkit
             content.Dock = DockStyle.Fill;
             content.AutoScroll = true;
             content.BackColor = Color.FromArgb(240, 240, 240);
-            content.AutoScrollMinSize = new Size(totalW, totalH - barH);
+            content.AutoScrollMinSize = new Size(totalW, contentH);
 
             var bar = new Panel();
             bar.Dock = DockStyle.Bottom;
@@ -434,11 +444,18 @@ namespace CadToolkit
 
             string action = null;
 
+            int[] columnHeights = new int[groupCols];
+            for (int i = 0; i < columnHeights.Length; i++) columnHeights[i] = groupGap;
             for (int gi = 0; gi < groups.Count; gi++)
             {
                 var g = groups[gi];
-                int gx = groupGap + (gi % groupCols) * (cellW + groupGap);
-                int gy = groupGap + (gi / groupCols) * (cellH + groupGap);
+                int col = 0;
+                for (int c = 1; c < groupCols; c++)
+                    if (columnHeights[c] < columnHeights[col]) col = c;
+                int cellH = groupHeights[gi];
+                int gx = groupGap + col * (cellW + groupGap);
+                int gy = columnHeights[col];
+                columnHeights[col] += cellH + groupGap;
 
                 var pnl = new Panel();
                 pnl.Location = new Point(gx, gy);

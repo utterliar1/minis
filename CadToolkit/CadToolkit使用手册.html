@@ -242,6 +242,50 @@
   <p>也可以通过面板底部 <code>+</code> / <code>-</code> 按钮添加和管理。</p>
 
   <h3>图层规范</h3>
+  <p>图层规范由 <code>CadToolkit.ini</code> 控制。三端共用 <code>C:\CadToolkit\CadToolkit.ini</code>，修改后下一次执行 <code>CT_LAYERSTANDARD</code> 即可读取新配置。</p>
+  <ul>
+    <li>先按 <code>[LayerStandard]</code> 创建或修正标准图层属性</li>
+    <li>再按 <code>[LayerMap]</code> 识别旧图层并迁移对象</li>
+    <li>白名单图层保持原样，不参与规范化，也不会归到 0 层</li>
+    <li>执行前会先预览，确认后才会修改图纸</li>
+  </ul>
+
+  <h4>基础开关</h4>
+  <pre>LayerStandardFallbackTo0=false
+LayerStandardWhitelist=0,Defpoints,*图框*,*视口*,*原有*,*新增*
+</pre>
+  <table>
+    <tr><th>配置项</th><th>说明</th></tr>
+    <tr><td><code>LayerStandardFallbackTo0</code></td><td>未识别图层是否归到 0 层。建议默认关闭，需要集中清理时在预览窗口临时勾选。</td></tr>
+    <tr><td><code>LayerStandardWhitelist</code></td><td>全局白名单，支持精确匹配和 <code>*</code> 通配，多个规则用英文逗号分隔。</td></tr>
+  </table>
+
+  <h4>白名单写法</h4>
+  <table>
+    <tr><th>写法</th><th>含义</th></tr>
+    <tr><td><code>0</code></td><td>只匹配名为 0 的图层</td></tr>
+    <tr><td><code>Defpoints</code></td><td>只匹配 Defpoints</td></tr>
+    <tr><td><code>*图框*</code></td><td>图层名中包含“图框”</td></tr>
+    <tr><td><code>*原有*</code></td><td>图层名中包含“原有”</td></tr>
+    <tr><td><code>A-*</code></td><td>以 A- 开头</td></tr>
+    <tr><td><code>*-OLD</code></td><td>以 -OLD 结尾</td></tr>
+  </table>
+
+  <h4>标准图层</h4>
+  <p><code>[LayerStandard]</code> 格式为：<code>标准图层=颜色|线型|线宽|是否打印</code>。</p>
+  <table>
+    <tr><th>字段</th><th>示例</th><th>说明</th></tr>
+    <tr><td>颜色</td><td><code>4</code>、<code>200</code></td><td>CAD ACI 颜色号</td></tr>
+    <tr><td>线型</td><td><code>CONTINUOUS</code>、<code>CENTER</code></td><td>线型名，缺失时会尝试从 CAD 自带 lin 文件加载</td></tr>
+    <tr><td>线宽</td><td><code>Default</code>、<code>0.25</code></td><td>Default 表示默认线宽；数字按毫米写</td></tr>
+    <tr><td>是否打印</td><td><code>true</code> / <code>false</code></td><td>是否参与打印</td></tr>
+  </table>
+
+  <h4>旧图层识别</h4>
+  <p><code>[LayerMap]</code> 格式为：<code>标准图层=别名1,别名2,别名3</code>。旧图层名只要包含某个别名，就会归到对应标准图层。</p>
+  <p>例如 <code>风管-一层</code> 包含 <code>风管</code>，会归到 <code>5-风网</code>。</p>
+
+  <h4>完整示例</h4>
   <pre>LayerStandardFallbackTo0=false
 LayerStandardWhitelist=0,Defpoints,*图框*,*视口*,*原有*,*新增*
 
@@ -255,7 +299,9 @@ LayerStandardWhitelist=0,Defpoints,*图框*,*视口*,*原有*,*新增*
 0-设备层=设备,0-4
 1-中心线层=中心,中心线,CENTER,0-1
 2-虚线层=虚线,HIDDEN,DASH
-3-文字层=文字,说明,编号,TEXT,txt</pre>
+3-文字层=文字,说明,编号,TEXT,txt
+5-风网=风网,风管,风道,0-5</pre>
+  <div class="tip">建议第一次使用时保持 <code>LayerStandardFallbackTo0=false</code>。先看预览，把暂时不确定的图层加进白名单，确认无误后再执行。</div>
 </div>
 
 <!-- 平台支持 -->
