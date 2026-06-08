@@ -957,14 +957,15 @@ namespace BlockBrowser
                 }
             }
 
-            if (selectedBlocks.Count == 0 || string.IsNullOrEmpty(selCategory)) { ed.WriteMessage("\n取消。"); return; }
-            if (!BlockLibrary.IsSafeLibraryName(selCategory)) { ed.WriteMessage("\n分类包含非法字符，取消。"); return; }
+            var request = ExportBlockRequestService.CreatePlan(selectedBlocks, selCategory, BlockLibrary.IsSafeLibraryName);
+            if (request.Action == ExportBlockRequestAction.Cancel) { ed.WriteMessage("\n取消。"); return; }
+            if (request.Action == ExportBlockRequestAction.InvalidCategory) { ed.WriteMessage("\n分类包含非法字符，取消。"); return; }
             int ok = 0, fail = 0;
-            foreach (var blk in selectedBlocks)
+            foreach (var blk in request.SelectedBlocks)
             {
-                if (BlockLibrary.ExportBlockFromCurrentDrawing(blk, selCategory)) ok++; else fail++;
+                if (BlockLibrary.ExportBlockFromCurrentDrawing(blk, request.Category)) ok++; else fail++;
             }
-            ed.WriteMessage(string.Format("\n导出完成: {0} 成功, {1} 失败", ok, fail));
+            ed.WriteMessage("\n" + ExportBlockRequestService.FormatCompletion(ok, fail));
             } catch (System.Exception ex) { ed.WriteMessage("\n导出失败: " + ex.Message); }
         }
         [CommandMethod("KLLQ", CommandFlags.Session)]
