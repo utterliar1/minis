@@ -65,6 +65,7 @@
     <Compile Include="TextPromptDialog.cs" />
     <Compile Include="BlockThumbnailCard.cs" />
     <Compile Include="UI\ActiveLibraryStatusService.cs" />
+    <Compile Include="UI\BlockInfoStatusService.cs" />
     <Compile Include="UI\CardCacheService.cs" />
     <Compile Include="UI\ResourceDisposalService.cs" />
     <Compile Include="Sync\LibrarySyncModels.cs" />

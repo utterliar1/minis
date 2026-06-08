@@ -727,21 +727,7 @@ namespace BlockBrowser
 
         private void ShowBlockInfo(BlockInfo block)
         {
-            if (block == null || !File.Exists(block.FilePath))
-            {
-                _lblStatus.Text = "就绪";
-                return;
-            }
-            try
-            {
-                var fi = new System.IO.FileInfo(block.FilePath);
-                string sizeStr = fi.Length < 1024 ? fi.Length + " B"
-                    : fi.Length < 1024 * 1024 ? (fi.Length / 1024.0).ToString("F1") + " KB"
-                    : (fi.Length / 1024.0 / 1024.0).ToString("F1") + " MB";
-                _lblStatus.Text = string.Format("{0}  |  {1}  |  修改: {2}",
-                    block.Name, sizeStr, fi.LastWriteTime.ToString("yyyy-MM-dd HH:mm"));
-            }
-            catch { _lblStatus.Text = block.Name; }
+            _lblStatus.Text = BlockInfoStatusService.Format(block);
         }
 
         private string ShowInputDialog(string prompt)
