@@ -33,8 +33,17 @@ def load_jwt_secret():
             os.chmod(secret_path, 0o600)
         except OSError:
             pass
+        for _ in range(10):
+            with open(secret_path, 'r', encoding='utf-8') as f:
+                secret = f.read().strip()
+            if secret:
+                return secret
+            time.sleep(0.05)
         with open(secret_path, 'r', encoding='utf-8') as f:
-            return f.read().strip()
+            secret = f.read().strip()
+        if secret:
+            return secret
+        raise RuntimeError("JWT secret file exists but is empty")
 
     if os.path.exists(secret_path):
         secret = read_secret()
@@ -157,14 +166,17 @@ def login_required(f):
     def w(*a, **kw):
         token = request.headers.get('Authorization','').replace('Bearer ','')
         if not token: return jsonify(error="未登录"), 401
+        conn = None
         try:
             payload = jwt.decode(token, SECRET, algorithms=["HS256"])
             conn = get_db()
             u = conn.execute("SELECT username,display_name,role FROM users WHERE username=?", (payload.get('username'),)).fetchone()
-            conn.close()
             if not u: return jsonify(error="登录已失效"), 401
             request.user = {"username":u["username"],"role":u["role"],"dn":u["display_name"]}
         except: return jsonify(error="登录已过期"), 401
+        finally:
+            if conn:
+                conn.close()
         return f(*a, **kw)
     return w
 

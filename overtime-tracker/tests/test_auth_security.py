@@ -4,6 +4,7 @@ import os
 import sqlite3
 import stat
 import sys
+import time as stdlib_time
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -41,6 +42,14 @@ def fetch_user(db_path, username):
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     row = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+    conn.close()
+    return row
+
+
+def fetch_user_by_display_name(db_path, display_name):
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT * FROM users WHERE display_name=?", (display_name,)).fetchone()
     conn.close()
     return row
 
@@ -128,6 +137,44 @@ def test_jwt_secret_reads_existing_file_after_exclusive_create_race(monkeypatch,
 
     with load_app(monkeypatch, tmp_path) as (app_module, _):
         assert app_module.SECRET == raced_secret
+
+
+def test_jwt_secret_retries_empty_race_file_until_populated(monkeypatch, tmp_path):
+    raced_secret = "winner-secret"
+    secret_file = tmp_path / "jwt_secret"
+    real_open = os.open
+    sleeps = []
+
+    def racing_open(path, flags, mode=0o777, *args, **kwargs):
+        if Path(path).name == "jwt_secret" and flags & os.O_EXCL:
+            secret_file.write_text("", encoding="utf-8")
+            raise FileExistsError
+        return real_open(path, flags, mode, *args, **kwargs)
+
+    def fake_sleep(delay):
+        sleeps.append(delay)
+        if len(sleeps) == 3:
+            secret_file.write_text(raced_secret, encoding="utf-8")
+
+    monkeypatch.setattr(os, "open", racing_open)
+    monkeypatch.setattr(stdlib_time, "sleep", fake_sleep)
+
+    with load_app(monkeypatch, tmp_path) as (app_module, _):
+        assert app_module.SECRET == raced_secret
+
+    assert sleeps[:3] == [0.05, 0.05, 0.05]
+
+
+def test_empty_jwt_secret_file_fails_closed_after_retries(monkeypatch, tmp_path):
+    (tmp_path / "jwt_secret").write_text("", encoding="utf-8")
+    sleeps = []
+    monkeypatch.setattr(stdlib_time, "sleep", lambda delay: sleeps.append(delay))
+
+    with pytest.raises(RuntimeError, match="JWT secret"):
+        with load_app(monkeypatch, tmp_path):
+            pass
+
+    assert sleeps == [0.05] * 10
 
 
 def test_existing_jwt_secret_is_chmodded_when_read(monkeypatch, tmp_path):
@@ -245,3 +292,91 @@ def test_api_reset_password_closes_and_rolls_back_on_exception(monkeypatch, tmp_
 
         assert conn.rolled_back
         assert conn.closed
+
+
+def test_login_required_closes_db_connection_when_auth_query_raises(monkeypatch, tmp_path):
+    with load_app(monkeypatch, tmp_path) as (app_module, _):
+        conn = FakeConn(raise_on_execute=True)
+        monkeypatch.setattr(app_module, "get_db", lambda: conn)
+
+        @app_module.login_required
+        def protected():
+            return "ok"
+
+        token = app_module.make_token({"username": "admin", "display_name": "管理员", "role": "admin"})
+        with app_module.app.test_request_context("/", headers={"Authorization": f"Bearer {token}"}):
+            response, status = protected()
+
+        assert status == 401
+        assert conn.closed
+
+
+def test_register_success_stores_bcrypt_password_without_salt(monkeypatch, tmp_path):
+    with load_app(monkeypatch, tmp_path) as (app_module, db_path):
+        conn = app_module.get_db()
+        conn.execute(
+            "INSERT INTO whitelist (name, used, created_at) VALUES (?, 0, ?)",
+            ("Alice", 1),
+        )
+        conn.commit()
+        conn.close()
+
+        response = app_module.app.test_client().post(
+            "/api/register", json={"displayName": "Alice", "password": "secret123"}
+        )
+
+        assert response.status_code == 200
+        user = fetch_user_by_display_name(db_path, "Alice")
+        assert user["password_hash"].startswith("$2b$")
+        assert user["salt"] == ""
+        assert app_module.verify_pw("secret123", user)
+
+
+def test_change_password_success_stores_bcrypt_password_without_salt(monkeypatch, tmp_path):
+    with load_app(monkeypatch, tmp_path) as (app_module, db_path):
+        client = app_module.app.test_client()
+        login_response = client.post(
+            "/api/login", json={"username": "admin", "password": "admin123"}
+        )
+        token = login_response.get_json()["token"]
+
+        response = client.put(
+            "/api/change-password",
+            json={"oldPassword": "admin123", "newPassword": "newsecret"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        admin = fetch_user(db_path, "admin")
+        assert admin["password_hash"].startswith("$2b$")
+        assert admin["salt"] == ""
+        assert app_module.verify_pw("newsecret", admin)
+
+
+def test_reset_password_success_stores_bcrypt_password_without_salt(monkeypatch, tmp_path):
+    with load_app(monkeypatch, tmp_path) as (app_module, db_path):
+        conn = app_module.get_db()
+        conn.execute(
+            "INSERT INTO users VALUES (?,?,?,?,?,?)",
+            ("bob", "Bob", app_module.hash_pw("oldpass"), "", "user", 1),
+        )
+        conn.commit()
+        conn.close()
+
+        client = app_module.app.test_client()
+        login_response = client.post(
+            "/api/login", json={"username": "admin", "password": "admin123"}
+        )
+        token = login_response.get_json()["token"]
+
+        response = client.put(
+            "/api/users/bob/password",
+            json={"password": "newpass"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        user = fetch_user(db_path, "bob")
+        assert user["password_hash"].startswith("$2b$")
+        assert user["salt"] == ""
+        assert app_module.verify_pw("newpass", user)
