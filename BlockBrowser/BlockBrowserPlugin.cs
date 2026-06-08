@@ -38,7 +38,7 @@ namespace BlockBrowser
     public static class BlockLibrary
     {
         public static string LibraryPath { get; set; }
-        public const string AppVersion = "1.25.2";
+        public const string AppVersion = "1.3";
         public static string PlatformName { get; set; }
         public static int ThumbSize { get; set; }
         public static double InsertScale { get; set; }
