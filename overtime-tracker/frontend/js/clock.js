@@ -45,6 +45,16 @@ OT.showLastClockResult = function showLastClockResult(record,durationText){
   el.innerHTML=`<div class="result-main">${label} ${OT.escapeHtml(record.time_str||'')}</div><div class="result-sub">${durationText?`本次工时 ${OT.escapeHtml(durationText)}<br>`:''}${record.out_of_range?'范围外已标记<br>':''}${OT.escapeHtml(record.note||'')}</div>`;
 };
 
+OT.getCurrentClockIn = function getCurrentClockIn(records,outRecord){
+  let openIn=null,lastIn=null;
+  records.filter(r=>r.date===outRecord.date&&r.ts<=outRecord.ts).sort((a,b)=>a.ts-b.ts).forEach(r=>{
+    if(r===outRecord)return;
+    if(r.type==='in'){openIn=r;lastIn=r}
+    else if(r.type==='out'&&openIn){openIn=null}
+  });
+  return openIn||lastIn;
+};
+
 OT.handleClock = async function handleClock(){
   const btn=document.getElementById('clock-btn');
   if(btn.classList.contains('disabled')){showToast('请先满足打卡条件');return}
@@ -67,8 +77,8 @@ OT.doClock = async function doClock(type,outOfRange,note){
     allRecords.push(record);
     let durationText='';
     if(type==='out'){
-      const todayRecords=allRecords.filter(r=>r.date===record.date).sort((a,b)=>a.ts-b.ts);
-      durationText=OT.formatMinutes(OT.calcTodayOT(todayRecords,new Date(record.date+'T12:00:00')));
+      const clockIn=OT.getCurrentClockIn(allRecords,record);
+      if(clockIn)durationText=OT.formatMinutes(Math.max(0,Math.round((record.ts-clockIn.ts)/60000)));
     }
     OT.showLastClockResult(record,durationText);
     updateClockButton();updateTodayTimeline();updateHeaderStats();renderCalendar();renderStats();
@@ -82,6 +92,6 @@ OT.updateTodayTimeline = function updateTodayTimeline(){
   card.style.display='block';
   const last=recs[recs.length-1];
   const statusHtml=last.type==='in'?`<div class="timeline-status">进行中：${OT.formatMinutes(Math.max(0,Math.floor((Date.now()-last.ts)/60000)))}</div>`:'';
-  tl.innerHTML=statusHtml+recs.map(r=>`<div class="timeline-item ${r.type==='out'?'out':''}"><div class="timeline-label">${r.type==='in'?'上班打卡':'下班打卡'}</div><div class="timeline-time">${escapeHtml(r.time_str||'')}</div>${r.note?`<div class="note-text">${escapeHtml(r.note)}</div>`:''}</div>`).join('');
-  document.getElementById('today-overtime').textContent=formatMinutes(calcTodayOT(recs,new Date(t+'T12:00:00')));
+  tl.innerHTML=statusHtml+recs.map(r=>`<div class="timeline-item ${r.type==='out'?'out':''}"><div class="timeline-label">${r.type==='in'?'上班打卡':'下班打卡'}</div><div class="timeline-time">${OT.escapeHtml(r.time_str||'')}</div>${r.note?`<div class="note-text">${OT.escapeHtml(r.note)}</div>`:''}</div>`).join('');
+  document.getElementById('today-overtime').textContent=OT.formatMinutes(OT.calcTodayOT(recs,new Date(t+'T12:00:00')));
 };
