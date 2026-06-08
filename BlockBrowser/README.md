@@ -60,6 +60,11 @@ autoload.lsp 会自动检测 CAD 平台和插件目录。
 | BBTHUMB | 清除缩略图缓存 |
 | BBINFO | 显示插件信息 |
 
+## 阶段资料
+
+- [阶段版本说明](RELEASE_NOTES.md)
+- [手动测试清单](MANUAL_TEST_CHECKLIST.md)
+
 ## 界面操作
 
 - **插入** — 选中块后点击插入，或双击缩略图
