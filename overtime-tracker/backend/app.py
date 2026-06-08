@@ -272,6 +272,10 @@ def api_clock():
     clock_type = d.get('type', 'in')
     if clock_type not in ('in', 'out'):
         return jsonify(error="打卡类型无效"), 400
+    note = (d.get('note') or '').strip()
+    if not note:
+        return jsonify(error="请填写事由"), 400
+    note = note[:500]
     now = time.time()
     dt = bj_from_ts(now)
     date_str = dt.strftime('%Y-%m-%d')
@@ -296,7 +300,6 @@ def api_clock():
     expected = 'out' if last and last['type'] == 'in' else 'in'
     if clock_type != expected:
         conn.close(); return jsonify(error="打卡顺序无效，请刷新后重试"), 400
-    note = (d.get('note') or '')[:500]
     conn.execute("INSERT INTO records (user_id,date,time_str,ts,type,lat,lng,accuracy,out_of_range,note) VALUES (?,?,?,?,?,?,?,?,?,?)",
                  (uid, date_str, time_str, int(now*1000), clock_type,
                   lat, lng, accuracy, 1 if out_of_range else 0, note))
