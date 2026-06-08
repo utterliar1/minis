@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>加班打卡助手</title>
+<title>考勤助手</title>
 <style>
   :root {
     --primary: #4F46E5; --primary-light: #818CF8; --primary-dark: #3730A3;
@@ -189,7 +189,7 @@
   <div class="auth-card">
     <div class="auth-logo">
       <div class="icon">⏱</div>
-      <h2>加班打卡助手</h2>
+      <h2>考勤助手</h2>
       <p>GPS定位 · 自动计算 · 数据导出</p>
     </div>
     <div class="auth-tabs">
@@ -245,7 +245,7 @@
   <!-- Header -->
   <div class="header">
     <div class="header-top">
-      <h1>⏱ 加班打卡助手</h1>
+      <h1>⏱ 考勤助手</h1>
       <div class="header-btns">
         <button class="header-btn" id="btn-settings" onclick="showPage('settings')" title="设置">⚙</button>
         <button class="header-btn" onclick="doLogout()" title="退出登录">⏻</button>
@@ -256,9 +256,9 @@
       <span id="user-badge-text">管理员</span>
     </div>
     <div class="stats-row">
-      <div class="stat-item"><div class="stat-value" id="stat-today-ot">0h</div><div class="stat-label">今日加班</div></div>
-      <div class="stat-item"><div class="stat-value" id="stat-month-ot">0h</div><div class="stat-label">本月加班</div></div>
-      <div class="stat-item"><div class="stat-value" id="stat-total-ot">0h</div><div class="stat-label">累计加班</div></div>
+      <div class="stat-item"><div class="stat-value" id="stat-today-ot">0h</div><div class="stat-label">今日工时</div></div>
+      <div class="stat-item"><div class="stat-value" id="stat-month-ot">0h</div><div class="stat-label">本月工时</div></div>
+      <div class="stat-item"><div class="stat-value" id="stat-total-ot">0h</div><div class="stat-label">累计工时</div></div>
     </div>
   </div>
 
@@ -277,7 +277,7 @@
       <div class="timeline" id="today-timeline"></div>
       <div style="padding-left:16px;margin-top:8px;">
         <div class="summary-row">
-          <span class="label">今日加班时长</span>
+          <span class="label">今日工作时长</span>
           <span class="value overtime" id="today-overtime">0 分钟</span>
         </div>
       </div>
@@ -312,8 +312,8 @@
 
   <!-- Page: Stats -->
   <div class="page" id="page-stats">
-    <div class="card"><div class="card-title">📊 加班统计</div><div id="stats-content"></div></div>
-    <div class="card"><div class="card-title">🏆 月度加班排行</div><div id="stats-bar-chart"></div></div>
+    <div class="card"><div class="card-title">📊 工时统计</div><div id="stats-content"></div></div>
+    <div class="card"><div class="card-title">🏆 月度工时排行</div><div id="stats-bar-chart"></div></div>
   </div>
 
   <!-- Page: Settings (admin only) -->
@@ -386,7 +386,7 @@
           </select>
           <button class="btn btn-primary btn-sm" onclick="addHolidayManual()">添加</button>
         </div>
-        <div class="note-text">节假日=休息，调休补班=按工作日计算加班</div>
+        <div class="note-text">节假日=休息，调休补班=按工作日计算工时</div>
       </div>
     </div>
 
@@ -395,7 +395,7 @@
       <div class="setting-item"><span class="setting-label">自动打卡（到范围自动上班）</span><button class="toggle" id="set-auto-in" onclick="toggleSetting('autoIn')"></button></div>
       <div class="setting-item"><span class="setting-label">自动打卡（离开范围自动下班）</span><button class="toggle" id="set-auto-out" onclick="toggleSetting('autoOut')"></button></div>
       <div class="setting-item">
-        <span class="setting-label">加班最低计时</span>
+        <span class="setting-label">最低计时</span>
         <select class="setting-select" id="set-min-overtime" onchange="saveSettings()"><option value="0">无限制</option><option value="15">15分钟</option><option value="30" selected>30分钟</option><option value="60">60分钟</option></select>
       </div>
     </div>
@@ -751,7 +751,7 @@ function renderMonthSummary() {
   let totalOT=0;
   Object.entries(dateGroups).forEach(([date,recs])=>{totalOT+=calcTodayOT(recs,new Date(date+'T12:00:00'));});
   const days=Object.keys(dateGroups).length;
-  document.getElementById('summary-month-info').textContent=`${days} 天打卡，加班 ${formatMinutes(totalOT)}`;
+  document.getElementById('summary-month-info').textContent=`${days} 天打卡，工时 ${formatMinutes(totalOT)}`;
   renderRecordsList(dateGroups);
 }
 
@@ -783,11 +783,11 @@ function renderStats() {
   });
   const days=Object.keys(allDateGroups).length;
   document.getElementById('stats-content').innerHTML=`
-    <div class="summary-row"><span class="label">累计加班</span><span class="value overtime">${formatMinutes(totalOT)}</span></div>
-    <div class="summary-row"><span class="label">工作日加班</span><span class="value">${formatMinutes(workdayOT)}</span></div>
-    <div class="summary-row"><span class="label">休息日加班</span><span class="value">${formatMinutes(holidayOT)}</span></div>
+    <div class="summary-row"><span class="label">累计工时</span><span class="value overtime">${formatMinutes(totalOT)}</span></div>
+    <div class="summary-row"><span class="label">工作日工时</span><span class="value">${formatMinutes(workdayOT)}</span></div>
+    <div class="summary-row"><span class="label">休息日工时</span><span class="value">${formatMinutes(holidayOT)}</span></div>
     <div class="summary-row"><span class="label">有打卡天数</span><span class="value">${days} 天</span></div>
-    <div class="summary-row"><span class="label">平均日加班</span><span class="value">${days>0?formatMinutes(Math.round(totalOT/days)):'0 分钟'}</span></div>`;
+    <div class="summary-row"><span class="label">平均日工时</span><span class="value">${days>0?formatMinutes(Math.round(totalOT/days)):'0 分钟'}</span></div>`;
 
   // Monthly bar chart
   const monthlyStats={};
@@ -989,7 +989,7 @@ function renderUserList() {
       <div class="user-card-info">
         <div class="user-avatar ${avatar}">${initial}</div>
         <div><div class="user-name">${u.displayName||u.username}${isSelf?' <span style="color:var(--success);font-size:12px;">（我）</span>':''}</div>
-        <div class="user-meta">@${u.username} · ${u.role==='admin'?'管理员':'用户'} · 加班${formatMinutesShort(userOT)} · ${memberSince}</div></div>
+        <div class="user-meta">@${u.username} · ${u.role==='admin'?'管理员':'用户'} · 工时${formatMinutesShort(userOT)} · ${memberSince}</div></div>
       </div>
       <div class="user-actions">
         ${!isSelf && !isDefaultAdmin ? `<button onclick="toggleUserRole('${u.username}')" title="切换角色">${u.role==='admin'?'👤':'⭐'}</button>` : ''}
@@ -1043,14 +1043,14 @@ function confirmLocation(){settings.lat=currentPos.lat;settings.lng=currentPos.l
 function exportRecords(){
   const monthRecs=getUserRecords().filter(r=>{const d=new Date(r.ts);return d.getMonth()===calMonth&&d.getFullYear()===calYear;});
   const dateGroups={};monthRecs.forEach(r=>{if(!dateGroups[r.date])dateGroups[r.date]=[];dateGroups[r.date].push(r);});
-  const headers=['日期','星期','类型','上班时间','下班时间','加班(分钟)','范围外'];
+  const headers=['日期','星期','类型','上班时间','下班时间','工时(分钟)','范围外'];
   const rows=Object.entries(dateGroups).sort().map(([date,recs])=>{const d=new Date(date+'T12:00:00');const wd=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];const fIn=recs.find(r=>r.type==='in');const lOut=[...recs].reverse().find(r=>r.type==='out');const ot=calcTodayOT(recs,d);const type=isWorkingDay(d)?'工作日':'休息日';return[date,wd,type,fIn?fIn.time.slice(0,5):'',lOut?lOut.time.slice(0,5):'进行中',ot,recs.some(r=>r.outOfRange)?'是':'否'];});
   const totalOT=rows.reduce((s,r)=>s+r[5],0);rows.push(['','','','','合计',totalOT,'']);
   const csv='\uFEFF'+[headers,...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
-  downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),`加班记录_${currentUser.displayName}_${calYear}年${calMonth+1}月.csv`);
+  downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),`工时记录_${currentUser.displayName}_${calYear}年${calMonth+1}月.csv`);
   showToast('📤 已导出CSV');
 }
-function exportAllData(){downloadBlob(new Blob([JSON.stringify({settings,records,users,version:1},null,2)],{type:'application/json'}),`加班助手备份_${dateKey(new Date())}.json`);showToast('💾 数据已备份');}
+function exportAllData(){downloadBlob(new Blob([JSON.stringify({settings,records,users,version:1},null,2)],{type:'application/json'}),`考勤助手备份_${dateKey(new Date())}.json`);showToast('💾 数据已备份');}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.settings)settings={...DEFAULT_SETTINGS,...d.settings},dbSave('settings',settings);if(d.records)records=d.records,dbSave('records',records);if(d.users)users=d.users,dbSave('users',users);renderSettings();updateClock();renderStats();renderCalendar();showToast('✅ 数据已恢复');}catch{showToast('❌ 文件格式错误');}};r.readAsText(f);e.target.value='';}
 function confirmClearData(){showModal(`<div class="modal-title">⚠️ 确认清除</div><p style="font-size:14px;color:var(--text-sec);margin-bottom:16px;text-align:center;">将删除所有数据，无法恢复。建议先备份。</p><div class="btn-group"><button class="btn btn-outline" onclick="closeModalDirect()">取消</button><button class="btn btn-danger" onclick="clearAllData()">确认清除</button></div>`);}
 function clearAllData(){records=[];settings={...DEFAULT_SETTINGS};users=[DEFAULT_ADMIN];dbSave('records',records);dbSave('settings',settings);dbSave('users',users);closeModalDirect();renderSettings();updateClock();renderStats();renderCalendar();updateHeaderStats();showToast('🗑 数据已清除');}
