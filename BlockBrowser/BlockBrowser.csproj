@@ -74,6 +74,7 @@
     <Compile Include="UI\BlockInfoStatusService.cs" />
     <Compile Include="UI\CardCacheService.cs" />
     <Compile Include="UI\ResourceDisposalService.cs" />
+    <Compile Include="UI\SettingsUpdateService.cs" />
     <Compile Include="Sync\LibrarySyncModels.cs" />
     <Compile Include="Sync\ActiveLibraryResolver.cs" />
     <Compile Include="Sync\ChangeJournal.cs" />

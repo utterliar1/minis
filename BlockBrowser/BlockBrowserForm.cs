@@ -760,20 +760,26 @@ namespace BlockBrowser
             {
                 if (form.ShowDialog(this) == DialogResult.OK)
                 {
-                    string newPath = form.LibraryPathValue.Trim();
-                    if (string.IsNullOrEmpty(newPath)) { MessageBox.Show("路径不能为空。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                    if (!Directory.Exists(newPath))
+                    var plan = SettingsUpdateService.CreatePlan(
+                        BlockLibrary.LibraryPath,
+                        form.LibraryPathValue,
+                        form.InsertScaleValue,
+                        form.InsertRotationDegreesValue,
+                        Directory.Exists);
+
+                    if (!plan.IsValid) { MessageBox.Show("路径不能为空。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                    if (plan.RequiresDirectoryCreation)
                     {
-                        var dr = MessageBox.Show("目录不存在，是否创建？\n" + newPath, "提示", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                        if (dr == DialogResult.Yes) { try { Directory.CreateDirectory(newPath); } catch (Exception ex) { MessageBox.Show("创建失败: " + ex.Message); return; } }
+                        var dr = MessageBox.Show("目录不存在，是否创建？\n" + plan.LibraryPath, "提示", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                        if (dr == DialogResult.Yes) { try { Directory.CreateDirectory(plan.LibraryPath); } catch (Exception ex) { MessageBox.Show("创建失败: " + ex.Message); return; } }
                         else return;
                     }
-                    BlockLibrary.InsertScale = form.InsertScaleValue;
-                    BlockLibrary.InsertRotation = form.InsertRotationDegreesValue * Math.PI / 180.0;
-                    if (newPath != BlockLibrary.LibraryPath)
+                    BlockLibrary.InsertScale = plan.InsertScale;
+                    BlockLibrary.InsertRotation = plan.InsertRotationRadians;
+                    if (plan.LibraryPathChanged)
                     {
-                        BlockLibrary.LibraryPath = newPath;
-                        BlockLibrary.NasLibraryPath = newPath;
+                        BlockLibrary.LibraryPath = plan.LibraryPath;
+                        BlockLibrary.NasLibraryPath = plan.LibraryPath;
                         ResourceDisposalService.DisposeDictionaryValuesAndClear(_categoryCards);
                         LoadData();
                     }
