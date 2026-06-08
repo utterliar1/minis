@@ -1,0 +1,99 @@
+using System;
+using System.IO;
+
+namespace BlockBrowser
+{
+    public static class BlockFileOperations
+    {
+        public static void CopyDirectoryContents(string sourceDir, string targetDir)
+        {
+            if (string.IsNullOrEmpty(sourceDir) || !Directory.Exists(sourceDir))
+                throw new DirectoryNotFoundException(sourceDir);
+            if (string.IsNullOrEmpty(targetDir))
+                throw new ArgumentException("Target directory is required.", "targetDir");
+
+            Directory.CreateDirectory(targetDir);
+            string sourceRoot = BlockBrowserConfigStore.EnsureTrailingSeparator(sourceDir);
+
+            foreach (string dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
+            {
+                string rel = dir.Substring(sourceRoot.Length);
+                if (IsInternalLibraryPath(rel)) continue;
+                Directory.CreateDirectory(Path.Combine(targetDir, rel));
+            }
+
+            foreach (string file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+            {
+                string rel = file.Substring(sourceRoot.Length);
+                if (IsInternalLibraryPath(rel)) continue;
+
+                string dest = Path.Combine(targetDir, rel);
+                string destDir = Path.GetDirectoryName(dest);
+                if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
+                File.Copy(file, dest, true);
+            }
+        }
+
+        public static bool CanRenameBlock(BlockInfo block, string newName, bool checkCollision)
+        {
+            if (block == null || string.IsNullOrEmpty(newName)) return false;
+            newName = newName.Trim();
+            if (!BlockBrowserConfigStore.IsSafeLibraryName(newName)) return false;
+
+            string target = GetRenameTargetPath(block, newName);
+            if (string.IsNullOrEmpty(target)) return false;
+            if (checkCollision && File.Exists(target)) return false;
+            return true;
+        }
+
+        public static string GetRenameTargetPath(BlockInfo block, string newName)
+        {
+            if (block == null || string.IsNullOrEmpty(newName)) return "";
+            string oldPath = block.FilePath;
+            string dir = Path.GetDirectoryName(oldPath);
+            if (string.IsNullOrEmpty(dir)) return "";
+            return Path.Combine(dir, newName.Trim() + ".dwg");
+        }
+
+        public static string RenameBlockFile(BlockInfo block, string newName)
+        {
+            if (!CanRenameBlock(block, newName, true)) return "";
+            string newPath = GetRenameTargetPath(block, newName);
+            File.Move(block.FilePath, newPath);
+            return newPath;
+        }
+
+        public static bool CanOpenForExclusiveWrite(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return false;
+
+            try
+            {
+                using (File.Open(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                }
+                return true;
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
+        private static bool IsInternalLibraryPath(string relativePath)
+        {
+            string[] segments = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            foreach (string segment in segments)
+            {
+                if (segment.Equals(".thumbs", StringComparison.OrdinalIgnoreCase)
+                    || segment.Equals(".blockbrowser", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+    }
+}

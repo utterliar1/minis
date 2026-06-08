@@ -55,8 +55,15 @@ autoload.lsp 会自动检测 CAD 平台和插件目录。
 | BB | 打开块浏览器（别名：KLLQ） |
 | BBADD | 将当前图纸中选择的对象保存为块到库 |
 | BBEXPORT | 将当前图纸中的块导出到库（支持多选） |
+| BBMIRROR | 从 NAS 更新本地副本 |
+| BBSYNC | 将本地新增块安全同步到 NAS，并报告冲突 |
 | BBTHUMB | 清除缩略图缓存 |
 | BBINFO | 显示插件信息 |
+
+## 阶段资料
+
+- [阶段版本说明](RELEASE_NOTES.md)
+- [手动测试清单](MANUAL_TEST_CHECKLIST.md)
 
 ## 界面操作
 
@@ -88,6 +95,32 @@ autoload.lsp 会自动检测 CAD 平台和插件目录。
     FormHeight=650
 
 也可在块浏览器界面点击 **设置** 按钮修改。
+
+## NAS 与便携同步
+
+BlockBrowser 支持办公室 NAS 主图库和移动电脑本地副本。推荐配置：
+
+    LibraryPath=\\NAS\CADBlocks\BlockBrowser
+    NasLibraryPath=\\NAS\CADBlocks\BlockBrowser
+    LocalMirrorPath=D:\CADBlocks\BlockBrowser
+    PreferLocalWhenNasUnavailable=1
+    CurrentLibraryMode=Auto
+    UserName=WLUP
+
+在 `Auto` 模式下，NAS 可用时使用 NAS 主图库；NAS 不可用且本地副本存在时，自动使用本地副本，并把离线新增、重命名、删除请求记录到 `.blockbrowser/local-changes.json`。
+
+同步策略默认保护 NAS：
+
+- 本地新增文件且 NAS 没有同路径文件时，允许上传。
+- NAS 已有同路径文件时，跳过并报告重复。
+- 本地编辑过的 DWG 不会静默覆盖 NAS。
+- 本地删除会记录为删除请求，不会自动删除 NAS 文件。
+- 缩略图缓存仍保留在每台电脑本地，不共享到 NAS。
+
+常用操作：
+
+- `BBMIRROR`：从 NAS 更新本地副本。有未同步本地修改时会拒绝更新，避免覆盖移动电脑上的改动。
+- `BBSYNC`：上传安全的新文件，并汇总重复、冲突、删除待确认和失败数量。
 
 ## 缩略图逻辑
 

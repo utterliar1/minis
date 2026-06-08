@@ -24,6 +24,8 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Xml" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="Microsoft.VisualBasic" />
@@ -41,9 +43,44 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Config\BlockBrowserConfig.cs" />
+    <Compile Include="Config\BlockBrowserConfigStore.cs" />
+    <Compile Include="Library\BlockInfo.cs" />
+    <Compile Include="Library\LibraryNameRules.cs" />
+    <Compile Include="Library\BlockFilterService.cs" />
+    <Compile Include="Library\BlockLibraryService.cs" />
+    <Compile Include="Library\CategoryCreationService.cs" />
+    <Compile Include="Library\CategorySelectionService.cs" />
+    <Compile Include="Library\BlockFileOperations.cs" />
+    <Compile Include="Library\BlockWriteService.cs" />
+    <Compile Include="Paths\LibraryPathService.cs" />
+    <Compile Include="Thumbnails\PlaceholderImageFactory.cs" />
+    <Compile Include="Thumbnails\ThumbnailCacheService.cs" />
+    <Compile Include="Thumbnails\ThumbnailLoadProgressService.cs" />
+    <Compile Include="Thumbnails\ThumbnailMemoryCacheService.cs" />
     <Compile Include="BlockBrowserPlugin.cs" />
     <Compile Include="BlockBrowserForm.cs" />
+    <Compile Include="ExportBlocksDialog.cs" />
+    <Compile Include="SettingsDialog.cs" />
+    <Compile Include="TextPromptDialog.cs" />
     <Compile Include="BlockThumbnailCard.cs" />
+    <Compile Include="UI\AddToLibraryRequestService.cs" />
+    <Compile Include="UI\ActiveLibraryStatusService.cs" />
+    <Compile Include="UI\BlockDeletePlanService.cs" />
+    <Compile Include="UI\BlockBrowserInfoService.cs" />
+    <Compile Include="UI\BlockInfoStatusService.cs" />
+    <Compile Include="UI\BlockRenamePlanService.cs" />
+    <Compile Include="UI\CardCacheService.cs" />
+    <Compile Include="UI\ExportBlockRequestService.cs" />
+    <Compile Include="UI\ResourceDisposalService.cs" />
+    <Compile Include="UI\SettingsUpdateService.cs" />
+    <Compile Include="Sync\LibrarySyncModels.cs" />
+    <Compile Include="Sync\ActiveLibraryResolver.cs" />
+    <Compile Include="Sync\ChangeJournal.cs" />
+    <Compile Include="Sync\VersionNameGenerator.cs" />
+    <Compile Include="Sync\SyncSummaryMessageService.cs" />
+    <Compile Include="Sync\SyncPlanner.cs" />
+    <Compile Include="Sync\MetadataMerger.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

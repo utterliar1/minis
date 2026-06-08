@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using Image = System.Drawing.Image;
-using DrawingFont = System.Drawing.Font;
 
 #if AUTOCAD
 using Autodesk.AutoCAD.ApplicationServices;
@@ -36,19 +35,6 @@ using CadApp = ZwSoft.ZwCAD.ApplicationServices.Application;
 
 namespace BlockBrowser
 {
-    public class BlockInfo
-    {
-        private string _name;
-        private string _filePath;
-        public string FilePath
-        {
-            get { return _filePath; }
-            set { _filePath = value; _name = Path.GetFileNameWithoutExtension(value); }
-        }
-        public string Name { get { return _name ?? ""; } }
-        public string Category { get; set; }
-    }
-
     public static class BlockLibrary
     {
         public static string LibraryPath { get; set; }
@@ -59,15 +45,18 @@ namespace BlockBrowser
         public static double InsertRotation { get; set; }
         public static int FormWidth { get; set; }
         public static int FormHeight { get; set; }
+        public static string NasLibraryPath { get; set; }
+        public static string LocalMirrorPath { get; set; }
+        public static bool PreferLocalWhenNasUnavailable { get; set; }
+        public static LibraryMode CurrentLibraryMode { get; set; }
+        public static string SyncUserName { get; set; }
+        public static ActiveLibraryResult ActiveLibrary { get; private set; }
+        private static BlockBrowserConfigStore _configStore;
 
         static BlockLibrary()
         {
-            LibraryPath = Path.Combine(PluginRoot, "我的常用块");
-            ThumbSize = 128;
-            InsertScale = 1.0;
-            InsertRotation = 0;
-            FormWidth = 1000;
-            FormHeight = 650;
+            _configStore = new BlockBrowserConfigStore(PluginRoot);
+            ApplyConfig(BlockBrowserConfig.CreateDefault(PluginRoot));
             LoadConfig();
         }
 
@@ -94,7 +83,16 @@ namespace BlockBrowser
         {
             get
             {
-                return Path.Combine(PluginRoot, "config.ini");
+                return _configStore.ConfigPath;
+            }
+        }
+
+        private static string DefaultConfigPath
+        {
+            get
+            {
+                // Deployment smoke tests verify the plugin knows about BlockBrowser.default.ini.
+                return _configStore.DefaultConfigPath;
             }
         }
 
@@ -109,198 +107,235 @@ namespace BlockBrowser
 
         private static string EnsureTrailingSeparator(string path)
         {
-            if (string.IsNullOrEmpty(path)) return "";
-            char last = path[path.Length - 1];
-            if (last == Path.DirectorySeparatorChar || last == Path.AltDirectorySeparatorChar) return path;
-            return path + Path.DirectorySeparatorChar;
+            return BlockBrowserConfigStore.EnsureTrailingSeparator(path);
         }
 
         private static string ToConfigPath(string path)
         {
-            try
-            {
-                string full = Path.GetFullPath(path);
-                string root = EnsureTrailingSeparator(PluginRoot);
-                if (full.Equals(PluginRoot, StringComparison.OrdinalIgnoreCase)) return ".";
-                if (full.StartsWith(root, StringComparison.OrdinalIgnoreCase))
-                    return full.Substring(root.Length);
-                return full;
-            }
-            catch
-            {
-                return path;
-            }
+            return _configStore.ToConfigPath(path);
+        }
+
+        private static string FromConfigPath(string path)
+        {
+            return _configStore.FromConfigPath(path);
         }
 
         public static bool IsSafeLibraryName(string name)
         {
-            if (string.IsNullOrWhiteSpace(name)) return false;
-            string trimmed = name.Trim();
-            if (trimmed == "." || trimmed == "..") return false;
-            char[] invalid = Path.GetInvalidFileNameChars();
-            foreach (char c in trimmed)
+            return BlockBrowserConfigStore.IsSafeLibraryName(name);
+        }
+
+        private static BlockBrowserConfig CaptureConfig()
+        {
+            var config = new BlockBrowserConfig
             {
-                foreach (char ic in invalid)
-                {
-                    if (c == ic) return false;
-                }
-            }
-            return true;
+                LibraryPath = LibraryPath,
+                NasLibraryPath = NasLibraryPath,
+                LocalMirrorPath = LocalMirrorPath,
+                PreferLocalWhenNasUnavailable = PreferLocalWhenNasUnavailable,
+                CurrentLibraryMode = CurrentLibraryMode,
+                SyncUserName = SyncUserName,
+                ThumbSize = ThumbSize,
+                InsertScale = InsertScale,
+                InsertRotation = InsertRotation,
+                FormWidth = FormWidth,
+                FormHeight = FormHeight
+            };
+
+            config.RecentBlocks.AddRange(_recentBlocks);
+            return config;
+        }
+
+        private static void ApplyConfig(BlockBrowserConfig config)
+        {
+            if (config == null) return;
+
+            LibraryPath = config.LibraryPath;
+            NasLibraryPath = config.NasLibraryPath;
+            LocalMirrorPath = config.LocalMirrorPath;
+            PreferLocalWhenNasUnavailable = config.PreferLocalWhenNasUnavailable;
+            CurrentLibraryMode = config.CurrentLibraryMode;
+            SyncUserName = config.SyncUserName;
+            ThumbSize = config.ThumbSize;
+            InsertScale = config.InsertScale;
+            InsertRotation = config.InsertRotation;
+            FormWidth = config.FormWidth;
+            FormHeight = config.FormHeight;
+
+            _recentBlocks.Clear();
+            _recentBlocks.AddRange(config.RecentBlocks);
         }
 
         public static void LoadConfig()
         {
-            try
-            {
-                string cfgPath = ConfigPath;
-                if (!File.Exists(cfgPath)) return;
-                foreach (string line in File.ReadAllLines(cfgPath, System.Text.Encoding.UTF8))
-                {
-                    string trimmed = line.Trim();
-                    if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#") || trimmed.StartsWith(";")) continue;
-                    int eq = trimmed.IndexOf('=');
-                    if (eq <= 0) continue;
-                    string key = trimmed.Substring(0, eq).Trim();
-                    string val = trimmed.Substring(eq + 1).Trim();
-                    if (key.Equals("ThumbSize", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { int ts; if (int.TryParse(val, out ts) && ts >= 40 && ts <= 512) ThumbSize = ts; }
-                    else if (key.Equals("InsertScale", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { double ds; if (double.TryParse(val, out ds) && ds > 0) InsertScale = ds; }
-                    else if (key.Equals("InsertRotation", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { double dr; if (double.TryParse(val, out dr)) InsertRotation = dr * Math.PI / 180.0; }
-                    else if (key.Equals("FormWidth", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { int fw; if (int.TryParse(val, out fw) && fw >= 400) FormWidth = fw; }
-                    else if (key.Equals("FormHeight", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val)) { int fh; if (int.TryParse(val, out fh) && fh >= 300) FormHeight = fh; }
-                    else if (key.Equals("RecentBlocks", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val))
-                    {
-                        _recentBlocks.Clear();
-                        foreach (var rp in val.Split('|'))
-                        {
-                            string t = rp.Trim();
-                            if (!string.IsNullOrEmpty(t) && !_recentBlocks.Contains(t))
-                                _recentBlocks.Add(t);
-                        }
-                    }
-                    else if (key.Equals("LibraryPath", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val))
-                    {
-                        if (Path.IsPathRooted(val))
-                            LibraryPath = val;
-                        else
-                        {
-                            LibraryPath = Path.Combine(PluginRoot, val);
-                        }
-                    }
-                }
-            }
-            catch { }
+            ApplyConfig(_configStore.Load(CaptureConfig()));
+        }
+
+        private static void EnsureUserConfigExists()
+        {
+            _configStore.EnsureUserConfigExists();
         }
 
         public static void SaveConfig()
         {
-            try
+            _configStore.Save(CaptureConfig());
+        }
+
+        public static ActiveLibraryResult RefreshActiveLibrary()
+        {
+            var config = CaptureConfig();
+            ActiveLibrary = LibraryPathService.RefreshActiveLibrary(config);
+            ApplyConfig(config);
+            return ActiveLibrary;
+        }
+
+        public static string LocalJournalPath
+        {
+            get { return LibraryPathService.GetLocalJournalPath(LocalMirrorPath); }
+        }
+
+        private static int _journalSequence;
+
+        public static void RecordLocalChange(LocalChangeAction action, string relativePath, string toRelativePath, DateTime? baseNasLastWriteUtc)
+        {
+            if (ActiveLibrary == null || ActiveLibrary.Kind != ActiveLibraryKind.LocalMirror)
+                return;
+
+            var entries = ChangeJournal.Load(LocalJournalPath);
+            _journalSequence++;
+            DateTime now = DateTime.UtcNow;
+            entries.Add(new ChangeJournalEntry
             {
-                string cfgPath = ConfigPath;
-                string dir = Path.GetDirectoryName(cfgPath);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                var lines = new List<string>();
-                lines.Add("# 块浏览器配置文件");
-                lines.Add("LibraryPath=" + ToConfigPath(LibraryPath));
-                lines.Add("ThumbSize=" + ThumbSize);
-                lines.Add("InsertScale=" + InsertScale.ToString("G"));
-                lines.Add("InsertRotation=" + (InsertRotation * 180.0 / Math.PI).ToString("G"));
-                lines.Add("FormWidth=" + FormWidth);
-                lines.Add("FormHeight=" + FormHeight);
-                if (_recentBlocks.Count > 0)
-                    lines.Add("RecentBlocks=" + string.Join("|", _recentBlocks.ToArray()));
-                File.WriteAllLines(cfgPath, lines, System.Text.Encoding.UTF8);
+                Id = ChangeJournal.CreateId(now, SyncUserName, _journalSequence),
+                Action = action,
+                Path = relativePath ?? "",
+                ToPath = toRelativePath ?? "",
+                BaseNasLastWriteUtc = baseNasLastWriteUtc,
+                LocalLastWriteUtc = now,
+                User = string.IsNullOrEmpty(SyncUserName) ? Environment.UserName : SyncUserName,
+                CreatedUtc = now
+            });
+            ChangeJournal.Save(LocalJournalPath, entries);
+        }
+
+        public static string ToLibraryRelativePath(string fullPath)
+        {
+            return LibraryPathService.ToLibraryRelativePath(LibraryPath, fullPath);
+        }
+
+        public static void CopyDirectoryContents(string sourceDir, string targetDir)
+        {
+            BlockFileOperations.CopyDirectoryContents(sourceDir, targetDir);
+        }
+
+        public static void UpdateLocalMirrorFromNas()
+        {
+            if (string.IsNullOrEmpty(NasLibraryPath) || !Directory.Exists(NasLibraryPath))
+                throw new DirectoryNotFoundException("NAS library is unavailable: " + NasLibraryPath);
+            if (string.IsNullOrEmpty(LocalMirrorPath))
+                throw new InvalidOperationException("Local mirror path is empty.");
+
+            var pending = ChangeJournal.Load(LocalJournalPath);
+            if (pending.Count > 0)
+                throw new InvalidOperationException("Local changes are pending. Sync or clear local changes before updating the local mirror from NAS.");
+
+            CopyDirectoryContents(NasLibraryPath, LocalMirrorPath);
+        }
+
+        public static List<SyncFileSnapshot> BuildSnapshots(IEnumerable<ChangeJournalEntry> entries)
+        {
+            var list = new List<SyncFileSnapshot>();
+            foreach (var entry in entries ?? new ChangeJournalEntry[0])
+            {
+                string rel = entry.Path ?? "";
+                string localPath = Path.Combine(LocalMirrorPath ?? "", rel);
+                string nasPath = Path.Combine(NasLibraryPath ?? "", rel);
+                bool localExists = File.Exists(localPath);
+                bool nasExists = File.Exists(nasPath);
+                list.Add(new SyncFileSnapshot
+                {
+                    Path = rel,
+                    LocalExists = localExists,
+                    NasExists = nasExists,
+                    LocalLastWriteUtc = localExists ? (DateTime?)File.GetLastWriteTimeUtc(localPath) : null,
+                    NasLastWriteUtc = nasExists ? (DateTime?)File.GetLastWriteTimeUtc(nasPath) : null,
+                    BaseNasLastWriteUtc = entry.BaseNasLastWriteUtc
+                });
             }
-            catch { }
+            return list;
+        }
+
+        public static SyncPlan PreviewLocalSync()
+        {
+            var entries = ChangeJournal.Load(LocalJournalPath);
+            var snapshots = BuildSnapshots(entries);
+            return SyncPlanner.CreatePlan(entries, snapshots);
+        }
+
+        public static SyncPlan SyncSafeUploadsToNas()
+        {
+            if (string.IsNullOrEmpty(NasLibraryPath) || !Directory.Exists(NasLibraryPath))
+                throw new DirectoryNotFoundException("NAS library is unavailable: " + NasLibraryPath);
+
+            var entries = ChangeJournal.Load(LocalJournalPath);
+            var plan = SyncPlanner.CreatePlan(entries, BuildSnapshots(entries));
+            var uploadedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var decision in plan.Decisions)
+            {
+                if (decision.Kind != SyncDecisionKind.Upload)
+                    continue;
+
+                string src = Path.Combine(LocalMirrorPath, decision.Path);
+                string dst = Path.Combine(NasLibraryPath, decision.TargetPath);
+                if (File.Exists(dst))
+                    continue;
+
+                string dstDir = Path.GetDirectoryName(dst);
+                if (!string.IsNullOrEmpty(dstDir)) Directory.CreateDirectory(dstDir);
+                File.Copy(src, dst, false);
+                uploadedPaths.Add(decision.Path ?? "");
+            }
+
+            if (uploadedPaths.Count > 0)
+            {
+                var remaining = entries
+                    .Where(e => !uploadedPaths.Contains(e.Path ?? ""))
+                    .ToList();
+                ChangeJournal.Save(LocalJournalPath, remaining);
+            }
+
+            return plan;
         }
 
         public static List<string> GetCategories()
         {
-            if (!Directory.Exists(LibraryPath)) Directory.CreateDirectory(LibraryPath);
-            var c = new List<string> { "全部", "最近" };
-            var dirs = new List<string>();
-            foreach (var d in Directory.GetDirectories(LibraryPath))
-            {
-                string n = Path.GetFileName(d);
-                if (!n.StartsWith(".") && Directory.GetFiles(d, "*.dwg").Length > 0)
-                    dirs.Add(n);
-            }
-            dirs.Sort(StringComparer.OrdinalIgnoreCase);
-            c.AddRange(dirs);
-            return c;
+            return BlockLibraryService.GetCategories(LibraryPath);
+        }
+
+        public static List<string> GetBrowsableCategories()
+        {
+            return BlockLibraryService.GetBrowsableCategories(LibraryPath);
+        }
+
+        public static CategoryCreationResult CreateCategory(string category)
+        {
+            return CategoryCreationService.CreateCategory(LibraryPath, category);
         }
 
         public static List<BlockInfo> GetBlocks(string category)
         {
-            if (!Directory.Exists(LibraryPath)) Directory.CreateDirectory(LibraryPath);
-            var blocks = new List<BlockInfo>();
-
-            if (category == "最近")
-            {
-                foreach (var rp in _recentBlocks)
-                {
-                    if (File.Exists(rp))
-                        blocks.Add(new BlockInfo { FilePath = rp, Category = "最近" });
-                }
-                return blocks;
-            }
-
-            var paths = new List<string>();
-            if (string.IsNullOrEmpty(category) || category == "全部")
-            {
-                paths.Add(LibraryPath);
-                paths.AddRange(Directory.GetDirectories(LibraryPath).Where(d => !Path.GetFileName(d).StartsWith(".")));
-            }
-            else
-            {
-                string cp = Path.Combine(LibraryPath, category);
-                if (Directory.Exists(cp)) paths.Add(cp);
-            }
-            foreach (var p in paths)
-            {
-                string cat = p == LibraryPath ? "未分类" : Path.GetFileName(p);
-                foreach (var dwg in Directory.GetFiles(p, "*.dwg"))
-                    blocks.Add(new BlockInfo { FilePath = dwg, Category = cat });
-            }
-            return blocks.OrderBy(b => b.Category).ThenBy(b => b.Name).ToList();
+            return BlockLibraryService.GetBlocks(LibraryPath, category, _recentBlocks);
         }
 
         public static Image GetThumbnail(BlockInfo block, int size)
         {
             if (block == null) return GeneratePlaceholder("?", size);
-            string cachePath = Path.Combine(ThumbnailCachePath, GetCacheKey(block) + ".png");
+            string cachePath = ThumbnailCacheService.GetCachePath(ThumbnailCachePath, block);
             bool hasSrc = File.Exists(block.FilePath);
-            // Check cache with file modification time validation
-            if (File.Exists(cachePath))
-            {
-                bool cacheValid = false;
-                if (hasSrc)
-                {
-                    try
-                    {
-                        DateTime srcTime = File.GetLastWriteTime(block.FilePath);
-                        DateTime cacheTime = File.GetLastWriteTime(cachePath);
-                        cacheValid = cacheTime >= srcTime;
-                    }
-                    catch { }
-                }
-                else
-                {
-                    cacheValid = true;
-                }
-                if (cacheValid)
-                {
-                    try
-                    {
-                        byte[] bytes = File.ReadAllBytes(cachePath);
-                        using (var ms = new MemoryStream(bytes))
-                        using (var c = Image.FromStream(ms))
-                        {
-                            return ScaleToSquare(c, size);
-                        }
-                    }
-                    catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine("[BlockBrowser] 缓存读取失败: " + ex.Message); }
-                }
-            }
+            Image cached = ThumbnailCacheService.TryLoadValidCache(cachePath, block.FilePath, size);
+            if (cached != null) return cached;
+
             if (!hasSrc) return GeneratePlaceholder(block.Name, size);
             try
             {
@@ -388,34 +423,12 @@ namespace BlockBrowser
 
         private static bool IsBitmapUseful(Bitmap bmp)
         {
-            if (bmp.Width < 4 || bmp.Height < 4) return false;
-            try
-            {
-                // Quick check: 3 corners + center
-                Color c0 = bmp.GetPixel(0, 0);
-                Color cm = bmp.GetPixel(bmp.Width / 2, bmp.Height / 2);
-                Color ce = bmp.GetPixel(bmp.Width - 1, bmp.Height - 1);
-                return !(c0.ToArgb() == cm.ToArgb() && cm.ToArgb() == ce.ToArgb());
-            }
-            catch { return true; }
+            return ThumbnailCacheService.IsBitmapUseful(bmp);
         }
 
         public static Bitmap ScaleToSquare(Image src, int size)
         {
-            if (src.Width < 1 || src.Height < 1) return new Bitmap(size, size);
-            Bitmap bmp = new Bitmap(size, size);
-            using (var g = Graphics.FromImage(bmp))
-            {
-                g.Clear(Color.White);
-                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                float ratio = System.Math.Min((float)size / src.Width, (float)size / src.Height);
-                int w = (int)(src.Width * ratio);
-                int h = (int)(src.Height * ratio);
-                int x = (size - w) / 2;
-                int y = (size - h) / 2;
-                g.DrawImage(src, x, y, w, h);
-            }
-            return bmp;
+            return ThumbnailCacheService.ScaleToSquare(src, size);
         }
 
         private static void RenderBlockContents(Graphics g, Transaction tr, BlockTableRecord btr, int size)
@@ -594,165 +607,51 @@ namespace BlockBrowser
             catch { }
         }
 
-        
-        private static Dictionary<string, Image> _placeholderCache = new Dictionary<string, Image>();
-        private static Dictionary<int, DrawingFont> _fontCache = new Dictionary<int, DrawingFont>();
-        private const int PLACEHOLDER_CACHE_MAX = 200;
-
         public static void ClearPlaceholderCache()
         {
-            foreach (var kv in _placeholderCache) { try { kv.Value.Dispose(); } catch { } }
-            _placeholderCache.Clear();
+            PlaceholderImageFactory.Clear();
         }
 
         public static Image GeneratePlaceholder(string name, int size)
         {
-            string cacheKey = (name ?? "?") + "_" + size;
-            if (_placeholderCache.ContainsKey(cacheKey) && _placeholderCache[cacheKey] != null)
-            {
-                try { return new Bitmap(_placeholderCache[cacheKey]); }
-                catch { _placeholderCache.Remove(cacheKey); }
-            }
-            try
-            {
-                var bmp = new Bitmap(size, size);
-                using (var g = Graphics.FromImage(bmp))
-                {
-                    g.SmoothingMode = SmoothingMode.AntiAlias;
-                    g.Clear(Color.FromArgb(240, 242, 245));
-                    using (var p = new Pen(Color.FromArgb(180, 190, 205), 1))
-                        g.DrawRectangle(p, 0, 0, size - 1, size - 1);
-                    int isz = size / 3, ix = (size - isz) / 2, iy = size / 5;
-                    using (var br = new SolidBrush(Color.FromArgb(100, 140, 190)))
-                        g.FillRectangle(br, ix, iy, isz, isz);
-                    using (var p = new Pen(Color.FromArgb(70, 100, 150), 2))
-                    {
-                        g.DrawRectangle(p, ix, iy, isz, isz);
-                        int cx = size / 2, cy = iy + isz / 2;
-                        g.DrawLine(p, cx - isz / 4, cy, cx + isz / 4, cy);
-                        g.DrawLine(p, cx, cy - isz / 4, cx, cy + isz / 4);
-                    }
-                    string dn = name ?? "?";
-                    if (dn.Length > 10) dn = dn.Substring(0, 9) + "..";
-                    int fontSize = Math.Max(7, size / 14);
-                    DrawingFont font;
-                    if (!_fontCache.TryGetValue(fontSize, out font))
-                    {
-                        font = new DrawingFont("Microsoft YaHei", fontSize, FontStyle.Regular);
-                        _fontCache[fontSize] = font;
-                    }
-                    var textRect = new RectangleF(2, size * 0.68f, size - 4, size * 0.30f);
-                    g.DrawString(dn, font, Brushes.DimGray, textRect,
-                        new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter });
-                }
-                // 缓存超限时清理
-                if (_placeholderCache.Count >= PLACEHOLDER_CACHE_MAX)
-                {
-                    foreach (var kv in _placeholderCache) { try { kv.Value.Dispose(); } catch { } }
-                    _placeholderCache.Clear();
-                }
-                _placeholderCache[cacheKey] = new Bitmap(bmp);
-                return bmp;
-            }
-            catch
-            {
-                var bmp = new Bitmap(size, size);
-                using (var g = Graphics.FromImage(bmp))
-                {
-                    g.Clear(Color.FromArgb(230, 230, 235));
-                    g.DrawRectangle(Pens.Gray, 0, 0, size - 1, size - 1);
-                }
-                return bmp;
-            }
+            return PlaceholderImageFactory.Generate(name, size);
         }
 
         private static void SaveThumbnailCache(string cachePath, Image image)
         {
-            try
-            {
-                string dir = Path.GetDirectoryName(cachePath);
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                image.Save(cachePath, System.Drawing.Imaging.ImageFormat.Png);
-            }
-            catch { }
+            ThumbnailCacheService.SaveThumbnailCache(cachePath, image);
         }
 
         private static string GetCacheKey(BlockInfo block)
         {
-            string path = block.FilePath ?? "";
-            long size = 0;
-            long ticks = 0;
-            try
-            {
-                if (File.Exists(path))
-                {
-                    var fi = new FileInfo(path);
-                    size = fi.Length;
-                    ticks = fi.LastWriteTimeUtc.Ticks;
-                }
-            }
-            catch { }
-            string raw = path + "|" + size + "|" + ticks;
-            using (var md5 = System.Security.Cryptography.MD5.Create())
-            {
-                byte[] hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(raw.ToLowerInvariant()));
-                return BitConverter.ToString(hash).Replace("-", "").Substring(0, 16);
-            }
+            return ThumbnailCacheService.GetCacheKey(block);
         }
 
         public static void RefreshThumbnail(BlockInfo block)
         {
-            string cp = Path.Combine(ThumbnailCachePath, GetCacheKey(block) + ".png");
-            if (File.Exists(cp)) File.Delete(cp);
+            ThumbnailCacheService.RefreshThumbnail(ThumbnailCachePath, block);
         }
 
         public static void CleanupDiskCache()
         {
-            try
-            {
-                string cp = ThumbnailCachePath;
-                if (!Directory.Exists(cp)) return;
-                var cutoff = DateTime.Now.AddDays(-30);
-                long total = 0;
-                var infos = new List<System.IO.FileInfo>();
-                foreach (var f in Directory.GetFiles(cp, "*.png"))
-                {
-                    try
-                    {
-                        var fi = new System.IO.FileInfo(f);
-                        infos.Add(fi);
-                        total += fi.Length;
-                        if (fi.LastWriteTime < cutoff) { fi.Delete(); total -= fi.Length; }
-                    }
-                    catch { }
-                }
-                if (total > 100L * 1024 * 1024)
-                {
-                    infos.Sort((a, b) => a.LastWriteTime.CompareTo(b.LastWriteTime));
-                    foreach (var fi in infos)
-                    {
-                        if (total <= 80L * 1024 * 1024) break;
-                        try { total -= fi.Length; fi.Delete(); } catch { }
-                    }
-                }
-            }
-            catch { }
+            ThumbnailCacheService.CleanupDiskCache(ThumbnailCachePath);
         }
 
         public static bool RenameBlock(BlockInfo block, string newName)
         {
-            if (block == null || string.IsNullOrEmpty(newName)) return false;
-            newName = newName.Trim();
-            if (!IsSafeLibraryName(newName)) return false;
+            if (!BlockFileOperations.CanRenameBlock(block, newName, true)) return false;
+
             string oldPath = block.FilePath;
-            string dir = Path.GetDirectoryName(oldPath);
-            if (string.IsNullOrEmpty(dir)) return false;
-            string newPath = Path.Combine(dir, newName + ".dwg");
-            if (File.Exists(newPath)) return false;
-            // Rename DWG file
-            File.Move(oldPath, newPath);
-            // Rename thumbnail cache
             string oldCacheKey = GetCacheKey(block);
+            string newPath = BlockFileOperations.RenameBlockFile(block, newName);
+            if (string.IsNullOrEmpty(newPath)) return false;
+
+            RecordLocalChange(
+                LocalChangeAction.Rename,
+                ToLibraryRelativePath(oldPath),
+                ToLibraryRelativePath(newPath),
+                null);
+
             block.FilePath = newPath;
             string newCacheKey = GetCacheKey(block);
             string thumbDir = ThumbnailCachePath;
@@ -832,18 +731,14 @@ namespace BlockBrowser
             Document doc = CadApp.DocumentManager.MdiActiveDocument;
             if (doc == null) return false;
             Editor ed = doc.Editor;
-            blockName = (blockName ?? "").Trim();
-            category = (category ?? "").Trim();
-            if (!IsSafeLibraryName(blockName) || !IsSafeLibraryName(category))
+            BlockWritePlan plan = BlockWriteService.PrepareSaveTarget(LibraryPath, blockName, category);
+            if (!plan.IsValid)
             {
                 ed.WriteMessage("\n名称或分类包含非法字符，取消。");
                 return false;
             }
-            string catDir = Path.Combine(LibraryPath, category);
-            if (!Directory.Exists(catDir)) Directory.CreateDirectory(catDir);
-            string outPath = Path.Combine(catDir, blockName + ".dwg");
             // 覆盖确认
-            if (File.Exists(outPath))
+            if (plan.Exists)
             {
                 var ow = ed.GetString("\n文件已存在，覆盖？[Y/N] <N>: ");
                 if (ow.Status != PromptStatus.OK || !ow.StringResult.Trim().ToUpperInvariant().StartsWith("Y"))
@@ -860,11 +755,12 @@ namespace BlockBrowser
                     ObjectIdCollection ids = new ObjectIdCollection(sr.Value.GetObjectIds());
                     using (Database newDb = db.Wblock(ids, basePt))
                     {
-                        newDb.SaveAs(outPath, DwgVersion.Current);
+                        newDb.SaveAs(plan.OutputPath, DwgVersion.Current);
                     }
                 }
-                RefreshThumbnail(new BlockInfo { FilePath = outPath, Category = category });
-                ed.WriteMessage(string.Format("\n块 {0} 已保存到 [{1}]，基点: ({2:F2},{3:F2})", blockName, category, basePt.X, basePt.Y));
+                RefreshThumbnail(BlockWriteService.CreateSavedBlockInfo(plan.OutputPath, plan.Category));
+                RecordLocalChange(LocalChangeAction.Add, ToLibraryRelativePath(plan.OutputPath), "", null);
+                ed.WriteMessage(string.Format("\n块 {0} 已保存到 [{1}]，基点: ({2:F2},{3:F2})", plan.BlockName, plan.Category, basePt.X, basePt.Y));
                 return true;
             }
             catch (System.Exception ex)
@@ -879,18 +775,14 @@ namespace BlockBrowser
             Document doc = CadApp.DocumentManager.MdiActiveDocument;
             if (doc == null) return false;
             Editor ed = doc.Editor;
-            blockName = (blockName ?? "").Trim();
-            category = (category ?? "").Trim();
-            if (!IsSafeLibraryName(blockName) || !IsSafeLibraryName(category))
+            BlockWritePlan plan = BlockWriteService.PrepareSaveTarget(LibraryPath, blockName, category);
+            if (!plan.IsValid)
             {
                 ed.WriteMessage("\n名称或分类包含非法字符，取消。");
                 return false;
             }
-            string catDir = Path.Combine(LibraryPath, category);
-            if (!Directory.Exists(catDir)) Directory.CreateDirectory(catDir);
-            string outPath = Path.Combine(catDir, blockName + ".dwg");
             // 覆盖确认
-            if (File.Exists(outPath))
+            if (plan.Exists)
             {
                 var ow2 = ed.GetString("\n文件已存在，覆盖？[Y/N] <N>: ");
                 if (ow2.Status != PromptStatus.OK || !ow2.StringResult.Trim().ToUpperInvariant().StartsWith("Y"))
@@ -908,20 +800,21 @@ namespace BlockBrowser
                     using (Transaction tr = db.TransactionManager.StartTransaction())
                     {
                         BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
-                        if (!bt.Has(blockName))
+                        if (!bt.Has(plan.BlockName))
                         {
-                            ed.WriteMessage(string.Format("\n未找到块: {0}", blockName));
+                            ed.WriteMessage(string.Format("\n未找到块: {0}", plan.BlockName));
                             tr.Commit();
                             return false;
                         }
-                        blockId = bt[blockName];
+                        blockId = bt[plan.BlockName];
                         tr.Commit();
                     }
                     using (Database newDb = db.Wblock(blockId))
-                        newDb.SaveAs(outPath, DwgVersion.Current);
+                        newDb.SaveAs(plan.OutputPath, DwgVersion.Current);
                 }
-                RefreshThumbnail(new BlockInfo { FilePath = outPath, Category = category });
-                ed.WriteMessage(string.Format("\n块 {0} 已导出到 [{1}]", blockName, category));
+                RefreshThumbnail(BlockWriteService.CreateSavedBlockInfo(plan.OutputPath, plan.Category));
+                RecordLocalChange(LocalChangeAction.Add, ToLibraryRelativePath(plan.OutputPath), "", null);
+                ed.WriteMessage(string.Format("\n块 {0} 已导出到 [{1}]", plan.BlockName, plan.Category));
                 return true;
             }
             catch (System.Exception ex)
@@ -947,7 +840,9 @@ namespace BlockBrowser
                 BlockLibrary.PlatformName = "ZWCAD";
 #endif
                 BlockLibrary.LoadConfig();
-                if (!Directory.Exists(BlockLibrary.LibraryPath)) Directory.CreateDirectory(BlockLibrary.LibraryPath);
+                BlockLibrary.RefreshActiveLibrary();
+                if (BlockLibrary.ActiveLibrary != null && BlockLibrary.ActiveLibrary.IsAvailable && !Directory.Exists(BlockLibrary.LibraryPath))
+                    Directory.CreateDirectory(BlockLibrary.LibraryPath);
                 BlockLibrary.CleanupDiskCache();
             }
             catch { }
@@ -1050,63 +945,27 @@ namespace BlockBrowser
 
             blockNames.Sort();
 
-            // Dialog with multi-select
             var selectedBlocks = new List<string>();
             string selCategory = null;
-            using (var form = new Form())
+            var categories = CategorySelectionService.GetUserCategories(BlockLibrary.GetCategories());
+            using (var form = new ExportBlocksDialog(blockNames, categories))
             {
-                form.Text = "导出块到库";
-                form.Size = new Size(400, 480);
-                form.StartPosition = FormStartPosition.CenterScreen;
-                form.FormBorderStyle = FormBorderStyle.FixedDialog;
-                form.ShowInTaskbar = false;
-                form.MaximizeBox = false; form.MinimizeBox = false;
-
-                var lblSearch = new Label { Text = "搜索:", Location = new Point(15, 12), AutoSize = true };
-                var txtSearch = new TextBox { Location = new Point(55, 9), Width = 320 };
-                var lbl1 = new Label { Text = "选择块 (Ctrl/Shift 多选):", Location = new Point(15, 38), AutoSize = true };
-                var lst = new ListBox { Location = new Point(15, 55), Size = new Size(360, 260), SelectionMode = System.Windows.Forms.SelectionMode.MultiExtended };
-                foreach (var name in blockNames) lst.Items.Add(name);
-                if (lst.Items.Count > 0) lst.SelectedIndex = 0;
-                txtSearch.TextChanged += (s2, e2) =>
-                {
-                    string kw = txtSearch.Text.Trim().ToLowerInvariant();
-                    lst.Items.Clear();
-                    foreach (var name in blockNames)
-                        if (string.IsNullOrEmpty(kw) || name.ToLowerInvariant().Contains(kw))
-                            lst.Items.Add(name);
-                    if (lst.Items.Count > 0) lst.SelectedIndex = 0;
-                };
-
-                var lblCount = new Label { Text = "已选: 0", Location = new Point(280, 322), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(80, 80, 100) };
-                lst.SelectedIndexChanged += (s2, e2) => { lblCount.Text = "已选: " + lst.SelectedIndices.Count; };
-
-                var lbl2 = new Label { Text = "分类:", Location = new Point(15, 325), AutoSize = true };
-                var cmb = new ComboBox { Location = new Point(15, 345), Width = 200, DropDownStyle = ComboBoxStyle.DropDown };
-                var categories = BlockLibrary.GetCategories().Where(c => c != "全部" && c != "最近").ToList();
-                cmb.Items.AddRange(categories.ToArray());
-                if (cmb.Items.Count > 0) cmb.SelectedIndex = 0;
-
-                var btnOk = new Button { Text = "导出", DialogResult = DialogResult.OK, Location = new Point(200, 410) };
-                var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(290, 410) };
-                form.Controls.AddRange(new Control[] { lblSearch, txtSearch, lbl1, lst, lblCount, lbl2, cmb, btnOk, btnCancel });
-                form.AcceptButton = btnOk; form.CancelButton = btnCancel;
-
                 if (form.ShowDialog() == DialogResult.OK)
                 {
-                    foreach (var item in lst.SelectedItems) selectedBlocks.Add(item.ToString());
-                    selCategory = cmb.Text.Trim();
+                    selectedBlocks.AddRange(form.SelectedBlocks);
+                    selCategory = form.SelectedCategory;
                 }
             }
 
-            if (selectedBlocks.Count == 0 || string.IsNullOrEmpty(selCategory)) { ed.WriteMessage("\n取消。"); return; }
-            if (!BlockLibrary.IsSafeLibraryName(selCategory)) { ed.WriteMessage("\n分类包含非法字符，取消。"); return; }
+            var request = ExportBlockRequestService.CreatePlan(selectedBlocks, selCategory, BlockLibrary.IsSafeLibraryName);
+            if (request.Action == ExportBlockRequestAction.Cancel) { ed.WriteMessage("\n取消。"); return; }
+            if (request.Action == ExportBlockRequestAction.InvalidCategory) { ed.WriteMessage("\n分类包含非法字符，取消。"); return; }
             int ok = 0, fail = 0;
-            foreach (var blk in selectedBlocks)
+            foreach (var blk in request.SelectedBlocks)
             {
-                if (BlockLibrary.ExportBlockFromCurrentDrawing(blk, selCategory)) ok++; else fail++;
+                if (BlockLibrary.ExportBlockFromCurrentDrawing(blk, request.Category)) ok++; else fail++;
             }
-            ed.WriteMessage(string.Format("\n导出完成: {0} 成功, {1} 失败", ok, fail));
+            ed.WriteMessage("\n" + ExportBlockRequestService.FormatCompletion(ok, fail));
             } catch (System.Exception ex) { ed.WriteMessage("\n导出失败: " + ex.Message); }
         }
         [CommandMethod("KLLQ", CommandFlags.Session)]
@@ -1137,6 +996,34 @@ namespace BlockBrowser
         {
             DoExportBlock();
         }
+        [CommandMethod("BBSYNC", CommandFlags.Session)]
+        public void SyncLocalChanges()
+        {
+            var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
+            try
+            {
+                var plan = BlockLibrary.SyncSafeUploadsToNas();
+                ed.WriteMessage("\n" + SyncSummaryMessageService.FormatCommand(plan));
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage("\n同步失败: " + ex.Message);
+            }
+        }
+        [CommandMethod("BBMIRROR", CommandFlags.Session)]
+        public void UpdateLocalMirror()
+        {
+            var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
+            try
+            {
+                BlockLibrary.UpdateLocalMirrorFromNas();
+                ed.WriteMessage("\n本地副本已从 NAS 更新。");
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage("\n更新本地副本失败: " + ex.Message);
+            }
+        }
         [CommandMethod("BBTHUMB", CommandFlags.Session)]
         public void RefreshThumbnails()
         {
@@ -1155,9 +1042,13 @@ namespace BlockBrowser
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
             try
             {
-                ed.WriteMessage("\n=== 块浏览器 v" + BlockLibrary.AppVersion + " (" + BlockLibrary.PlatformName + ") ===");
-                ed.WriteMessage("\n库: " + BlockLibrary.LibraryPath);
-                ed.WriteMessage("\n命令: BB KLLQ BBADD BBEXPORT BBTHUMB");
+                foreach (var line in BlockBrowserInfoService.FormatLines(
+                    BlockLibrary.AppVersion,
+                    BlockLibrary.PlatformName,
+                    BlockLibrary.LibraryPath))
+                {
+                    ed.WriteMessage("\n" + line);
+                }
             }
             catch (System.Exception ex) { ed.WriteMessage("\n错误: " + ex.Message); }
         }
