@@ -594,17 +594,21 @@ namespace BlockBrowser
             if (dr != DialogResult.Yes) return;
             try
             {
-                string filePath = _selectedBlock.FilePath;
-                string name = _selectedBlock.Name;
-                if (!File.Exists(filePath)) { MessageBox.Show("文件不存在: " + filePath, "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                if (BlockLibrary.ActiveLibrary != null && BlockLibrary.ActiveLibrary.Kind == ActiveLibraryKind.LocalMirror)
+                var plan = BlockDeletePlanService.CreatePlan(
+                    _selectedBlock,
+                    BlockLibrary.ActiveLibrary,
+                    File.Exists,
+                    BlockFileOperations.CanOpenForExclusiveWrite);
+                string filePath = plan.FilePath;
+                string name = plan.BlockName;
+                if (plan.Action == BlockDeleteAction.MissingFile) { MessageBox.Show("文件不存在: " + filePath, "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (plan.Action == BlockDeleteAction.RecordLocalDeleteRequest)
                 {
                     BlockLibrary.RecordLocalChange(LocalChangeAction.DeleteRequest, BlockLibrary.ToLibraryRelativePath(filePath), "", null);
                     MessageBox.Show("已记录删除请求。回到 NAS 后请在同步界面确认删除。", "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
-                // Check file is not locked
-                if (!BlockFileOperations.CanOpenForExclusiveWrite(filePath)) { MessageBox.Show("文件被占用，请关闭CAD中打开的此文件后重试。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (plan.Action == BlockDeleteAction.FileLocked) { MessageBox.Show("文件被占用，请关闭CAD中打开的此文件后重试。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 // Delete thumbnail cache
                 BlockLibrary.RefreshThumbnail(_selectedBlock);
                 // Delete the DWG file (移到回收站)
