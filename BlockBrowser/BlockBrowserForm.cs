@@ -650,27 +650,25 @@ namespace BlockBrowser
             if (_selectedBlock == null) { MessageBox.Show("请先选择一个块。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             string oldName = _selectedBlock.Name;
             string newName = ShowInputDialog("输入新名称:", oldName);
-            if (string.IsNullOrEmpty(newName) || newName.Trim() == oldName) return;
-            newName = newName.Trim();
-            if (!BlockFileOperations.CanRenameBlock(_selectedBlock, newName, false))
+            var plan = BlockRenamePlanService.CreatePlan(_selectedBlock, newName, File.Exists);
+            if (plan.Action == BlockRenameAction.Cancel) return;
+            if (plan.Action == BlockRenameAction.InvalidName)
             {
                 MessageBox.Show("名称为空或包含非法字符。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            string oldPath = _selectedBlock.FilePath;
-            string newPath = BlockFileOperations.GetRenameTargetPath(_selectedBlock, newName);
-            if (File.Exists(newPath)) { MessageBox.Show("同名文件已存在: " + newName, "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            if (plan.Action == BlockRenameAction.TargetExists) { MessageBox.Show("同名文件已存在: " + plan.NewName, "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
             try
             {
                 // Rename via BlockLibrary (handles file move + cache rename)
-                if (!BlockLibrary.RenameBlock(_selectedBlock, newName))
+                if (!BlockLibrary.RenameBlock(_selectedBlock, plan.NewName))
                 {
                     MessageBox.Show("重命名失败。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
                 // Update memory cache key (oldPath_size -> newPath_size)
-                ThumbnailMemoryCacheService.MovePathEntries(_thumbCache, oldPath, newPath);
-                _lblStatus.Text = "已重命名: " + oldName + " -> " + newName;
+                ThumbnailMemoryCacheService.MovePathEntries(_thumbCache, plan.OldPath, plan.NewPath);
+                _lblStatus.Text = "已重命名: " + plan.OldName + " -> " + plan.NewName;
                 RefreshCards();
             }
             catch (System.Exception ex) { MessageBox.Show("重命名失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }

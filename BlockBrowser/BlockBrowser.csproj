@@ -74,6 +74,7 @@
     <Compile Include="UI\BlockDeletePlanService.cs" />
     <Compile Include="UI\BlockBrowserInfoService.cs" />
     <Compile Include="UI\BlockInfoStatusService.cs" />
+    <Compile Include="UI\BlockRenamePlanService.cs" />
     <Compile Include="UI\CardCacheService.cs" />
     <Compile Include="UI\ResourceDisposalService.cs" />
     <Compile Include="UI\SettingsUpdateService.cs" />
