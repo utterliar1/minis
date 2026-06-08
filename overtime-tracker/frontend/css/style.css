@@ -69,6 +69,9 @@
   .dash-section{margin-bottom:16px}
 
   /* Records */
+  .records-card-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+  .records-card-header .card-title{flex:1;min-width:0;white-space:nowrap}
+  .record-export-btn{width:auto;min-width:104px;flex:0 0 auto}
   .record-card{background:var(--card);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
   .record-date{font-size:15px;font-weight:600}.record-weekday{font-size:12px;color:var(--text-sec);margin-left:6px}.record-times{font-size:12px;color:var(--text-sec);margin-top:4px}
   .record-overtime{font-size:18px;font-weight:700;color:var(--accent)}

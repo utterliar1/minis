@@ -289,7 +289,7 @@ OT.setCurrentLocation = async function setCurrentLocation(){
       <p style="font-size:14px;color:var(--text-sec);text-align:center;margin-bottom:16px">纬度: ${lat.toFixed(6)}<br>经度: ${lng.toFixed(6)}<br>精度: ${acc}m</p>
       <div class="auth-field"><label>地点名称</label><input type="text" id="loc-name-input" placeholder="如：公司/办公室" value="${escapeHtml(settings.locationName||'')}"></div>
       <button class="btn btn-primary" onclick="confirmLoc(${lat},${lng})">✅ 确认设置</button>`);
-  }catch(e){showToast('❌ 获取位置失败: '+e.message)}
+  }catch(e){showToast('❌ '+OT.geoErrorMessage(e))}
 };
 
 OT.confirmLoc = async function confirmLoc(lat,lng){

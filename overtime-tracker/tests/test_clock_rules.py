@@ -95,7 +95,7 @@ def test_clock_in_requires_note(monkeypatch, tmp_path):
         assert "事由" in response.get_json()["error"]
 
 
-def test_clock_out_requires_note(monkeypatch, tmp_path):
+def test_clock_out_allows_empty_note(monkeypatch, tmp_path):
     with load_app(monkeypatch, tmp_path) as app_module:
         client = app_module.app.test_client()
         admin_token = login(client, "admin", "admin123")
@@ -104,7 +104,7 @@ def test_clock_out_requires_note(monkeypatch, tmp_path):
 
         response = client.post(
             "/api/clock",
-            json=clock_payload("in", "项目加班"),
+            json=clock_payload("in", "项目推进"),
             headers=auth_headers(member_token),
         )
         assert response.status_code == 200
@@ -115,8 +115,8 @@ def test_clock_out_requires_note(monkeypatch, tmp_path):
             headers=auth_headers(member_token),
         )
 
-        assert response.status_code == 400
-        assert "事由" in response.get_json()["error"]
+        assert response.status_code == 200
+        assert response.get_json()["type"] == "out"
 
 
 def test_invalid_location_takes_precedence_over_empty_note(monkeypatch, tmp_path):
@@ -150,7 +150,7 @@ def test_clock_sequence_takes_precedence_over_empty_note(monkeypatch, tmp_path):
 
         response = client.post(
             "/api/clock",
-            json=clock_payload("in", "项目加班"),
+            json=clock_payload("in", "项目推进"),
             headers=auth_headers(member_token),
         )
         assert response.status_code == 200

@@ -10,7 +10,7 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <title>考勤助手</title>
-<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/style.css?v=6">
 </head>
 <body>
 
@@ -187,9 +187,9 @@
   <!-- ===== USER: Records ===== -->
   <div class="page" id="page-records">
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="records-card-header">
         <div class="card-title" style="margin-bottom:0">📅 我的记录</div>
-        <button class="btn btn-outline btn-sm" onclick="showExportDialog()">📤 导出</button>
+        <button class="btn btn-outline btn-sm record-export-btn" onclick="showExportDialog()">📤 导出</button>
       </div>
       <div class="summary-row"><span class="label">本月统计</span><span class="value" id="summary-month-info"></span></div>
     </div>
@@ -217,12 +217,12 @@
 <div class="toast" id="toast"></div>
 <div class="modal-overlay" id="modal" onclick="closeModal(event)"><div class="modal-content" id="modal-body" onclick="event.stopPropagation()"></div></div>
 
-<script src="/js/utils.js"></script>
-<script src="/js/auth.js"></script>
-<script src="/js/stats.js"></script>
-<script src="/js/records.js"></script>
-<script src="/js/clock.js"></script>
-<script src="/js/admin.js"></script>
-<script src="/js/app.js"></script>
+<script src="/js/utils.js?v=6"></script>
+<script src="/js/auth.js?v=6"></script>
+<script src="/js/stats.js?v=6"></script>
+<script src="/js/records.js?v=6"></script>
+<script src="/js/clock.js?v=6"></script>
+<script src="/js/admin.js?v=6"></script>
+<script src="/js/app.js?v=6"></script>
 </body>
 </html>

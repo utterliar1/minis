@@ -25,6 +25,16 @@ OT.safeToken = function safeToken(v){return encodeURIComponent(String(v??'')).re
 
 OT.csvCell = function csvCell(v){return `"${String(v??'').replace(/"/g,'""')}"`};
 
+OT.geoErrorMessage = function geoErrorMessage(err){
+  const code=err&&Number(err.code);
+  const msg=String(err&&err.message||'').toLowerCase();
+  if(code===1||msg.includes('denied')||msg.includes('permission'))return '定位权限未开启，请在浏览器地址栏允许位置访问后重试';
+  if(msg.includes('secure origin'))return '当前页面不支持定位，请使用 localhost、HTTPS 或受信任的访问地址';
+  if(code===2)return '暂时无法获取当前位置，请检查网络或系统定位服务';
+  if(code===3||msg.includes('timeout'))return '获取位置超时，请移到信号更好的位置后重试';
+  return '获取位置失败，请检查定位权限和网络后重试';
+};
+
 OT.api = async function api(path, opts={}) {
   const headers = {'Content-Type':'application/json', ...(opts.headers||{})};
   if (token) headers['Authorization'] = 'Bearer ' + token;

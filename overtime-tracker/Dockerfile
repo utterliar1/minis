@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/app.py /app/app.py
 COPY frontend/ /app/frontend/
+COPY 使用指南.html 管理员使用指南.html /app/frontend/
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY start.sh /app/start.sh
 RUN sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh

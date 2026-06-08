@@ -14,7 +14,7 @@ OT.haversineDistance = function haversineDistance(a,b,c,d){const R=6371000,e=(c-
 
 OT.startGeoWatch = function startGeoWatch(){
   if(!navigator.geolocation){document.getElementById('clock-status').innerHTML='⚠️ 不支持定位';return}
-  navigator.geolocation.watchPosition(p=>{currentPos={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy};updateGeoStatus()},e=>{document.getElementById('clock-status').innerHTML='⚠️ '+e.message},{enableHighAccuracy:true,maximumAge:10000,timeout:15000});
+  navigator.geolocation.watchPosition(p=>{OT.lastGeoErrorMessage='';currentPos={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy};updateGeoStatus();updateClockButton()},e=>{OT.lastGeoErrorMessage=OT.geoErrorMessage(e);currentPos=null;document.getElementById('clock-status').innerHTML='⚠️ '+OT.escapeHtml(OT.lastGeoErrorMessage);updateClockButton()},{enableHighAccuracy:true,maximumAge:10000,timeout:15000});
 };
 
 OT.updateGeoStatus = function updateGeoStatus(){
@@ -29,6 +29,7 @@ OT.updateGeoStatus = function updateGeoStatus(){
 OT.updateClockButton = function updateClockButton(){
   const btn=document.getElementById('clock-btn'),txt=document.getElementById('clock-btn-text'),last=getLastTodayRecord();
   if((settings.lat==null||settings.lng==null)&&!currentPos){btn.className='clock-btn disabled';txt.textContent='请等待管理员配置';return}
+  if(!currentPos){btn.className='clock-btn disabled';txt.textContent=OT.lastGeoErrorMessage?'定位未开启':'获取位置中';return}
   if(currentPos&&currentPos.accuracy>(settings.gpsAccuracy||100)){btn.className='clock-btn disabled';txt.textContent='GPS精度不足';return}
   if(!last){btn.className='clock-btn check-in';txt.textContent='打卡上班'}
   else if(last.type==='in'){btn.className='clock-btn check-out';txt.textContent='打卡下班'}
@@ -58,14 +59,17 @@ OT.getCurrentClockIn = function getCurrentClockIn(records,outRecord){
 OT.handleClock = async function handleClock(){
   const btn=document.getElementById('clock-btn');
   if(btn.classList.contains('disabled')){showToast('请先满足打卡条件');return}
-  if(!currentPos){showToast('正在获取位置...');return}
+  if(!currentPos){showToast(OT.lastGeoErrorMessage||'正在获取位置...');return}
   if(settings.lat==null||settings.lng==null){showToast('打卡地点未配置');return}
   const last=getLastTodayRecord();let type='in';
   if(last&&last.type==='in')type='out';
-  let reason=prompt('请输入事由：');
-  if(reason===null)return;
-  reason=reason.trim();
-  if(!reason){showToast('请输入事由');return}
+  let reason='';
+  if(type==='in'){
+    reason=prompt('请输入事由：');
+    if(reason===null)return;
+    reason=reason.trim();
+    if(!reason){showToast('请输入事由');return}
+  }
   if(!isWithinRange(currentPos)){showConfirmModal('⚠️ 范围外打卡','不在范围内，是否记录？',async()=>{await doClock(type,true,reason)},()=>{});return}
   await doClock(type,false,reason);
 };

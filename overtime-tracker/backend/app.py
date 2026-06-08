@@ -297,7 +297,7 @@ def api_clock():
     if clock_type != expected:
         conn.close(); return jsonify(error="打卡顺序无效，请刷新后重试"), 400
     note = (d.get('note') or '').strip()
-    if not note:
+    if clock_type == 'in' and not note:
         conn.close(); return jsonify(error="请填写事由"), 400
     note = note[:500]
     conn.execute("INSERT INTO records (user_id,date,time_str,ts,type,lat,lng,accuracy,out_of_range,note) VALUES (?,?,?,?,?,?,?,?,?,?)",
