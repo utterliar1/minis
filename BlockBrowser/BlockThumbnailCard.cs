@@ -4,9 +4,10 @@ using System.Windows.Forms;
 
 namespace BlockBrowser
 {
-    public class BlockThumbnailCard : UserControl
+    public class BlockThumbnailCard : UserControl, IBlockCardState
     {
         public BlockInfo Block { get; private set; }
+        public string FilePath { get { return Block == null ? "" : Block.FilePath; } }
         public event EventHandler<BlockInfo> BlockDoubleClicked;
         public event EventHandler<BlockInfo> BlockClicked;
 
