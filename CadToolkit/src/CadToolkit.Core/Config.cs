@@ -17,6 +17,18 @@ namespace CadToolkit.Core
     public static class Config
     {
         static readonly object _fileLock = new object();
+        static readonly KeyValuePair<string, string>[] DefaultRootSettings = new KeyValuePair<string, string>[]
+        {
+            new KeyValuePair<string, string>("QuickBlockPrefix", "BK"),
+            new KeyValuePair<string, string>("DeleteOriginal", "true"),
+            new KeyValuePair<string, string>("KeepOriginal", "false"),
+            new KeyValuePair<string, string>("AlignHorizontal", "0"),
+            new KeyValuePair<string, string>("AlignUseFirstBase", "true"),
+            new KeyValuePair<string, string>("AlignLineSpacing", "0"),
+            new KeyValuePair<string, string>("IsoLayerKeepLayer0", "false"),
+            new KeyValuePair<string, string>("LayerStandardFallbackTo0", "false"),
+            new KeyValuePair<string, string>("LayerStandardWhitelist", "0,Defpoints,*\u56FE\u6846*,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*")
+        };
         static string _dir;
         public static void Init(string assemblyPath)
         {
@@ -36,9 +48,50 @@ namespace CadToolkit.Core
                 {
                     string def = GetDefaultConfigText();
                     lock (_fileLock) { File.WriteAllText(IniPath, def, Encoding.UTF8); }
+                    return;
                 }
+                EnsureRootDefaults();
             }
             catch (Exception ex) { LogConfigError("EnsureConfig failed: " + ex.Message); }
+        }
+
+        static void EnsureRootDefaults()
+        {
+            var lines = new List<string>(File.ReadAllLines(IniPath, Encoding.UTF8));
+            int insertAt = lines.Count;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                if (lines[i].Trim().StartsWith("["))
+                {
+                    insertAt = i;
+                    break;
+                }
+            }
+
+            bool changed = false;
+            foreach (var setting in DefaultRootSettings)
+            {
+                if (HasConfigKey(lines, setting.Key)) continue;
+                lines.Insert(insertAt, setting.Key + "=" + setting.Value);
+                insertAt++;
+                changed = true;
+            }
+
+            if (changed)
+                lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
+        }
+
+        static bool HasConfigKey(List<string> lines, string key)
+        {
+            foreach (string line in lines)
+            {
+                string t = line.Trim();
+                if (t.Length == 0 || t.StartsWith("#") || t.StartsWith(";") || t.StartsWith("[")) continue;
+                int eq = t.IndexOf('=');
+                if (eq > 0 && t.Substring(0, eq).Trim().Equals(key, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
         }
 
         static void LogConfigError(string msg)

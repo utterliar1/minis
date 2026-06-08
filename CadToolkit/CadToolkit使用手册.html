@@ -223,6 +223,7 @@
 <div class="card">
   <h2>⚙️ 配置文件</h2>
   <p><code>CadToolkit.ini</code> 统一放在 <code>CadToolkit</code> 根目录，AutoCAD / ZWCAD / GstarCAD 三端共享同一份配置。升级或重新部署时保留已有 <code>CadToolkit.ini</code>，发布包中的 <code>CadToolkit.default.ini</code> 仅作为默认模板。</p>
+  <p>如果已有 <code>CadToolkit.ini</code> 缺少新版新增的基础配置项，插件启动时会自动补上默认值；已有配置值、自定义 <code>[Commands]</code>、<code>[LayerStandard]</code> 和 <code>[LayerMap]</code> 不会被覆盖或合并。</p>
   <table>
     <tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
     <tr><td><code>QuickBlockPrefix</code></td><td>快捷建块前缀</td><td>BK</td></tr>
