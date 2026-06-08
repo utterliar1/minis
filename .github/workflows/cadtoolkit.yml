@@ -96,6 +96,7 @@ jobs:
           $autoload = $autoload -replace 'CadToolkit v[0-9.]+ ready', "CadToolkit v$ver ready"
           Set-Content "$pkg\autoload.lsp" $autoload -Encoding UTF8
           Copy-Item "${{ github.workspace }}\CadToolkit\CadToolkit.default.ini" "$pkg\"
+          Copy-Item "${{ github.workspace }}\CadToolkit\CadToolkit使用手册.html" "$pkg\"
 
           $zip = "${{ github.workspace }}\release\CadToolkit-v$ver.zip"
           Compress-Archive -Path "$pkg\*" -DestinationPath $zip -Force
