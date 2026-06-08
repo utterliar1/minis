@@ -2,7 +2,9 @@
 
 on:
   push:
-    tags: ['bb-v*']
+    tags:
+      - 'bb-v*'
+      - 'blockbrowser-v*'
 
 permissions:
   contents: write
@@ -83,7 +85,7 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          $ver = $tag -replace '^bb-v',''
+          $ver = $tag -replace '^(bb-v|blockbrowser-v)',''
           $SRC = "${{ github.workspace }}\BlockBrowser"
           $out = "${{ github.workspace }}\release"
           $pkg = "$out\BlockBrowser"
@@ -102,6 +104,7 @@ jobs:
 
           Copy-Item "$SRC\autoload.lsp" "$pkg\" -ErrorAction SilentlyContinue
           Copy-Item "$SRC\config.ini" "$pkg\" -ErrorAction SilentlyContinue
+          Copy-Item "$SRC\使用手册.html" "$pkg\" -ErrorAction Stop
 
           $zip = "$out\BlockBrowser-v$ver.zip"
           Compress-Archive -Path "$pkg\*" -DestinationPath $zip -Force
@@ -132,6 +135,7 @@ jobs:
             | 浩辰CAD | `gcad/BlockBrowser.dll` |
             | AutoCAD | `acad/BlockBrowser.dll` |
             | 中望CAD | `zwcad/BlockBrowser.dll` |
+            | 通用文件 | `autoload.lsp`、`config.ini`、`使用手册.html` |
 
             ### 命令
             | 命令 | 功能 |
