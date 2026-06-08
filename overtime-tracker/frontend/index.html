@@ -61,7 +61,7 @@
       <div class="card-title">📤 导出工时报表</div>
       <div class="export-bar">
         <select id="export-scope"><option value="all">所有人</option></select>
-        <select id="export-period"><option value="month">本月</option><option value="today">今日</option><option value="all">全部</option></select>
+        <select id="export-period" onchange="OT.loadDashboard()"><option value="month">本月</option><option value="week">本周</option><option value="today">今日</option><option value="all">全部</option></select>
         <button class="btn btn-primary btn-sm" onclick="doExport()" style="width:auto">📥 导出 CSV</button>
       </div>
     </div>

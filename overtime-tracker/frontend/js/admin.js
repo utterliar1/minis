@@ -1,49 +1,71 @@
 // Admin dashboard and settings
 var OT = window.OT = window.OT || {};
 
+OT.getAdminPeriod = function getAdminPeriod(){
+  const period=document.getElementById('export-period')?.value||'month';
+  const today=OT.dateKey(new Date());
+  if(period==='today')return {period,label:'今日',from:today,to:today};
+  if(period==='week'){
+    const start=new Date(today+'T12:00:00');
+    start.setDate(start.getDate()-start.getDay()+1);
+    return {period,label:'本周',from:OT.calendarKey(start),to:today};
+  }
+  if(period==='month')return {period,label:'本月',from:today.slice(0,7)+'-01',to:today.slice(0,7)+'-31'};
+  return {period,label:'全部',from:'',to:''};
+};
+
+OT.inAdminPeriod = function inAdminPeriod(record, range){
+  if(!range.from||!range.to)return true;
+  return record.date>=range.from&&record.date<=range.to;
+};
+
 OT.loadDashboard = async function loadDashboard(){
   try{
     const [recsData, usersData]=await Promise.all([api('/records/all'),api('/users')]);
     const records=recsData.records||[];
     const users=usersData.users||[];
+    const range=OT.getAdminPeriod();
+    const scopedRecords=records.filter(r=>OT.inAdminPeriod(r,range));
     const today=dateKey(new Date());
     const todayObj=new Date(today+'T12:00:00');
-    const thisMonth=today.slice(0,7);
     const todayRecs=records.filter(r=>r.date===today);
-    const monthRecs=records.filter(r=>r.date.startsWith(thisMonth));
+    const sumRecords=function(recs){
+      const dg={};
+      recs.forEach(r=>{if(!dg[r.date])dg[r.date]=[];dg[r.date].push(r)});
+      let total=0;Object.entries(dg).forEach(([d,dayRecs])=>{total+=calcTodayOT(dayRecs,new Date(d+'T12:00:00'))});
+      return total;
+    };
     
     // Build table
     const uList=users.filter(u=>u.username!=='admin');
     let rows='';
     for(const u of uList){
       const uToday=todayRecs.filter(r=>r.user_id===u.username);
-      const uMonth=monthRecs.filter(r=>r.user_id===u.username);
-      const lastRec=uToday.sort((a,b)=>a.ts-b.ts).pop();
+      const uScoped=scopedRecords.filter(r=>r.user_id===u.username);
+      const lastRec=[...uToday].sort((a,b)=>a.ts-b.ts).pop();
       let statusText='<span class="status-dot status-none"></span>未打卡';
       if(lastRec){
         if(lastRec.type==='in')statusText='<span class="status-dot status-in"></span>上班中';
         else statusText='<span class="status-dot status-out"></span>已下班';
       }
       const todayOT=calcTodayOT(uToday,todayObj);
-      const monthDateG={};uMonth.forEach(r=>{if(!monthDateG[r.date])monthDateG[r.date]=[];monthDateG[r.date].push(r)});
-      let monthOT=0;Object.entries(monthDateG).forEach(([d,recs])=>{monthOT+=calcTodayOT(recs,new Date(d+'T12:00:00'))});
-      rows+=`<tr><td style="font-weight:600">${escapeHtml(u.display_name)}</td><td>${statusText}</td><td class="${todayOT>0?'ot-positive':'ot-zero'}">${fmtMin(todayOT)}</td><td class="${monthOT>0?'ot-positive':'ot-zero'}" style="font-weight:600">${fmtMin(monthOT)}</td></tr>`;
+      const rangeOT=sumRecords(uScoped);
+      rows+=`<tr><td style="font-weight:600">${escapeHtml(u.display_name)}</td><td>${statusText}</td><td class="${todayOT>0?'ot-positive':'ot-zero'}">${fmtMin(todayOT)}</td><td class="${rangeOT>0?'ot-positive':'ot-zero'}" style="font-weight:600">${fmtMin(rangeOT)}</td></tr>`;
     }
     if(!rows)rows='<tr><td colspan="4" style="text-align:center;color:var(--text-sec);padding:20px">暂无成员</td></tr>';
     
     // Summary
-    let totalTodayOT=0,totalMonthOT=0;
+    let totalTodayOT=0,totalRangeOT=0;
     uList.forEach(u=>{
       const uToday=todayRecs.filter(r=>r.user_id===u.username);
-      const uMonth=monthRecs.filter(r=>r.user_id===u.username);
+      const uScoped=scopedRecords.filter(r=>r.user_id===u.username);
       totalTodayOT+=calcTodayOT(uToday,todayObj);
-      const mdg={};uMonth.forEach(r=>{if(!mdg[r.date])mdg[r.date]=[];mdg[r.date].push(r)});
-      Object.entries(mdg).forEach(([d,recs])=>{totalMonthOT+=calcTodayOT(recs,new Date(d+'T12:00:00'))});
+      totalRangeOT+=sumRecords(uScoped);
     });
     document.getElementById('header-stats').innerHTML=`
       <div class="stat-item"><div class="stat-value">${uList.length}</div><div class="stat-label">成员数</div></div>
       <div class="stat-item"><div class="stat-value">${fmtMin(totalTodayOT)}</div><div class="stat-label">今日团队工时</div></div>
-      <div class="stat-item"><div class="stat-value">${fmtMin(totalMonthOT)}</div><div class="stat-label">本月团队工时</div></div>`;
+      <div class="stat-item"><div class="stat-value">${fmtMin(totalRangeOT)}</div><div class="stat-label">${range.label}团队工时</div></div>`;
     // Trend data (last 30 days)
     const trendData=[];const todayDate=new Date();
     for(let i=29;i>=0;i--){
@@ -63,13 +85,11 @@ OT.loadDashboard = async function loadDashboard(){
       </div></div></div>`;
     // Ranking
     const rankData=uList.map(u=>{
-      const uMonth=records.filter(r=>r.user_id===u.username&&r.date.startsWith(thisMonth));
-      const mdg={};uMonth.forEach(r=>{if(!mdg[r.date])mdg[r.date]=[];mdg[r.date].push(r)});
-      let mot=0;Object.entries(mdg).forEach(([d,recs])=>{mot+=calcTodayOT(recs,new Date(d+'T12:00:00'))});
-      return{name:u.display_name,ot:mot}
+      const uScoped=scopedRecords.filter(r=>r.user_id===u.username);
+      return{name:u.display_name,ot:sumRecords(uScoped)}
     }).sort((a,b)=>b.ot-a.ot);
     const avgOT=rankData.length?Math.round(rankData.reduce((s,r)=>s+r.ot,0)/rankData.length):0;
-    const rankHTML=`<div class="card" style="margin-top:16px"><div class="card-title">🏆 本月工时排行</div>
+    const rankHTML=`<div class="card" style="margin-top:16px"><div class="card-title">🏆 ${range.label}工时排行</div>
       <div style="margin-bottom:12px;padding:8px 12px;background:#EEF2FF;border-radius:8px;font-size:13px">团队平均: <b style="color:var(--accent)">${fmtMin(avgOT)}</b>/人</div>
       ${rankData.map((r,i)=>{
         const medals=['🥇','🥈','🥉'];
@@ -85,7 +105,7 @@ OT.loadDashboard = async function loadDashboard(){
         </div>`;
       }).join('')}
     </div>`;
-    document.getElementById('dash-content').innerHTML=`<table class="dash-table"><thead><tr><th>成员</th><th>状态</th><th>今日</th><th>本月</th></tr></thead><tbody>${rows}</tbody></table>`+trendHTML+rankHTML;
+    document.getElementById('dash-content').innerHTML=`<div class="note-text" style="margin-bottom:8px">当前范围：${range.label}</div><table class="dash-table"><thead><tr><th>成员</th><th>状态</th><th>今日</th><th>${range.label}</th></tr></thead><tbody>${rows}</tbody></table>`+trendHTML+rankHTML;
     
     // Export dropdown
     const sel=document.getElementById('export-scope');
@@ -113,40 +133,26 @@ OT.doUnifiedExport = async function doUnifiedExport(){
   const period=document.getElementById('exp-period').value;
   let from='',to='';
   if(period==='range'){from=document.getElementById('exp-from').value;to=document.getElementById('exp-to').value;if(!from||!to){showToast('请选择日期范围');return}}
-  try{
-    let url='/export?';
-    if(uid&&uid!=='all')url+=`uid=${uid}&`;
-    if(period==='range')url+=`from=${from}&to=${to}`;
-    else if(period!=='all')url+=`period=${period}`;
-    const data=await api(url);const recs=data.records||[];
-    if(!recs.length){showToast('暂无数据');return}
-    const groups={};recs.forEach(r=>{const key=(r.display_name||r.user_id)+'|'+r.date;if(!groups[key])groups[key]={name:r.display_name||r.user_id,date:r.date,records:[]};groups[key].records.push(r)});
-    const header='姓名,日期,星期,上班,下班,类型,事由,工时(分),工时(h)\n';
-    const rows=Object.values(groups).map(g=>{
-      const d=new Date(g.date+'T12:00:00'),wd=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
-      const sorted=g.records.sort((a,b)=>a.ts-b.ts),fi=sorted.find(r=>r.type==='in'),lo=[...sorted].reverse().find(r=>r.type==='out');
-      const reasons=sorted.filter(r=>r.type==='in'&&r.note).map(r=>r.note).filter(Boolean).join('; ');
-      const isWk=isWorkingDay(d),ot=calcTodayOT(sorted,d);
-      const hrs=ot>=60?Math.floor(ot/60)+'h'+(ot%60?ot%60+'m':''):ot+'m';
-      return[csvCell(g.name),csvCell(g.date),csvCell(wd),csvCell(fi?(fi.time_str||'').slice(0,5):''),csvCell(lo?(lo.time_str||'').slice(0,5):''),csvCell(isWk?'工作日':'休息日'),csvCell(reasons),ot,csvCell(hrs)].join(',');
-    }).join('\n');
-    downloadBlob(new Blob(['\uFEFF'+header+rows],{type:'text/csv;charset=utf-8'}),`工时报表_${dateKey(bjNow())}.csv`);
-    closeModalDirect();showToast('📥 已导出');
-  }catch(e){showToast('❌ '+e.message)}
+  const ok=await OT.exportCsv(uid,period,from,to);
+  if(ok)closeModalDirect();
 };
 
-OT.doExport = async function doExport(){showExportDialog()};
+OT.doExport = async function doExport(){
+  if(!(currentUser&&currentUser.role==='admin')){showExportDialog();return}
+  const scope=document.getElementById('export-scope')?.value||'all';
+  const range=OT.getAdminPeriod();
+  await OT.exportCsv(scope,range.period,range.from,range.to);
+};
 
-OT.doOldExport = async function doOldExport(){
-  const scope=document.getElementById('export-scope').value;
-  const period=document.getElementById('export-period').value;
+OT.exportCsv = async function exportCsv(uid, period, from='', to=''){
   try{
     let url='/export?';
-    if(scope!=='all')url+=`uid=${scope}&`;
-    if(period!=='all')url+=`period=${period}`;
+    if(uid&&uid!=='all')url+=`uid=${encodeURIComponent(uid)}&`;
+    if(period==='range')url+=`from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+    else if(period!=='all')url+=`period=${encodeURIComponent(period)}`;
     const data=await api(url);
     const recs=data.records||[];
-    if(!recs.length){showToast('暂无数据');return}
+    if(!recs.length){showToast('暂无数据');return false}
     // Group by (display_name, date)
     const groups={};
     recs.forEach(r=>{
@@ -154,23 +160,30 @@ OT.doOldExport = async function doOldExport(){
       if(!groups[key])groups[key]={name:r.display_name||r.user_id,date:r.date,records:[]};
       groups[key].records.push(r);
     });
-    const header='姓名,日期,星期,上班,下班,类型,事由,工时(分),工时(h)\n';
+    const header='姓名,日期,星期,上班,下班,类型,事由,远程,工时(分),工时(h)\n';
     const rows=Object.values(groups).map(g=>{
       const d=new Date(g.date+'T12:00:00');
       const wd=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
       const sorted=g.records.sort((a,b)=>a.ts-b.ts);
       const fi=sorted.find(r=>r.type==='in');
       const lo=[...sorted].reverse().find(r=>r.type==='out');
-      // 收集上班事由
-      const reasons=sorted.filter(r=>r.type==='in'&&r.note).map(r=>r.note).filter(Boolean).join('; ');
+      const reasons=sorted.filter(r=>r.note).map(r=>r.note).filter(Boolean).join('; ');
+      const remote=sorted.some(r=>Number(r.out_of_range)===1)?'是':'';
       const isWork=isWorkingDay(d);
       const ot=calcTodayOT(sorted,d);
       const hrs=ot>=60?Math.floor(ot/60)+'h'+(ot%60?ot%60+'m':''):ot+'m';
-      return [csvCell(g.name),csvCell(g.date),csvCell(wd),csvCell(fi?(fi.time_str||'').slice(0,5):''),csvCell(lo?(lo.time_str||'').slice(0,5):''),csvCell(isWork?'工作日':'休息日'),csvCell(reasons),ot,csvCell(hrs)].join(',');
+      return [csvCell(g.name),csvCell(g.date),csvCell(wd),csvCell(fi?(fi.time_str||'').slice(0,5):''),csvCell(lo?(lo.time_str||'').slice(0,5):''),csvCell(isWork?'工作日':'休息日'),csvCell(reasons),csvCell(remote),ot,csvCell(hrs)].join(',');
     }).join('\n');
-    downloadBlob(new Blob(['\uFEFF'+header+rows],{type:'text/csv;charset=utf-8'}),`工时报表_${scope}_${period}_${dateKey(new Date())}.csv`);
+    downloadBlob(new Blob(['\uFEFF'+header+rows],{type:'text/csv;charset=utf-8'}),`工时报表_${uid||'me'}_${period}_${dateKey(bjNow())}.csv`);
     showToast('📥 已导出');
-  }catch(e){showToast('❌ '+e.message)}
+    return true;
+  }catch(e){showToast('❌ '+e.message);return false}
+};
+
+OT.doOldExport = async function doOldExport(){
+  const scope=document.getElementById('export-scope')?.value||'all';
+  const range=OT.getAdminPeriod();
+  await OT.exportCsv(scope,range.period,range.from,range.to);
 };
 
 OT.renderSettings = function renderSettings(){
