@@ -37,6 +37,14 @@ OT.updateClockButton = function updateClockButton(){
 
 OT.getLastTodayRecord = function getLastTodayRecord(){const t=dateKey(new Date());const r=allRecords.filter(x=>x.date===t).sort((a,b)=>a.ts-b.ts);return r.length?r[r.length-1]:null};
 
+OT.showLastClockResult = function showLastClockResult(record,durationText){
+  const el=document.getElementById('last-clock-result');
+  if(!el)return;
+  const label=record.type==='in'?'上班记录':'下班记录';
+  el.style.display='block';
+  el.innerHTML=`<div class="result-main">${label} ${OT.escapeHtml(record.time_str||'')}</div><div class="result-sub">${durationText?`本次工时 ${OT.escapeHtml(durationText)}<br>`:''}${record.out_of_range?'范围外已标记<br>':''}${OT.escapeHtml(record.note||'')}</div>`;
+};
+
 OT.handleClock = async function handleClock(){
   const btn=document.getElementById('clock-btn');
   if(btn.classList.contains('disabled')){showToast('请先满足打卡条件');return}
@@ -55,7 +63,14 @@ OT.handleClock = async function handleClock(){
 OT.doClock = async function doClock(type,outOfRange,note){
   try{
     const d=await api('/clock',{method:'POST',body:JSON.stringify({type,lat:currentPos?.lat,lng:currentPos?.lng,accuracy:currentPos?.accuracy,outOfRange,note})});
-    allRecords.push({user_id:currentUser.username,date:d.date,time_str:d.time,ts:Date.now(),type,out_of_range:d.outOfRange?1:0,note});
+    const record={user_id:currentUser.username,date:d.date,time_str:d.time,ts:Date.now(),type,out_of_range:d.outOfRange?1:0,note};
+    allRecords.push(record);
+    let durationText='';
+    if(type==='out'){
+      const todayRecords=allRecords.filter(r=>r.date===record.date).sort((a,b)=>a.ts-b.ts);
+      durationText=OT.formatMinutes(OT.calcTodayOT(todayRecords,new Date(record.date+'T12:00:00')));
+    }
+    OT.showLastClockResult(record,durationText);
     updateClockButton();updateTodayTimeline();updateHeaderStats();renderCalendar();renderStats();
     showToast(type==='in'?'✅ 已记录上班':'✅ 已记录下班');
   }catch(e){showToast('❌ '+e.message)}
@@ -65,6 +80,8 @@ OT.updateTodayTimeline = function updateTodayTimeline(){
   const t=dateKey(new Date()),recs=allRecords.filter(r=>r.date===t).sort((a,b)=>a.ts-b.ts),card=document.getElementById('today-card'),tl=document.getElementById('today-timeline');
   if(!recs.length){card.style.display='none';return}
   card.style.display='block';
-  tl.innerHTML=recs.map(r=>`<div class="timeline-item ${r.type==='out'?'out':''}"><div class="timeline-label">${r.type==='in'?'上班打卡':'下班打卡'}</div><div class="timeline-time">${escapeHtml(r.time_str||'')}</div>${r.note?`<div class="note-text">${escapeHtml(r.note)}</div>`:''}</div>`).join('');
+  const last=recs[recs.length-1];
+  const statusHtml=last.type==='in'?`<div class="timeline-status">进行中：${OT.formatMinutes(Math.max(0,Math.floor((Date.now()-last.ts)/60000)))}</div>`:'';
+  tl.innerHTML=statusHtml+recs.map(r=>`<div class="timeline-item ${r.type==='out'?'out':''}"><div class="timeline-label">${r.type==='in'?'上班打卡':'下班打卡'}</div><div class="timeline-time">${escapeHtml(r.time_str||'')}</div>${r.note?`<div class="note-text">${escapeHtml(r.note)}</div>`:''}</div>`).join('');
   document.getElementById('today-overtime').textContent=formatMinutes(calcTodayOT(recs,new Date(t+'T12:00:00')));
 };
