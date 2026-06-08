@@ -13,12 +13,58 @@ from threading import Timer
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import jwt
+import bcrypt
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
 if os.environ.get('CORS_ORIGINS'):
     CORS(app, resources={r"/api/*": {"origins": [o.strip() for o in os.environ['CORS_ORIGINS'].split(',') if o.strip()]}})
-SECRET = os.environ.get('JWT_SECRET') or secrets.token_hex(32)
 DB_PATH = os.environ.get('DB_PATH', '/data/overtime.db')
+
+def load_jwt_secret():
+    env_secret = os.environ.get('JWT_SECRET')
+    if env_secret:
+        return env_secret
+    secret_dir = os.path.dirname(DB_PATH) or '.'
+    os.makedirs(secret_dir, exist_ok=True)
+    secret_path = os.path.join(secret_dir, 'jwt_secret')
+
+    def read_secret():
+        try:
+            os.chmod(secret_path, 0o600)
+        except OSError:
+            pass
+        for _ in range(10):
+            with open(secret_path, 'r', encoding='utf-8') as f:
+                secret = f.read().strip()
+            if secret:
+                return secret
+            time.sleep(0.05)
+        with open(secret_path, 'r', encoding='utf-8') as f:
+            secret = f.read().strip()
+        if secret:
+            return secret
+        raise RuntimeError("JWT secret file exists but is empty")
+
+    if os.path.exists(secret_path):
+        secret = read_secret()
+        if secret:
+            return secret
+
+    secret = secrets.token_hex(32)
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    try:
+        fd = os.open(secret_path, flags, 0o600)
+    except FileExistsError:
+        return read_secret()
+    with os.fdopen(fd, 'w', encoding='utf-8') as f:
+        f.write(secret)
+    try:
+        os.chmod(secret_path, 0o600)
+    except OSError:
+        pass
+    return secret
+
+SECRET = load_jwt_secret()
 
 # ==================== Database ====================
 def get_db():
@@ -72,10 +118,9 @@ def init_db():
     except: pass
     # Default admin
     if not conn.execute("SELECT 1 FROM users WHERE username='admin'").fetchone():
-        salt = os.urandom(16).hex()
-        h = hashlib.sha256(('admin123' + salt).encode()).hexdigest()
+        h = hash_pw('admin123')
         conn.execute("INSERT INTO users VALUES (?,?,?,?,?,?)",
-                     ('admin', '管理员', h, salt, 'admin', int(time.time()*1000)))
+                     ('admin', '管理员', h, '', 'admin', int(time.time()*1000)))
         conn.commit()
     # Default settings
     if not conn.execute("SELECT 1 FROM settings WHERE id=1").fetchone():
@@ -92,7 +137,28 @@ def init_db():
     conn.close()
 
 # ==================== Auth ====================
-def hash_pw(pw, salt): return hashlib.sha256((pw + salt).encode()).hexdigest()
+def hash_pw(pw, salt=None): return bcrypt.hashpw(pw.encode(), bcrypt.gensalt(rounds=12)).decode()
+
+def is_bcrypt_hash(value):
+    return isinstance(value, str) and value.startswith(('$2a$', '$2b$', '$2y$'))
+
+def verify_pw(pw, user_row):
+    password_hash = user_row['password_hash']
+    if is_bcrypt_hash(password_hash):
+        try:
+            return bcrypt.checkpw(pw.encode(), password_hash.encode())
+        except ValueError:
+            return False
+    salt = user_row['salt'] or ''
+    return hashlib.sha256((pw + salt).encode()).hexdigest() == password_hash
+
+def migrate_password_if_needed(conn, user_row, pw):
+    if is_bcrypt_hash(user_row['password_hash']):
+        return False
+    conn.execute("UPDATE users SET password_hash=?, salt=? WHERE username=?",
+                 (hash_pw(pw), '', user_row['username']))
+    return True
+
 def make_token(u): return jwt.encode({"username":u["username"],"role":u["role"],"dn":u["display_name"],"exp":time.time()+86400*30}, SECRET, algorithm="HS256")
 
 def login_required(f):
@@ -100,14 +166,17 @@ def login_required(f):
     def w(*a, **kw):
         token = request.headers.get('Authorization','').replace('Bearer ','')
         if not token: return jsonify(error="未登录"), 401
+        conn = None
         try:
             payload = jwt.decode(token, SECRET, algorithms=["HS256"])
             conn = get_db()
             u = conn.execute("SELECT username,display_name,role FROM users WHERE username=?", (payload.get('username'),)).fetchone()
-            conn.close()
             if not u: return jsonify(error="登录已失效"), 401
             request.user = {"username":u["username"],"role":u["role"],"dn":u["display_name"]}
         except: return jsonify(error="登录已过期"), 401
+        finally:
+            if conn:
+                conn.close()
         return f(*a, **kw)
     return w
 
@@ -129,12 +198,21 @@ def api_login():
     d = request.json or {}
     login_id = d.get('username','').strip()
     conn = get_db()
-    # 支持用姓名或用户名登录
-    u = conn.execute("SELECT * FROM users WHERE username=? OR display_name=?", (login_id, login_id)).fetchone()
-    conn.close()
-    if not u or hash_pw(d.get('password',''), u['salt']) != u['password_hash']:
-        return jsonify(error="用户名或密码错误"), 401
-    return jsonify(token=make_token(u), user={"username":u["username"],"displayName":u["display_name"],"role":u["role"]})
+    try:
+        # 支持用姓名或用户名登录
+        u = conn.execute("SELECT * FROM users WHERE username=? OR display_name=?", (login_id, login_id)).fetchone()
+        password = d.get('password','')
+        if not u or not verify_pw(password, u):
+            return jsonify(error="用户名或密码错误"), 401
+        migrated = migrate_password_if_needed(conn, u, password)
+        if migrated:
+            conn.commit()
+        return jsonify(token=make_token(u), user={"username":u["username"],"displayName":u["display_name"],"role":u["role"]})
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 @app.route('/api/register', methods=['POST'])
 def api_register():
@@ -144,25 +222,30 @@ def api_register():
     if not display: return jsonify(error="请输入姓名"), 400
     if len(password) < 4: return jsonify(error="密码至少4个字符"), 400
     conn = get_db()
-    # Check whitelist: name must exist and not be used
-    wl = conn.execute("SELECT * FROM whitelist WHERE name=?", (display,)).fetchone()
-    if not wl:
-        conn.close(); return jsonify(error="你的姓名不在管理员名单中，请联系管理员添加"), 400
-    if wl['used']:
-        conn.close(); return jsonify(error="该姓名已注册，请直接登录"), 400
-    # Check if display name already exists in users
-    if conn.execute("SELECT 1 FROM users WHERE display_name=?", (display,)).fetchone():
-        conn.close(); return jsonify(error="该姓名已注册"), 400
-    # Auto-generate username
-    username = display.lower().replace(' ', '') + '_' + secrets.token_hex(3)
-    while conn.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone():
+    try:
+        # Check whitelist: name must exist and not be used
+        wl = conn.execute("SELECT * FROM whitelist WHERE name=?", (display,)).fetchone()
+        if not wl:
+            return jsonify(error="你的姓名不在管理员名单中，请联系管理员添加"), 400
+        if wl['used']:
+            return jsonify(error="该姓名已注册，请直接登录"), 400
+        # Check if display name already exists in users
+        if conn.execute("SELECT 1 FROM users WHERE display_name=?", (display,)).fetchone():
+            return jsonify(error="该姓名已注册"), 400
+        # Auto-generate username
         username = display.lower().replace(' ', '') + '_' + secrets.token_hex(3)
-    salt = os.urandom(16).hex()
-    conn.execute("INSERT INTO users VALUES (?,?,?,?,?,?)",
-                 (username, display, hash_pw(password, salt), salt, 'user', int(time.time()*1000)))
-    conn.execute("UPDATE whitelist SET used=1, used_by=? WHERE name=?", (username, display))
-    conn.commit(); conn.close()
-    return jsonify(ok=True)
+        while conn.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone():
+            username = display.lower().replace(' ', '') + '_' + secrets.token_hex(3)
+        conn.execute("INSERT INTO users VALUES (?,?,?,?,?,?)",
+                     (username, display, hash_pw(password), '', 'user', int(time.time()*1000)))
+        conn.execute("UPDATE whitelist SET used=1, used_by=? WHERE name=?", (username, display))
+        conn.commit()
+        return jsonify(ok=True)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 def load_settings_from_conn(conn):
     row = conn.execute("SELECT data FROM settings WHERE id=1").fetchone()
@@ -213,7 +296,10 @@ def api_clock():
     expected = 'out' if last and last['type'] == 'in' else 'in'
     if clock_type != expected:
         conn.close(); return jsonify(error="打卡顺序无效，请刷新后重试"), 400
-    note = (d.get('note') or '')[:500]
+    note = (d.get('note') or '').strip()
+    if clock_type == 'in' and not note:
+        conn.close(); return jsonify(error="请填写事由"), 400
+    note = note[:500]
     conn.execute("INSERT INTO records (user_id,date,time_str,ts,type,lat,lng,accuracy,out_of_range,note) VALUES (?,?,?,?,?,?,?,?,?,?)",
                  (uid, date_str, time_str, int(now*1000), clock_type,
                   lat, lng, accuracy, 1 if out_of_range else 0, note))
@@ -280,15 +366,20 @@ def api_change_password():
     if len(new_pw) < 4: return jsonify(error="新密码至少4个字符"), 400
     uid = request.user['username']
     conn = get_db()
-    u = conn.execute("SELECT * FROM users WHERE username=?", (uid,)).fetchone()
-    if not u: conn.close(); return jsonify(error="用户不存在"), 404
-    if hash_pw(old_pw, u['salt']) != u['password_hash']:
-        conn.close(); return jsonify(error="当前密码错误"), 400
-    salt = os.urandom(16).hex()
-    h = hash_pw(new_pw, salt)
-    conn.execute("UPDATE users SET password_hash=?, salt=? WHERE username=?", (h, salt, uid))
-    conn.commit(); conn.close()
-    return jsonify(ok=True)
+    try:
+        u = conn.execute("SELECT * FROM users WHERE username=?", (uid,)).fetchone()
+        if not u: return jsonify(error="用户不存在"), 404
+        if not verify_pw(old_pw, u):
+            return jsonify(error="当前密码错误"), 400
+        h = hash_pw(new_pw)
+        conn.execute("UPDATE users SET password_hash=?, salt=? WHERE username=?", (h, '', uid))
+        conn.commit()
+        return jsonify(ok=True)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 @app.route('/api/users/<username>/password', methods=['PUT'])
 @admin_required
@@ -298,13 +389,18 @@ def api_reset_password(username):
     if len(new_pw) < 4: return jsonify(error="密码至少4个字符"), 400
     if username == 'admin': return jsonify(error="不能修改主管理员密码"), 400
     conn = get_db()
-    u = conn.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone()
-    if not u: conn.close(); return jsonify(error="用户不存在"), 404
-    salt = os.urandom(16).hex()
-    h = hash_pw(new_pw, salt)
-    conn.execute("UPDATE users SET password_hash=?, salt=? WHERE username=?", (h, salt, username))
-    conn.commit(); conn.close()
-    return jsonify(ok=True)
+    try:
+        u = conn.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone()
+        if not u: return jsonify(error="用户不存在"), 404
+        h = hash_pw(new_pw)
+        conn.execute("UPDATE users SET password_hash=?, salt=? WHERE username=?", (h, '', username))
+        conn.commit()
+        return jsonify(ok=True)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 @app.route('/api/users/<username>', methods=['DELETE'])
 @admin_required
