@@ -7,7 +7,9 @@ OT.getAdminPeriod = function getAdminPeriod(){
   if(period==='today')return {period,label:'今日',from:today,to:today};
   if(period==='week'){
     const start=new Date(today+'T12:00:00');
-    start.setDate(start.getDate()-start.getDay()+1);
+    const day=start.getDay();
+    const diff=day===0?-6:1-day;
+    start.setDate(start.getDate()+diff);
     return {period,label:'本周',from:OT.calendarKey(start),to:today};
   }
   if(period==='month')return {period,label:'本月',from:today.slice(0,7)+'-01',to:today.slice(0,7)+'-31'};
@@ -149,7 +151,7 @@ OT.exportCsv = async function exportCsv(uid, period, from='', to=''){
     let url='/export?';
     if(uid&&uid!=='all')url+=`uid=${encodeURIComponent(uid)}&`;
     if(period==='range')url+=`from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-    else if(period!=='all')url+=`period=${encodeURIComponent(period)}`;
+    else url+=`period=${encodeURIComponent(period)}`;
     const data=await api(url);
     const recs=data.records||[];
     if(!recs.length){showToast('暂无数据');return false}
