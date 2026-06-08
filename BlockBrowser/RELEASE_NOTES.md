@@ -1,6 +1,6 @@
 # BlockBrowser 阶段版本说明
 
-## 2026-06-09：1.25.2 clean refactor
+## 2026-06-09：1.3 clean refactor
 
 当前分支：`codex/blockbrowser-clean`
 
