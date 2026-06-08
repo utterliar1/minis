@@ -117,3 +117,51 @@ def test_clock_out_requires_note(monkeypatch, tmp_path):
 
         assert response.status_code == 400
         assert "事由" in response.get_json()["error"]
+
+
+def test_invalid_location_takes_precedence_over_empty_note(monkeypatch, tmp_path):
+    with load_app(monkeypatch, tmp_path) as app_module:
+        client = app_module.app.test_client()
+        admin_token = login(client, "admin", "admin123")
+        configure_location(client, admin_token)
+        member_token = create_member(client, admin_token)
+        payload = clock_payload("in", "")
+        payload["lat"] = "invalid"
+        payload["lng"] = None
+
+        response = client.post(
+            "/api/clock",
+            json=payload,
+            headers=auth_headers(member_token),
+        )
+        error = response.get_json()["error"]
+
+        assert response.status_code == 400
+        assert "定位" in error
+        assert "事由" not in error
+
+
+def test_clock_sequence_takes_precedence_over_empty_note(monkeypatch, tmp_path):
+    with load_app(monkeypatch, tmp_path) as app_module:
+        client = app_module.app.test_client()
+        admin_token = login(client, "admin", "admin123")
+        configure_location(client, admin_token)
+        member_token = create_member(client, admin_token)
+
+        response = client.post(
+            "/api/clock",
+            json=clock_payload("in", "项目加班"),
+            headers=auth_headers(member_token),
+        )
+        assert response.status_code == 200
+
+        response = client.post(
+            "/api/clock",
+            json=clock_payload("in", ""),
+            headers=auth_headers(member_token),
+        )
+        error = response.get_json()["error"]
+
+        assert response.status_code == 400
+        assert "顺序" in error
+        assert "事由" not in error

@@ -627,12 +627,10 @@ async function handleClock(){
   if(settings.lat==null||settings.lng==null){showToast('打卡地点未配置');return}
   const last=getLastTodayRecord();let type='in';
   if(last&&last.type==='in')type='out';
-  // 只有上班打卡才填事由
-  let reason='';
-  if(type==='in'){
-    reason=prompt('请输入加班事由：');
-    if(reason===null)return;
-  }
+  let reason=prompt('请输入事由：');
+  if(reason===null)return;
+  reason=reason.trim();
+  if(!reason){showToast('请输入事由');return}
   if(!isWithinRange(currentPos)){showConfirmModal('⚠️ 范围外打卡','不在范围内，是否记录？',async()=>{await doClock(type,true,reason)},()=>{});return}
   await doClock(type,false,reason);
 }
