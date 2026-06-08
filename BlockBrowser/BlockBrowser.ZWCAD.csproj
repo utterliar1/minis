@@ -62,6 +62,7 @@
     <Compile Include="BlockThumbnailCard.cs" />
     <Compile Include="UI\ActiveLibraryStatusService.cs" />
     <Compile Include="UI\BlockDeletePlanService.cs" />
+    <Compile Include="UI\BlockBrowserInfoService.cs" />
     <Compile Include="UI\BlockInfoStatusService.cs" />
     <Compile Include="UI\CardCacheService.cs" />
     <Compile Include="UI\ResourceDisposalService.cs" />

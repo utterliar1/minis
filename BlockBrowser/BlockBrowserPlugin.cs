@@ -1041,9 +1041,13 @@ namespace BlockBrowser
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
             try
             {
-                ed.WriteMessage("\n=== 块浏览器 v" + BlockLibrary.AppVersion + " (" + BlockLibrary.PlatformName + ") ===");
-                ed.WriteMessage("\n库: " + BlockLibrary.LibraryPath);
-                ed.WriteMessage("\n命令: BB KLLQ BBADD BBEXPORT BBTHUMB");
+                foreach (var line in BlockBrowserInfoService.FormatLines(
+                    BlockLibrary.AppVersion,
+                    BlockLibrary.PlatformName,
+                    BlockLibrary.LibraryPath))
+                {
+                    ed.WriteMessage("\n" + line);
+                }
             }
             catch (System.Exception ex) { ed.WriteMessage("\n错误: " + ex.Message); }
         }
