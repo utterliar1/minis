@@ -110,6 +110,9 @@ AlignHorizontal=0
 AlignUseFirstBase=true
 AlignLineSpacing=0
 
+# 图层管理设置
+IsoLayerKeepLayer0=false
+
 # 命令列表
 [Commands]
 查找替换=CT_FINDREPLACE
@@ -186,7 +189,7 @@ LayerStandardWhitelist=0,Defpoints,*图框*,*视口*,*原有*,*新增*
 
 [LayerMap]
 0-设备层=设备,0-4
-1-中心线层=中心,中心线,CENTER,0-1
+1-中心线层=中心,中心线,CENTER,0-1,1,AXIS,CLEARANCE
 3-文字层=文字,说明,编号,TEXT,txt
 4-标注层=标注,尺寸,DIM,dim
 5-风网=风网,风管,风道,0-5

@@ -67,6 +67,9 @@ namespace CadToolkit.Core
             sb.AppendLine("AlignUseFirstBase=true");
             sb.AppendLine("AlignLineSpacing=0");
             sb.AppendLine();
+            sb.AppendLine("# \u56FE\u5C42\u7BA1\u7406");
+            sb.AppendLine("IsoLayerKeepLayer0=false");
+            sb.AppendLine();
             sb.AppendLine("# \u56FE\u5C42\u89C4\u8303");
             sb.AppendLine("LayerStandardFallbackTo0=false");
             sb.AppendLine("LayerStandardWhitelist=0,Defpoints,*\u56FE\u6846*,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*");
@@ -111,7 +114,7 @@ namespace CadToolkit.Core
             sb.AppendLine();
             sb.AppendLine("[LayerMap]");
             sb.AppendLine("0-\u8BBE\u5907\u5C42=\u8BBE\u5907,0-4,VIS35");
-            sb.AppendLine("1-\u4E2D\u5FC3\u7EBF\u5C42=\u4E2D\u5FC3,\u4E2D\u5FC3\u7EBF,CENTER,0-1,1");
+            sb.AppendLine("1-\u4E2D\u5FC3\u7EBF\u5C42=\u4E2D\u5FC3,\u4E2D\u5FC3\u7EBF,CENTER,0-1,1,AXIS,CLEARANCE");
             sb.AppendLine("2-\u865A\u7EBF\u5C42=\u865A\u7EBF,HIDDEN,DASH,HID");
             sb.AppendLine("3-\u6587\u5B57\u5C42=\u6587\u5B57,\u8BF4\u660E,\u7F16\u53F7,TEXT,txt");
             sb.AppendLine("4-\u6807\u6CE8\u5C42=\u6807\u6CE8,\u5C3A\u5BF8,DIM,dim");
@@ -177,7 +180,7 @@ namespace CadToolkit.Core
                     }
                 }
                 catch (Exception ex) { LogConfigError("Read assembly version failed: " + ex.Message); }
-                return "v1.23.3";
+                return "v1.24";
             }
         }
 
@@ -189,6 +192,7 @@ namespace CadToolkit.Core
         public static int AlignHorizontal { get { return GetInt("AlignHorizontal", 0); } set { SaveInt("AlignHorizontal", value); } }
         public static bool AlignUseFirstBase { get { return GetBool("AlignUseFirstBase", true); } set { SaveBool("AlignUseFirstBase", value); } }
         public static double AlignLineSpacing { get { double v; return double.TryParse(GetString("AlignLineSpacing", "0"), out v) ? v : 0; } set { SaveString("AlignLineSpacing", value.ToString()); } }
+        public static bool IsoLayerKeepLayer0 { get { return GetBool("IsoLayerKeepLayer0", false); } }
         public static bool LayerStandardFallbackTo0 { get { return GetBool("LayerStandardFallbackTo0", false); } }
         public static string LayerStandardWhitelist { get { return GetString("LayerStandardWhitelist", GetString("LayerStandardFallbackWhitelist", "0,Defpoints,*\u56FE\u6846*,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*")); } }
 

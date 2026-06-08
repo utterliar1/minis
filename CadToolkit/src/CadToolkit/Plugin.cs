@@ -73,7 +73,14 @@ namespace CadToolkit
     {
         static bool _initDone;
         static ObjectId[] _pendingSelection;
-        static Dictionary<string, ObjectId[]> _isoState = new Dictionary<string, ObjectId[]>();
+        class IsoLayerState
+        {
+            public ObjectId[] FrozenLayers;
+            public ObjectId PreviousCurrentLayer;
+            public bool HasPreviousCurrentLayer;
+        }
+
+        static Dictionary<string, IsoLayerState> _isoState = new Dictionary<string, IsoLayerState>();
 
         static void EnsureInit()
         {

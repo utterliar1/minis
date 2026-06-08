@@ -446,14 +446,15 @@ namespace CadToolkit
             string dk = DocKey;
             if (_isoState.ContainsKey(dk))
             {
-                var frozen = _isoState[dk];
+                var state = _isoState[dk];
                 using (var tr = Db.TransactionManager.StartTransaction())
                 {
-                    foreach (var lid in frozen)
+                    foreach (var lid in state.FrozenLayers)
                     {
                         if (!lid.IsValid) continue;
                         try { var ltr = (LayerTableRecord)tr.GetObject(lid, OpenMode.ForWrite); ltr.IsFrozen = false; } catch (System.Exception ex) { Log("Restore isolated layer failed: " + ex.Message); }
                     }
+                    RestoreIsoCurrentLayer(state);
                     tr.Commit();
                 }
                 _isoState.Remove(dk);
@@ -471,13 +472,17 @@ namespace CadToolkit
                 tr.Commit();
             }
             var frozenList = new List<ObjectId>();
+            ObjectId previousCurrentLayer = Db.Clayer;
+            bool hasPreviousCurrentLayer = previousCurrentLayer.IsValid;
+            bool keepLayer0 = Config.IsoLayerKeepLayer0;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
                 var lt = (LayerTable)tr.GetObject(Db.LayerTableId, OpenMode.ForRead);
+                EnsureIsoCurrentLayer(lt, targetLayer);
                 foreach (ObjectId lid in lt)
                 {
                     var ltr = (LayerTableRecord)tr.GetObject(lid, OpenMode.ForRead);
-                    if (ltr.Name == targetLayer || ltr.Name == "0" || ltr.IsFrozen || lid == Db.Clayer || ltr.IsDependent) continue;
+                    if (IsIsoTargetLayer(ltr.Name, targetLayer) || ShouldKeepIsoLayer0(ltr.Name, keepLayer0) || ltr.IsFrozen || ltr.IsDependent) continue;
                     try
                     {
                         ltr.UpgradeOpen();
@@ -488,8 +493,40 @@ namespace CadToolkit
                 }
                 tr.Commit();
             }
-            _isoState[dk] = frozenList.ToArray();
+            _isoState[dk] = new IsoLayerState { FrozenLayers = frozenList.ToArray(), PreviousCurrentLayer = previousCurrentLayer, HasPreviousCurrentLayer = hasPreviousCurrentLayer };
             Ed.WriteMessage(string.Format("\n\u5df2\u5b64\u7acb\u56fe\u5c42 \"{0}\" \uff0c\u51bb\u7ed3 {1} \u4e2a\u56fe\u5c42\u3002", targetLayer, frozenList.Count));
+        }
+
+        static bool IsIsoTargetLayer(string layerName, string targetLayer)
+        {
+            return SafeStr(layerName).Equals(SafeStr(targetLayer), StringComparison.OrdinalIgnoreCase);
+        }
+
+        static bool ShouldKeepIsoLayer0(string layerName, bool keepLayer0)
+        {
+            return keepLayer0 && SafeStr(layerName).Equals("0", StringComparison.OrdinalIgnoreCase);
+        }
+
+        static void EnsureIsoCurrentLayer(LayerTable lt, string targetLayer)
+        {
+            try
+            {
+                if (!lt.Has(targetLayer)) return;
+                ObjectId targetId = lt[targetLayer];
+                if (Db.Clayer == targetId) return;
+                Db.Clayer = targetId;
+            }
+            catch (System.Exception ex) { Log("Switch current layer for isolate failed: " + ex.Message); }
+        }
+
+        static void RestoreIsoCurrentLayer(IsoLayerState state)
+        {
+            try
+            {
+                if (state == null || !state.HasPreviousCurrentLayer || !state.PreviousCurrentLayer.IsValid) return;
+                Db.Clayer = state.PreviousCurrentLayer;
+            }
+            catch (System.Exception ex) { Log("Restore current layer after isolate failed: " + ex.Message); }
         }
     }
 }
