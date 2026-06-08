@@ -707,15 +707,16 @@ namespace BlockBrowser
             string category = ShowCategoryDialog("选择分类", categories);
             if (category == null) return;
             string name = ShowInputDialog("输入块名称:");
-            if (string.IsNullOrEmpty(name)) return;
-            if (!BlockLibrary.IsSafeLibraryName(category) || !BlockLibrary.IsSafeLibraryName(name))
+            var plan = AddToLibraryRequestService.CreatePlan(category, name, BlockLibrary.IsSafeLibraryName);
+            if (plan.Action == AddToLibraryRequestAction.Cancel) return;
+            if (plan.Action == AddToLibraryRequestAction.InvalidName)
             {
                 MessageBox.Show("分类或名称为空，或包含非法字符。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            PendingCategory = category;
-            PendingBlockName = name.Trim();
-            PendingCommand = "BBADD";
+            PendingCategory = plan.Category;
+            PendingBlockName = plan.BlockName;
+            PendingCommand = plan.PendingCommand;
             this.DialogResult = DialogResult.Abort;
             this.Close();
         }

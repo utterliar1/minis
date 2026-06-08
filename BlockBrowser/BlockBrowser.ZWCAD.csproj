@@ -60,6 +60,7 @@
     <Compile Include="SettingsDialog.cs" />
     <Compile Include="TextPromptDialog.cs" />
     <Compile Include="BlockThumbnailCard.cs" />
+    <Compile Include="UI\AddToLibraryRequestService.cs" />
     <Compile Include="UI\ActiveLibraryStatusService.cs" />
     <Compile Include="UI\BlockDeletePlanService.cs" />
     <Compile Include="UI\BlockBrowserInfoService.cs" />
