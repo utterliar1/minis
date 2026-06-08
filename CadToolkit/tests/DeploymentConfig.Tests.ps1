@@ -3,6 +3,9 @@ $ErrorActionPreference = 'Stop'
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $buildAll = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\build-all.bat') -Raw
 $workflow = Get-Content -Encoding UTF8 (Join-Path $repo '.github\workflows\cadtoolkit.yml') -Raw
+$projectConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.ini') -Raw
+$defaultConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.default.ini') -Raw
+$configSource = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit.Core\Config.cs') -Raw
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) { throw "$name did not find pattern: $pattern" }
@@ -20,3 +23,7 @@ Assert-NotContains 'local deploy does not overwrite user config' $buildAll 'copy
 
 Assert-Contains 'release package includes default config template' $workflow 'CadToolkit\.default\.ini'
 Assert-NotContains 'release package does not include user config name' $workflow 'Copy-Item "\$\{\{ github\.workspace \}\}\\CadToolkit\\CadToolkit\.ini" "\$pkg\\?"'
+
+Assert-NotContains 'project config omits version marker' $projectConfig '(?m)^Version='
+Assert-NotContains 'default config omits version marker' $defaultConfig '(?m)^Version='
+Assert-NotContains 'embedded default config omits version marker' $configSource 'AppendLine\("Version='

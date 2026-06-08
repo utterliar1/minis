@@ -55,7 +55,6 @@ namespace CadToolkit.Core
         {
             var sb = new StringBuilder();
             sb.AppendLine("# CadToolkit \u914D\u7F6E\u6587\u4EF6");
-            sb.AppendLine("Version=" + CurrentVersion);
             sb.AppendLine();
             sb.AppendLine("# \u5FEB\u6377\u5EFA\u5757");
             sb.AppendLine("QuickBlockPrefix=BK");
