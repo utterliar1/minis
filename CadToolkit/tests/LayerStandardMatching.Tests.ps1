@@ -60,7 +60,10 @@ function New-LayerRule($name, [string[]]$aliases) {
     return $rule
 }
 
-[void]$rules.Add((New-LayerRule '0-EQUIPMENT' @('EQUIP', '0-4')))
+$equipmentAlias = '*' + (-join ([char[]](0x8BBE, 0x5907))) + '*'
+$equipmentLayer = (-join ([char[]](0x4E00, 0x5C42))) + '-' + (-join ([char[]](0x8BBE, 0x5907))) + '-' + (-join ([char[]](0x65E7)))
+
+[void]$rules.Add((New-LayerRule '0-EQUIPMENT' @('EQUIP', $equipmentAlias, '0-4')))
 [void]$rules.Add((New-LayerRule '1-CENTER' @('CENTER', '0-1')))
 
 $match = $commandsType.GetMethod('MatchLayerRule', [Reflection.BindingFlags]'NonPublic, Static')
@@ -72,11 +75,13 @@ function Match-Name($layer) {
 }
 
 Assert-Equal 'alias exact standard layer' '0-EQUIPMENT' (Match-Name '0-EQUIPMENT')
-Assert-Equal 'alias text contains remains supported' '0-EQUIPMENT' (Match-Name 'EQUIP-SPARE')
+Assert-Equal 'plain text alias exact match' '0-EQUIPMENT' (Match-Name 'EQUIP')
+Assert-Equal 'plain text alias does not match contains' '' (Match-Name 'EQUIP-SPARE')
+Assert-Equal 'wildcard alias matches contains' '0-EQUIPMENT' (Match-Name $equipmentLayer)
 Assert-Equal 'numeric alias exact token' '0-EQUIPMENT' (Match-Name '0-4')
 Assert-Equal 'numeric alias does not match 0-40' '' (Match-Name '0-40')
 Assert-Equal 'numeric alias does not match A0-4' '' (Match-Name 'A0-4')
-Assert-Equal 'numeric alias allows separated token' '0-EQUIPMENT' (Match-Name 'A-0-4-B')
+Assert-Equal 'numeric alias does not match separated token without wildcard' '' (Match-Name 'A-0-4-B')
 
 $layerCommands = Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit\LayerCommands.cs') -Raw
 Assert-Contains 'layer standard gathers block/layout scopes' $layerCommands 'GetLayerStandardScopeIds'
