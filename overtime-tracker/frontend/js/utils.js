@@ -58,13 +58,68 @@ OT.actualLocationHtml = function actualLocationHtml(record){
 };
 
 OT.groupExportRecords = function groupExportRecords(records){
-  const groups={};
-  (records||[]).forEach(r=>{
-    const key=(r.user_id||r.display_name||'')+'|'+r.date;
-    if(!groups[key])groups[key]={name:r.display_name||r.user_id||'',personKey:r.user_id||r.display_name||'',date:r.date,records:[]};
+  const groups={},openByPerson={};
+  (records||[]).slice().sort((a,b)=>a.ts-b.ts).forEach(r=>{
+    const personKey=r.user_id||r.display_name||'';
+    if(r.type==='in'){
+      openByPerson[personKey]=r;
+      const key=personKey+'|'+r.date;
+      if(!groups[key])groups[key]={name:r.display_name||r.user_id||'',personKey,date:r.date,records:[]};
+      groups[key].records.push(r);
+      return;
+    }
+    if(r.type==='out'&&openByPerson[personKey]){
+      const start=openByPerson[personKey];
+      const key=personKey+'|'+start.date;
+      if(!groups[key])groups[key]={name:start.display_name||r.display_name||start.user_id||personKey,personKey,date:start.date,records:[]};
+      groups[key].records.push(r);
+      openByPerson[personKey]=null;
+      return;
+    }
+    const key=personKey+'|'+r.date;
+    if(!groups[key])groups[key]={name:r.display_name||r.user_id||'',personKey,date:r.date,records:[]};
     groups[key].records.push(r);
   });
   return Object.values(groups).sort((a,b)=>a.date===b.date?String(a.name).localeCompare(String(b.name)):String(a.date).localeCompare(String(b.date)));
+};
+
+OT.groupRecordsByStartDate = function groupRecordsByStartDate(records){
+  const groups={},openByPerson={};
+  (records||[]).slice().sort((a,b)=>a.ts-b.ts).forEach(r=>{
+    const personKey=r.user_id||r.display_name||'';
+    if(r.type==='in'){
+      openByPerson[personKey]=r;
+      if(!groups[r.date])groups[r.date]=[];
+      groups[r.date].push(r);
+      return;
+    }
+    if(r.type==='out'&&openByPerson[personKey]){
+      const start=openByPerson[personKey];
+      if(!groups[start.date])groups[start.date]=[];
+      groups[start.date].push(r);
+      openByPerson[personKey]=null;
+      return;
+    }
+    if(!groups[r.date])groups[r.date]=[];
+    groups[r.date].push(r);
+  });
+  return groups;
+};
+
+OT.splitWorkNote = function splitWorkNote(note){
+  const text=String(note||'').trim();
+  const idx=text.search(/[：:]/);
+  if(idx<=0)return {category:'',reason:text};
+  return {category:text.slice(0,idx).trim(),reason:text.slice(idx+1).trim()};
+};
+
+OT.exportReviewFlags = function exportReviewFlags(records){
+  const flags=[],pairs=OT.recordPairs(records||[]);
+  pairs.forEach(([i,o])=>{
+    if(Number(i.out_of_range||0)!==Number(o.out_of_range||0)&&!flags.includes('位置不一致'))flags.push('位置不一致');
+    if(i.date&&o.date&&i.date!==o.date&&!flags.includes('跨天'))flags.push('跨天');
+  });
+  return flags;
 };
 
 OT.exportRowFromGroup = function exportRowFromGroup(group){
@@ -73,10 +128,14 @@ OT.exportRowFromGroup = function exportRowFromGroup(group){
   const sorted=[...group.records].sort((a,b)=>a.ts-b.ts);
   const fi=sorted.find(r=>r.type==='in');
   const lo=[...sorted].reverse().find(r=>r.type==='out');
-  const reasons=sorted.filter(r=>r.note).map(r=>r.note).filter(Boolean).join('; ');
+  const inNotes=sorted.filter(r=>r.type==='in'&&r.note).map(r=>OT.splitWorkNote(r.note));
+  const categories=[...new Set(inNotes.map(n=>n.category).filter(Boolean))].join('; ');
+  const reasons=inNotes.map(n=>n.reason).filter(Boolean).join('; ');
+  const clockOutNotes=sorted.filter(r=>r.type==='out'&&r.note).map(r=>r.note).filter(Boolean).join('; ');
   const remote=sorted.some(r=>Number(r.out_of_range)===1);
   const actualLocation=sorted.map(OT.actualLocationText).find(Boolean)||'';
   const minutes=OT.calcTodayOT(sorted,d);
+  const reviewFlags=OT.exportReviewFlags(sorted).join('；');
   return {
     name: group.name,
     personKey: group.personKey,
@@ -85,9 +144,12 @@ OT.exportRowFromGroup = function exportRowFromGroup(group){
     firstIn: fi?(fi.time_str||'').slice(0,5):'',
     lastOut: lo?(lo.time_str||'').slice(0,5):'',
     type: OT.isWorkingDay(d)?'工作日':'休息日',
+    categories,
     reasons,
+    clockOutNotes,
     remoteText: remote?'是':'',
     actualLocation,
+    reviewFlags,
     remote,
     minutes,
     hours: OT.csvHourText(minutes)
@@ -97,14 +159,19 @@ OT.exportRowFromGroup = function exportRowFromGroup(group){
 OT.exportDetailLine = function exportDetailLine(r){
   return [
     OT.csvCell(r.name),OT.csvCell(r.date),OT.csvCell(r.weekday),OT.csvCell(r.firstIn),OT.csvCell(r.lastOut),
-    OT.csvCell(r.type),OT.csvCell(r.reasons),OT.csvCell(r.remoteText),OT.csvCell(r.actualLocation),r.minutes,OT.csvCell(r.hours)
+    OT.csvCell(r.type),OT.csvCell(r.categories),OT.csvCell(r.reasons),OT.csvCell(r.clockOutNotes),
+    OT.csvCell(r.remoteText),OT.csvCell(r.actualLocation),OT.csvCell(r.reviewFlags),r.minutes,OT.csvCell(r.hours)
   ].join(',');
 };
 
 OT.exportSummaryLine = function exportSummaryLine(label, rows, typeLabel){
   const totalMinutes=rows.reduce((sum,r)=>sum+r.minutes,0);
   const remoteDays=rows.filter(r=>r.remote).length;
-  return [OT.csvCell(label),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(typeLabel||''),OT.csvCell(''),OT.csvCell(`远程 ${remoteDays} 天`),OT.csvCell(''),totalMinutes,OT.csvCell(OT.csvHourText(totalMinutes))].join(',');
+  return [
+    OT.csvCell(label),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(typeLabel||''),
+    OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(`远程 ${remoteDays} 天`),OT.csvCell(''),OT.csvCell(''),
+    totalMinutes,OT.csvCell(OT.csvHourText(totalMinutes))
+  ].join(',');
 };
 
 OT.buildExportCsv = function buildExportCsv(records, options={}){
@@ -129,7 +196,7 @@ OT.buildExportCsv = function buildExportCsv(records, options={}){
     rows.forEach(r=>lines.push(OT.exportDetailLine(r)));
   }
   lines.push(OT.exportSummaryLine('汇总',rows,'总计'));
-  return '姓名,日期,星期,上班,下班,类型,事由,远程,实际位置,工时(分),工时(h)\n'+lines.join('\n');
+  return '姓名,日期,星期,上班,下班,类型,工作类别,事由,下班说明,远程,实际位置,复核标记,工时(分),工时(h)\n'+lines.join('\n');
 };
 
 OT.geoErrorMessage = function geoErrorMessage(err){

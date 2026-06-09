@@ -12,7 +12,7 @@ OT.recordPairs = function recordPairs(recs){
 
 OT.calcTodayOT = function calcTodayOT(recs,date){
   if(!recs.length)return 0;const wk=isWorkingDay(date);
-  if(wk){const ws=timeToMin(settings.workStart||'08:30'),we=timeToMin(settings.workEnd||'17:30');let mins=0;recordPairs(recs).forEach(([i,o])=>{const im=msToMin(i.ts,i.time_str),om=msToMin(o.ts,o.time_str);mins+=OT.overlapMinutes(im,om,0,ws)+OT.overlapMinutes(im,om,we,24*60)});return mins}
+  if(wk){const ws=timeToMin(settings.workStart||'08:30'),we=timeToMin(settings.workEnd||'17:30');let mins=0;recordPairs(recs).forEach(([i,o])=>{if(i.date&&o.date&&i.date!==o.date){mins+=Math.round(Math.max(0,o.ts-i.ts)/60000);return}const im=msToMin(i.ts,i.time_str),om=msToMin(o.ts,o.time_str);mins+=OT.overlapMinutes(im,om,0,ws)+OT.overlapMinutes(im,om,we,24*60)});return mins}
   else{return Math.round(recordPairs(recs).reduce((sum,[i,o])=>sum+Math.max(0,o.ts-i.ts),0)/60000)}
 };
 
@@ -23,7 +23,7 @@ OT.overlapMinutes = function overlapMinutes(start,end,rangeStart,rangeEnd){retur
 OT.getWorkMinutes = function getWorkMinutes(){return timeToMin(settings.workEnd||'17:30')-timeToMin(settings.workStart||'08:30')};
 
 OT.renderStats = function renderStats(){
-  const dg={};allRecords.forEach(r=>{if(!dg[r.date])dg[r.date]=[];dg[r.date].push(r)});
+  const dg=OT.groupRecordsByStartDate(allRecords);
   let totalOT=0,wkOT=0,hdOT=0;
   Object.entries(dg).forEach(([date,recs])=>{const ot=calcTodayOT(recs,new Date(date+'T12:00:00'));totalOT+=ot;isWorkingDay(new Date(date+'T12:00:00'))?wkOT+=ot:hdOT+=ot});
   const days=Object.keys(dg).length;
@@ -50,14 +50,14 @@ OT.updateHeaderStats = function updateHeaderStats(){
   const tr=allRecords.filter(r=>r.date===tk),tot=calcTodayOT(tr,new Date(tk+'T12:00:00'));
   const thisMonth=tk.slice(0,7);
   const mr=allRecords.filter(r=>r.date&&r.date.startsWith(thisMonth));
-  const mdg={};mr.forEach(r=>{if(!mdg[r.date])mdg[r.date]=[];mdg[r.date].push(r)});
+  const mdg=OT.groupRecordsByStartDate(mr);
   let mot=0;Object.entries(mdg).forEach(([date,recs])=>{mot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
-  const adg={};allRecords.forEach(r=>{if(!adg[r.date])adg[r.date]=[];adg[r.date].push(r)});
+  const adg=OT.groupRecordsByStartDate(allRecords);
   let ttot=0;Object.entries(adg).forEach(([date,recs])=>{ttot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
   const todayObj=new Date(tk+'T12:00:00');todayObj.setDate(todayObj.getDate()-todayObj.getDay()+1);
   const weekStart=calendarKey(todayObj);
   const wRecs=allRecords.filter(r=>r.date>=weekStart&&r.date<=tk);
-  const wdg={};wRecs.forEach(r=>{if(!wdg[r.date])wdg[r.date]=[];wdg[r.date].push(r)});
+  const wdg=OT.groupRecordsByStartDate(wRecs);
   let wot=0;Object.entries(wdg).forEach(([date,recs])=>{wot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
   document.getElementById('header-stats').innerHTML=`
     <div class="stat-item"><div class="stat-value">${fmtMin(tot)}</div><div class="stat-label">今日</div></div>
