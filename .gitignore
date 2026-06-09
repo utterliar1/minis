@@ -18,6 +18,7 @@ venv/
 # CAD build stubs
 .github/stubs/obj/
 .github/stubs/bin/
+stubs/
 
 # CadToolkit build outputs
 CadToolkit/src/**/bin/
