@@ -442,6 +442,103 @@ namespace CadToolkit
             catch (System.Exception ex) { Log("ApplyLayerRule linetype failed for " + rule.Name + ": " + ex.Message); }
         }
 
+        class LayerPlanTargetGroup
+        {
+            public string TargetLayer;
+            public int Count;
+            public List<LayerStandardPlan> Plans = new List<LayerStandardPlan>();
+        }
+
+        static int SumLayerPlanCounts(List<LayerStandardPlan> plans)
+        {
+            int total = 0;
+            foreach (var p in plans) total += p.Count;
+            return total;
+        }
+
+        static List<LayerStandardPlan> SortLayerPlansByCount(List<LayerStandardPlan> plans)
+        {
+            var sorted = new List<LayerStandardPlan>(plans);
+            sorted.Sort(delegate(LayerStandardPlan a, LayerStandardPlan b)
+            {
+                int byCount = b.Count.CompareTo(a.Count);
+                if (byCount != 0) return byCount;
+                return SafeStr(a.SourceLayer).CompareTo(SafeStr(b.SourceLayer));
+            });
+            return sorted;
+        }
+
+        static List<LayerPlanTargetGroup> BuildLayerPlanTargetGroups(List<LayerStandardPlan> plans)
+        {
+            var byTarget = new Dictionary<string, LayerPlanTargetGroup>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in plans)
+            {
+                LayerPlanTargetGroup group;
+                if (!byTarget.TryGetValue(p.TargetLayer, out group))
+                {
+                    group = new LayerPlanTargetGroup { TargetLayer = p.TargetLayer };
+                    byTarget[p.TargetLayer] = group;
+                }
+                group.Count += p.Count;
+                group.Plans.Add(p);
+            }
+
+            var groups = new List<LayerPlanTargetGroup>(byTarget.Values);
+            groups.Sort(delegate(LayerPlanTargetGroup a, LayerPlanTargetGroup b)
+            {
+                int byCount = b.Count.CompareTo(a.Count);
+                if (byCount != 0) return byCount;
+                return SafeStr(a.TargetLayer).CompareTo(SafeStr(b.TargetLayer));
+            });
+            return groups;
+        }
+
+        static TreeNode[] BuildLayerPlanTreeNodes(List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0)
+        {
+            var nodes = new List<TreeNode>();
+            int migrateObjects = SumLayerPlanCounts(plans);
+            int fallbackObjects = SumLayerPlanCounts(fallbackPlans);
+            int whitelistObjects = SumLayerPlanCounts(whitelistPlans);
+
+            var summary = new TreeNode(string.Format("摘要：标准图层 {0} 个；将迁移 {1} 层 / {2} 对象；未识别 {3} 层 / {4} 对象；白名单 {5} 层 / {6} 对象",
+                rules.Count, plans.Count, migrateObjects, fallbackPlans.Count, fallbackObjects, whitelistPlans.Count, whitelistObjects));
+            summary.Nodes.Add(new TreeNode(string.Format("标准图层：{0} 个", rules.Count)));
+            summary.Nodes.Add(new TreeNode(string.Format("将迁移：{0} 个旧图层 / {1} 个对象", plans.Count, migrateObjects)));
+            summary.Nodes.Add(new TreeNode(string.Format("未识别：{0} 个图层 / {1} 个对象", fallbackPlans.Count, fallbackObjects)));
+            summary.Nodes.Add(new TreeNode(string.Format("白名单：{0} 个图层 / {1} 个对象", whitelistPlans.Count, whitelistObjects)));
+            summary.Expand();
+            nodes.Add(summary);
+
+            var unknown = new TreeNode(string.Format("未识别图层（{0} 层 / {1} 对象，{2}）",
+                fallbackPlans.Count, fallbackObjects, fallbackTo0 ? "将归到 0 层" : "保持原样"));
+            foreach (var p in SortLayerPlansByCount(fallbackPlans))
+            {
+                string text = fallbackTo0
+                    ? string.Format("{0} -> 0    {1} 对象    {2}", p.SourceLayer, p.Count, SafeStr(p.Reason))
+                    : string.Format("{0}    {1} 对象    保持原样    {2}", p.SourceLayer, p.Count, SafeStr(p.Reason));
+                unknown.Nodes.Add(new TreeNode(text));
+            }
+            unknown.Expand();
+            nodes.Add(unknown);
+
+            var migrate = new TreeNode(string.Format("将迁移图层（{0} 层 / {1} 对象）", plans.Count, migrateObjects));
+            foreach (var group in BuildLayerPlanTargetGroups(plans))
+            {
+                var groupNode = new TreeNode(string.Format("{0}（{1} 层 / {2} 对象）", group.TargetLayer, group.Plans.Count, group.Count));
+                foreach (var p in SortLayerPlansByCount(group.Plans))
+                    groupNode.Nodes.Add(new TreeNode(string.Format("{0} -> {1}    {2} 对象    {3}", p.SourceLayer, p.TargetLayer, p.Count, SafeStr(p.Reason))));
+                migrate.Nodes.Add(groupNode);
+            }
+            nodes.Add(migrate);
+
+            var whitelist = new TreeNode(string.Format("白名单图层（{0} 层 / {1} 对象，保持原样）", whitelistPlans.Count, whitelistObjects));
+            foreach (var p in SortLayerPlansByCount(whitelistPlans))
+                whitelist.Nodes.Add(new TreeNode(string.Format("{0}    {1} 对象    {2}", p.SourceLayer, p.Count, SafeStr(p.Reason))));
+            nodes.Add(whitelist);
+
+            return nodes.ToArray();
+        }
+
         static string FormatLayerPlan(List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0)
         {
             var sb = new StringBuilder();

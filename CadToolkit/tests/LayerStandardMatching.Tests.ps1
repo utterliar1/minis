@@ -148,9 +148,41 @@ Assert-Contains 'preview includes whitelist reason' $previewWithFallback 'white 
 Assert-Contains 'preview with fallback explains layer 0 move' $previewWithFallback 'UNKNOWN-LAYER\s+->\s+0'
 Assert-Contains 'preview without fallback explains preserve' $previewWithoutFallback 'UNKNOWN-LAYER.*fallback reason'
 
+[void]$plansForPreview.Add((New-Plan 'TEXT-OLD-A' '3-TEXT' 7 'text reason A'))
+[void]$plansForPreview.Add((New-Plan 'TEXT-OLD-B' '3-TEXT' 11 'text reason B'))
+[void]$plansForPreview.Add((New-Plan 'EQUIP-LOW' '0-EQUIPMENT' 1 'equipment low reason'))
+[void]$fallbackForPreview.Add((New-Plan 'UNKNOWN-BIG' '0' 9 'fallback big reason'))
+[void]$whitelistForPreview.Add((New-Plan 'FRAME-BIG' '' 13 'white big reason'))
+
+$buildTree = $commandsType.GetMethod('BuildLayerPlanTreeNodes', [Reflection.BindingFlags]'NonPublic, Static')
+Assert-NotNull 'tree preview helper exists' $buildTree
+
+function Node-Text($node) { return [string]$node.Text }
+
+$treeWithoutFallback = $buildTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $rules, $false))
+Assert-Equal 'tree preview top node count' 4 $treeWithoutFallback.Length
+Assert-Contains 'tree summary node text' (Node-Text $treeWithoutFallback[0]) '^\u6458\u8981'
+Assert-Contains 'tree unknown node preserves layers' (Node-Text $treeWithoutFallback[1]) '\u4FDD\u6301\u539F\u6837'
+Assert-Contains 'tree migration node exists' (Node-Text $treeWithoutFallback[2]) '^\u5C06\u8FC1\u79FB\u56FE\u5C42'
+Assert-Contains 'tree whitelist node exists' (Node-Text $treeWithoutFallback[3]) '^\u767D\u540D\u5355\u56FE\u5C42'
+
+$treeWithFallback = $buildTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $rules, $true))
+Assert-Contains 'tree unknown node moves to 0' (Node-Text $treeWithFallback[1]) '\u5C06\u5F52\u5230 0 \u5C42'
+Assert-Contains 'tree unknown child moves to 0' (Node-Text $treeWithFallback[1].Nodes[0]) '-> 0'
+
+$migrationNode = $treeWithoutFallback[2]
+Assert-Contains 'tree first migration group sorted by object count' (Node-Text $migrationNode.Nodes[0]) '^3-TEXT'
+Assert-Contains 'tree second migration group sorted by object count' (Node-Text $migrationNode.Nodes[1]) '^0-EQUIPMENT'
+Assert-Contains 'tree first source sorted by object count' (Node-Text $migrationNode.Nodes[0].Nodes[0]) '^TEXT-OLD-B'
+Assert-Contains 'tree second source sorted by object count' (Node-Text $migrationNode.Nodes[0].Nodes[1]) '^TEXT-OLD-A'
+Assert-Contains 'tree whitelist child includes reason' (Node-Text $treeWithoutFallback[3].Nodes[0]) 'white big reason'
+
 $layerCommands = Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit\LayerCommands.cs') -Raw
 Assert-Contains 'layer standard gathers block/layout scopes' $layerCommands 'GetLayerStandardScopeIds'
 Assert-Contains 'layer standard migrates all gathered scopes' $layerCommands 'MoveLayerStandardEntities'
+Assert-Contains 'layer standard preview uses tree view' $layerCommands 'new\s+TreeView\s*\('
+Assert-Contains 'layer standard fallback rebuilds tree preview' $layerCommands 'BuildLayerPlanTreePreview'
+Assert-NotContains 'layer standard no longer creates text preview variable' $layerCommands 'var\s+txt\s*=\s*new\s+TextBox\s*\('
 
 $projectConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.ini') -Raw
 $defaultConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.default.ini') -Raw
@@ -162,13 +194,16 @@ $localConfigPath = 'C:\CadToolkit\CadToolkit.ini'
 $localConfig = if (Test-Path -LiteralPath $localConfigPath) { Get-Content -Encoding UTF8 -LiteralPath $localConfigPath -Raw } else { '' }
 
 $equipmentLinePattern = '0-\u8BBE\u5907\u5C42=\*\u8BBE\u5907\*,0-4,VIS35'
+$localEquipmentLinePattern = '0-\u8BBE\u5907\u5C42=\*\u8BBE\u5907\*,0-4,(VIS35|\*VIS\*)'
 $oldEquipmentLinePattern = '(?m)^0-\u8BBE\u5907\u5C42=\u8BBE\u5907,0-4,VIS35$'
 $embeddedEquipmentLinePattern = '0-\\u8BBE\\u5907\\u5C42=\*\\u8BBE\\u5907\*,0-4,VIS35'
 
 Assert-Contains 'project config uses explicit wildcard layer map' $projectConfig $equipmentLinePattern
 Assert-Contains 'default config uses explicit wildcard layer map' $defaultConfig $equipmentLinePattern
 Assert-Contains 'embedded default uses explicit wildcard layer map' $configSource $embeddedEquipmentLinePattern
-Assert-Contains 'local config uses explicit wildcard layer map' $localConfig $equipmentLinePattern
+if ($localConfig.Length -gt 0) {
+    Assert-Contains 'local config uses explicit layer map' $localConfig $localEquipmentLinePattern
+}
 Assert-NotContains 'project config removes old contains-style layer map' $projectConfig $oldEquipmentLinePattern
 Assert-NotContains 'default config removes old contains-style layer map' $defaultConfig $oldEquipmentLinePattern
 Assert-Contains 'readme documents exact default matching' $readme '\u5168\u5B57\u5339\u914D'

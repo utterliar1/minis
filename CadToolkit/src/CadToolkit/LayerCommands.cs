@@ -95,39 +95,41 @@ namespace CadToolkit
             f.StartPosition = FormStartPosition.CenterScreen;
             f.FormBorderStyle = FormBorderStyle.FixedDialog;
             f.MaximizeBox = false; f.MinimizeBox = false; f.ShowInTaskbar = false;
-            f.AutoScaleMode = AutoScaleMode.None; f.AutoScroll = true; f.ClientSize = new Size(UiScale(560), UiScale(470));
+            f.AutoScaleMode = AutoScaleMode.None; f.AutoScroll = true; f.ClientSize = new Size(UiScale(560), UiScale(510));
 
-            var txt = new TextBox();
-            txt.Multiline = true; txt.ReadOnly = true; txt.ScrollBars = ScrollBars.Both;
-            txt.WordWrap = false; txt.Font = new System.Drawing.Font("Consolas", 9f);
-            txt.Left = UiScale(12); txt.Top = UiScale(12); txt.Width = UiScale(536); txt.Height = UiScale(300);
-            txt.Text = FormatLayerPlan(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0);
+            var tree = new TreeView();
+            tree.HideSelection = false;
+            tree.FullRowSelect = true;
+            tree.ShowNodeToolTips = true;
+            tree.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            tree.Left = UiScale(12); tree.Top = UiScale(12); tree.Width = UiScale(536); tree.Height = UiScale(340);
+            BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, fallbackTo0);
 
             var chkByLayer = new CheckBox();
             chkByLayer.Text = "\u5c06\u8fc1\u79fb\u5bf9\u8c61\u7684\u989c\u8272/\u7ebf\u578b/\u7ebf\u5bbd\u6539\u4e3a ByLayer";
-            chkByLayer.Left = UiScale(12); chkByLayer.Top = UiScale(322); chkByLayer.Width = UiScale(536); chkByLayer.Height = UiScale(24); chkByLayer.Checked = true;
+            chkByLayer.Left = UiScale(12); chkByLayer.Top = UiScale(358); chkByLayer.Width = UiScale(536); chkByLayer.Height = UiScale(24); chkByLayer.Checked = true;
             chkByLayer.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkDelete = new CheckBox();
             chkDelete.Text = "\u5220\u9664\u7a7a\u7684\u65e7\u56fe\u5c42";
-            chkDelete.Left = UiScale(12); chkDelete.Top = UiScale(350); chkDelete.Width = UiScale(190); chkDelete.Height = UiScale(24); chkDelete.Checked = false;
+            chkDelete.Left = UiScale(12); chkDelete.Top = UiScale(386); chkDelete.Width = UiScale(190); chkDelete.Height = UiScale(24); chkDelete.Checked = false;
             chkDelete.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkFallback = new CheckBox();
             chkFallback.Text = "\u672a\u8bc6\u522b\u56fe\u5c42\u5f52 0 \u5c42\uff08\u767d\u540d\u5355\u4e0d\u5904\u7406\uff09";
-            chkFallback.Left = UiScale(12); chkFallback.Top = UiScale(378); chkFallback.Width = UiScale(536); chkFallback.Height = UiScale(24); chkFallback.Checked = fallbackTo0;
+            chkFallback.Left = UiScale(12); chkFallback.Top = UiScale(414); chkFallback.Width = UiScale(536); chkFallback.Height = UiScale(24); chkFallback.Checked = fallbackTo0;
             chkFallback.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            chkFallback.CheckedChanged += delegate { txt.Text = FormatLayerPlan(plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked); };
+            chkFallback.CheckedChanged += delegate { BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked); };
 
             var ok = new Button();
             ok.Text = "\u6267\u884c"; ok.DialogResult = DialogResult.OK;
-            ok.Left = UiScale(376); ok.Top = UiScale(426); ok.Width = UiScale(80); ok.Height = UiScale(28); ok.FlatStyle = FlatStyle.System;
+            ok.Left = UiScale(376); ok.Top = UiScale(470); ok.Width = UiScale(80); ok.Height = UiScale(28); ok.FlatStyle = FlatStyle.System;
 
             var cancel = new Button();
             cancel.Text = "\u53d6\u6d88"; cancel.DialogResult = DialogResult.Cancel;
-            cancel.Left = UiScale(468); cancel.Top = UiScale(426); cancel.Width = UiScale(80); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
+            cancel.Left = UiScale(468); cancel.Top = UiScale(470); cancel.Width = UiScale(80); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
 
-            f.Controls.AddRange(new Control[] { txt, chkByLayer, chkDelete, chkFallback, ok, cancel });
+            f.Controls.AddRange(new Control[] { tree, chkByLayer, chkDelete, chkFallback, ok, cancel });
             f.AcceptButton = ok; f.CancelButton = cancel;
             if (f.ShowDialog() != DialogResult.OK) { f.Dispose(); return; }
             setByLayer = chkByLayer.Checked;
@@ -335,6 +337,20 @@ namespace CadToolkit
             foreach (var rule in rules)
                 if (rule.Name.Equals(layerName, StringComparison.OrdinalIgnoreCase)) return true;
             return false;
+        }
+
+        static void BuildLayerPlanTreePreview(TreeView tree, List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0)
+        {
+            tree.BeginUpdate();
+            try
+            {
+                tree.Nodes.Clear();
+                tree.Nodes.AddRange(BuildLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0));
+            }
+            finally
+            {
+                tree.EndUpdate();
+            }
         }
 
 [CommandMethod("CT_SETLAYER0")]
