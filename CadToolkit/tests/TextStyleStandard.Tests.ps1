@@ -274,6 +274,8 @@ Assert-NotContains 'text style tree report excludes hidden unknown child' $searc
 Assert-Contains 'text style command source has tree preview builder' $textStyleCommandsSource 'BuildTextStylePlanTreePreview'
 Assert-Contains 'text style preview uses tree view' $textStyleCommandsSource 'new\s+TreeView\s*\('
 Assert-Contains 'text style preview has keyword filter box' $textStyleCommandsSource 'new\s+TextBox\s*\('
+Assert-Contains 'text style preview disambiguates drawing font type' $textStyleCommandsSource 'new\s+System\.Drawing\.Font\s*\('
+Assert-NotContains 'text style preview avoids ambiguous Font type' $textStyleCommandsSource 'new\s+Font\s*\('
 Assert-ContainsLiteral 'text style preview all filter label' $textStyleCommandsSource '全部'
 Assert-ContainsLiteral 'text style preview unknown filter label' $textStyleCommandsSource '未识别'
 Assert-ContainsLiteral 'text style preview migration filter label' $textStyleCommandsSource '将归并'

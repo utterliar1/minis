@@ -61,76 +61,76 @@ namespace CadToolkit
 
             var rbAll = new RadioButton();
             rbAll.Text = "全部"; rbAll.Left = UiScale(12); rbAll.Top = UiScale(12); rbAll.Width = UiScale(70); rbAll.Height = UiScale(24); rbAll.Checked = true;
-            rbAll.Font = new Font("Microsoft YaHei", 9f);
+            rbAll.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var rbUnknown = new RadioButton();
             rbUnknown.Text = "未识别"; rbUnknown.Left = UiScale(88); rbUnknown.Top = UiScale(12); rbUnknown.Width = UiScale(86); rbUnknown.Height = UiScale(24);
-            rbUnknown.Font = new Font("Microsoft YaHei", 9f);
+            rbUnknown.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var rbMigration = new RadioButton();
             rbMigration.Text = "将归并"; rbMigration.Left = UiScale(180); rbMigration.Top = UiScale(12); rbMigration.Width = UiScale(86); rbMigration.Height = UiScale(24);
-            rbMigration.Font = new Font("Microsoft YaHei", 9f);
+            rbMigration.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var rbWhitelist = new RadioButton();
             rbWhitelist.Text = "白名单"; rbWhitelist.Left = UiScale(272); rbWhitelist.Top = UiScale(12); rbWhitelist.Width = UiScale(86); rbWhitelist.Height = UiScale(24);
-            rbWhitelist.Font = new Font("Microsoft YaHei", 9f);
+            rbWhitelist.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var search = new TextBox();
             search.Left = UiScale(368); search.Top = UiScale(12); search.Width = UiScale(318); search.Height = UiScale(24);
-            search.Font = new Font("Microsoft YaHei", 9f);
+            search.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var tree = new TreeView();
             tree.HideSelection = false;
             tree.FullRowSelect = true;
             tree.ShowNodeToolTips = true;
-            tree.Font = new Font("Microsoft YaHei", 9f);
+            tree.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
             tree.Left = UiScale(12); tree.Top = UiScale(42); tree.Width = UiScale(674); tree.Height = UiScale(360);
             BuildTextStylePlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, standards, fallbackToStandard, fallbackStyle, previewFilter, search.Text);
 
             var chkCurrentSpace = new CheckBox();
             chkCurrentSpace.Text = "处理当前空间文字";
             chkCurrentSpace.Left = UiScale(12); chkCurrentSpace.Top = UiScale(410); chkCurrentSpace.Width = UiScale(210); chkCurrentSpace.Height = UiScale(24); chkCurrentSpace.Checked = true;
-            chkCurrentSpace.Font = new Font("Microsoft YaHei", 9f);
+            chkCurrentSpace.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkAttributes = new CheckBox();
             chkAttributes.Text = "处理块参照属性";
             chkAttributes.Left = UiScale(236); chkAttributes.Top = UiScale(410); chkAttributes.Width = UiScale(210); chkAttributes.Height = UiScale(24); chkAttributes.Checked = false;
-            chkAttributes.Font = new Font("Microsoft YaHei", 9f);
+            chkAttributes.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkBlockDefinitions = new CheckBox();
             chkBlockDefinitions.Text = "处理块定义内部文字";
             chkBlockDefinitions.Left = UiScale(460); chkBlockDefinitions.Top = UiScale(410); chkBlockDefinitions.Width = UiScale(226); chkBlockDefinitions.Height = UiScale(24); chkBlockDefinitions.Checked = false;
-            chkBlockDefinitions.Font = new Font("Microsoft YaHei", 9f);
+            chkBlockDefinitions.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkFallback = new CheckBox();
             chkFallback.Text = "未识别文字样式归到标准样式";
             chkFallback.Left = UiScale(12); chkFallback.Top = UiScale(442); chkFallback.Width = UiScale(330); chkFallback.Height = UiScale(24); chkFallback.Checked = fallbackToStandard;
-            chkFallback.Font = new Font("Microsoft YaHei", 9f);
+            chkFallback.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkHeight = new CheckBox();
             chkHeight.Text = "同步固定字高";
             chkHeight.Left = UiScale(12); chkHeight.Top = UiScale(474); chkHeight.Width = UiScale(160); chkHeight.Height = UiScale(24); chkHeight.Checked = Config.TextStyleNormalizeHeight;
-            chkHeight.Font = new Font("Microsoft YaHei", 9f);
+            chkHeight.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkWidthFactor = new CheckBox();
             chkWidthFactor.Text = "同步宽度因子";
             chkWidthFactor.Left = UiScale(180); chkWidthFactor.Top = UiScale(474); chkWidthFactor.Width = UiScale(160); chkWidthFactor.Height = UiScale(24); chkWidthFactor.Checked = Config.TextStyleNormalizeWidthFactor;
-            chkWidthFactor.Font = new Font("Microsoft YaHei", 9f);
+            chkWidthFactor.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkOblique = new CheckBox();
             chkOblique.Text = "同步倾斜角";
             chkOblique.Left = UiScale(348); chkOblique.Top = UiScale(474); chkOblique.Width = UiScale(150); chkOblique.Height = UiScale(24); chkOblique.Checked = Config.TextStyleNormalizeOblique;
-            chkOblique.Font = new Font("Microsoft YaHei", 9f);
+            chkOblique.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkColorByLayer = new CheckBox();
             chkColorByLayer.Text = "颜色改为 ByLayer";
             chkColorByLayer.Left = UiScale(506); chkColorByLayer.Top = UiScale(474); chkColorByLayer.Width = UiScale(180); chkColorByLayer.Height = UiScale(24); chkColorByLayer.Checked = Config.TextStyleNormalizeColorByLayer;
-            chkColorByLayer.Font = new Font("Microsoft YaHei", 9f);
+            chkColorByLayer.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkDeleteUnused = new CheckBox();
             chkDeleteUnused.Text = "删除未使用旧文字样式";
             chkDeleteUnused.Left = UiScale(12); chkDeleteUnused.Top = UiScale(506); chkDeleteUnused.Width = UiScale(250); chkDeleteUnused.Height = UiScale(24); chkDeleteUnused.Checked = Config.TextStyleDeleteUnusedOldStyles;
-            chkDeleteUnused.Font = new Font("Microsoft YaHei", 9f);
+            chkDeleteUnused.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             EventHandler refreshPreview = delegate
             {
