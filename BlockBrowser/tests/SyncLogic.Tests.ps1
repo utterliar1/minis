@@ -5,6 +5,7 @@ $syncFiles = @(
     Join-Path $root 'Sync\LibrarySyncModels.cs'
     Join-Path $root 'Sync\ActiveLibraryResolver.cs'
     Join-Path $root 'Sync\ChangeJournal.cs'
+    Join-Path $root 'Sync\LocalOnlySyncDiscovery.cs'
     Join-Path $root 'Sync\VersionNameGenerator.cs'
     Join-Path $root 'Sync\SyncPlanner.cs'
     Join-Path $root 'Sync\MetadataMerger.cs'
@@ -123,6 +124,30 @@ $editSnapshots = New-Object 'System.Collections.Generic.List[BlockBrowser.SyncFi
 $editSnapshots.Add($editSnapshot)
 $editPlan = [BlockBrowser.SyncPlanner]::CreatePlan($editEntries, $editSnapshots)
 Assert-Equal 'local and NAS edit becomes conflict' ([BlockBrowser.SyncDecisionKind]::Conflict) $editPlan.Decisions[0].Kind
+
+$scanTemp = Join-Path ([System.IO.Path]::GetTempPath()) ('BlockBrowserLocalScanTests-' + [guid]::NewGuid().ToString('N'))
+$scanLocal = Join-Path $scanTemp 'Local'
+$scanNas = Join-Path $scanTemp 'NAS'
+try {
+    New-Item -ItemType Directory -Force -Path (Join-Path $scanLocal 'Electrical') | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $scanLocal '.blockbrowser') | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $scanLocal '.thumbs') | Out-Null
+    New-Item -ItemType Directory -Force -Path $scanNas | Out-Null
+    Set-Content -Path (Join-Path $scanLocal 'Electrical\LocalOnly.dwg') -Value 'local dwg'
+    Set-Content -Path (Join-Path $scanLocal '.blockbrowser\ignore.dwg') -Value 'journal internal'
+    Set-Content -Path (Join-Path $scanLocal '.thumbs\ignore.dwg') -Value 'thumb internal'
+
+    $emptyJournal = New-Object 'System.Collections.Generic.List[BlockBrowser.ChangeJournalEntry]'
+    $discovered = [BlockBrowser.LocalOnlySyncDiscovery]::Discover($scanLocal, $scanNas, $emptyJournal, 'WLUP', [datetime]'2026-06-09T08:00:00Z')
+    Assert-Equal 'local-only scan count' 1 $discovered.Count
+    Assert-Equal 'local-only scan action' ([BlockBrowser.LocalChangeAction]::Add) $discovered[0].Action
+    Assert-Equal 'local-only scan path' 'Electrical\LocalOnly.dwg' $discovered[0].Path
+}
+finally {
+    if (Test-Path $scanTemp) {
+        Remove-Item -LiteralPath $scanTemp -Recurse -Force
+    }
+}
 
 $nasTags = New-Object 'System.Collections.Generic.List[string]'
 $nasTags.Add('electrical')
