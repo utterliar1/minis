@@ -10,7 +10,7 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <title>考勤助手</title>
-<link rel="stylesheet" href="/css/style.css?v=14">
+<link rel="stylesheet" href="/css/style.css?v=15">
 </head>
 <body>
 
@@ -149,15 +149,25 @@
         <textarea id="email-recipients" rows="3" placeholder="每行一个邮箱" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
       </div>
     </div>
-    <div class="setting-group-title">⏰ 定时发送</div>
+    <div class="setting-group-title">&#23450;&#26102;&#21457;&#36865;</div>
     <div class="setting-group">
-      <div class="setting-item"><span class="setting-label">发送时间</span><div style="display:flex;align-items:center;gap:4px"><input class="setting-input" type="number" id="email-hour" value="9" min="0" max="23" style="max-width:50px;text-align:center"><span>:</span><input class="setting-input" type="number" id="email-min" value="0" min="0" max="59" style="max-width:50px;text-align:center"><button class="toggle" id="set-email-enabled" onclick="toggleEmailEnabled()" style="margin-left:6px"></button></div></div>
+      <div class="setting-item"><span class="setting-label">&#21457;&#36865;&#26102;&#38388;</span><div class="email-time-control"><input class="setting-input" type="number" id="email-hour" value="9" min="0" max="23"><span>:</span><input class="setting-input" type="number" id="email-min" value="0" min="0" max="59"><button class="toggle" id="set-email-enabled" onclick="toggleEmailEnabled()"></button></div></div>
+      <div class="setting-item"><span class="setting-label">&#21457;&#36865;&#39057;&#29575;</span><select class="setting-select" id="email-frequency" onchange="toggleEmailScheduleMode()"><option value="daily">&#27599;&#26085;</option><option value="weekly">&#27599;&#21608;</option><option value="monthly">&#27599;&#26376;</option></select></div>
+      <div class="setting-item" id="email-weekday-row"><span class="setting-label">&#27599;&#21608;</span><select class="setting-select" id="email-weekday"><option value="1">&#21608;&#19968;</option><option value="2">&#21608;&#20108;</option><option value="3">&#21608;&#19977;</option><option value="4">&#21608;&#22235;</option><option value="5">&#21608;&#20116;</option><option value="6">&#21608;&#20845;</option><option value="7">&#21608;&#26085;</option></select></div>
+      <div class="setting-item" id="email-month-day-row"><span class="setting-label">&#27599;&#26376;</span><select class="setting-select" id="email-month-day"><option value="last">&#26376;&#26411;</option><option value="1">1 &#26085;</option><option value="2">2 &#26085;</option><option value="3">3 &#26085;</option><option value="4">4 &#26085;</option><option value="5">5 &#26085;</option><option value="6">6 &#26085;</option><option value="7">7 &#26085;</option><option value="8">8 &#26085;</option><option value="9">9 &#26085;</option><option value="10">10 &#26085;</option><option value="11">11 &#26085;</option><option value="12">12 &#26085;</option><option value="13">13 &#26085;</option><option value="14">14 &#26085;</option><option value="15">15 &#26085;</option><option value="16">16 &#26085;</option><option value="17">17 &#26085;</option><option value="18">18 &#26085;</option><option value="19">19 &#26085;</option><option value="20">20 &#26085;</option><option value="21">21 &#26085;</option><option value="22">22 &#26085;</option><option value="23">23 &#26085;</option><option value="24">24 &#26085;</option><option value="25">25 &#26085;</option><option value="26">26 &#26085;</option><option value="27">27 &#26085;</option><option value="28">28 &#26085;</option></select></div>
+    </div>
+    <div class="setting-group-title">&#25253;&#34920;&#20869;&#23481;</div>
+    <div class="setting-group">
+      <div class="setting-item"><span class="setting-label">&#32479;&#35745;&#33539;&#22260;</span><select class="setting-select" id="email-report-period"><option value="yesterday">&#26152;&#22825;</option><option value="this_week">&#26412;&#21608;&#33267;&#20170;</option><option value="last_week">&#19978;&#21608;</option><option value="this_month">&#26412;&#26376;&#33267;&#20170;</option><option value="last_month">&#19978;&#26376;</option></select></div>
+      <div class="setting-item"><span class="setting-label">&#21457;&#36865;&#20869;&#23481;</span><select class="setting-select" id="email-report-content"><option value="summary">&#25688;&#35201;</option><option value="csv">&#34920;&#26684;&#38468;&#20214;</option><option value="summary_csv">&#25688;&#35201;&#21644;&#34920;&#26684;</option></select></div>
+      <div class="setting-item"><span class="setting-label">&#25104;&#21592;&#33539;&#22260;</span><select class="setting-select" id="email-member-filter"><option value="all">&#20840;&#37096;&#25104;&#21592;</option><option value="with_records">&#20165;&#26377;&#35760;&#24405;</option></select></div>
+      <div class="setting-item"><span class="setting-label">&#33539;&#22260;&#22806;&#25688;&#35201;</span><button class="toggle" id="email-include-out-of-range" onclick="toggleEmailIncludeOutOfRange()"></button></div>
     </div>
     <div class="btn-group" style="margin-top:12px">
       <button class="btn btn-primary" onclick="saveEmailConfig()">💾 保存邮件</button>
       <button class="btn btn-outline" onclick="testEmail()">📧 测试</button>
     </div>
-    <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="sendReportNow()">🚀 立即发送本月报告</button>
+    <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="sendReportNow()">&#128232; &#31435;&#21363;&#21457;&#36865;&#24403;&#21069;&#37197;&#32622;</button>
   </div>
 
   <!-- ===== USER: Clock ===== -->
@@ -214,12 +224,12 @@
 <div class="toast" id="toast"></div>
 <div class="modal-overlay" id="modal" onclick="closeModal(event)"><div class="modal-content" id="modal-body" onclick="event.stopPropagation()"></div></div>
 
-<script src="/js/utils.js?v=14"></script>
-<script src="/js/auth.js?v=14"></script>
-<script src="/js/stats.js?v=14"></script>
-<script src="/js/records.js?v=14"></script>
-<script src="/js/clock.js?v=14"></script>
-<script src="/js/admin.js?v=14"></script>
-<script src="/js/app.js?v=14"></script>
+<script src="/js/utils.js?v=15"></script>
+<script src="/js/auth.js?v=15"></script>
+<script src="/js/stats.js?v=15"></script>
+<script src="/js/records.js?v=15"></script>
+<script src="/js/clock.js?v=15"></script>
+<script src="/js/admin.js?v=15"></script>
+<script src="/js/app.js?v=15"></script>
 </body>
 </html>

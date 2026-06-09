@@ -244,15 +244,39 @@ OT.resetPwd = function resetPwd(name,username){
 
 OT.delUser = async function delUser(u){showConfirmModal('删除用户',`确认删除「${u}」及其记录？`,async()=>{try{await api(`/users/${u}`,{method:'DELETE'});loadUserList();showToast('已删除')}catch(e){showToast('❌ '+e.message)}})};
 
-OT.loadEmailConfig = async function loadEmailConfig(){try{const d=await api('/email-config');const c=d.config||{};document.getElementById('email-host').value=c.smtp_host||'';document.getElementById('email-port').value=c.smtp_port||465;document.getElementById('email-user').value=c.smtp_user||'';document.getElementById('email-pass').value='';document.getElementById('email-sender').value=c.sender_name||'考勤助手';document.getElementById('email-recipients').value=(c.recipients||[]).join('\n');document.getElementById('email-hour').value=c.schedule_hour??9;document.getElementById('email-min').value=c.schedule_minute??0;document.getElementById('set-email-enabled').className='toggle'+(c.enabled?' on':'')}catch(e){}};
+OT.loadEmailConfig = async function loadEmailConfig(){try{const d=await api('/email-config');const c=d.config||{};document.getElementById('email-host').value=c.smtp_host||'';document.getElementById('email-port').value=c.smtp_port||465;document.getElementById('email-user').value=c.smtp_user||'';document.getElementById('email-pass').value='';document.getElementById('email-sender').value=c.sender_name||'\u8003\u52e4\u52a9\u624b';document.getElementById('email-recipients').value=(c.recipients||[]).join('\n');document.getElementById('email-hour').value=c.schedule_hour??9;document.getElementById('email-min').value=c.schedule_minute??0;document.getElementById('set-email-enabled').className='toggle'+(c.enabled?' on':'');document.getElementById('email-frequency').value=c.schedule_frequency||'daily';document.getElementById('email-weekday').value=String(c.schedule_weekday||1);document.getElementById('email-month-day').value=String(c.schedule_month_day||'last');document.getElementById('email-report-period').value=c.report_period||'this_month';document.getElementById('email-report-content').value=c.report_content||'summary';document.getElementById('email-member-filter').value=c.member_filter||'all';document.getElementById('email-include-out-of-range').className='toggle'+(c.include_out_of_range?' on':'');OT.toggleEmailScheduleMode()}catch(e){}};
 
 OT.toggleEmailEnabled = function toggleEmailEnabled(){document.getElementById('set-email-enabled').classList.toggle('on')};
 
+OT.toggleEmailIncludeOutOfRange = function toggleEmailIncludeOutOfRange(){document.getElementById('email-include-out-of-range').classList.toggle('on')};
+
+OT.toggleEmailScheduleMode = function toggleEmailScheduleMode(){
+  const mode=document.getElementById('email-frequency').value;
+  document.getElementById('email-weekday-row').style.display=mode==='weekly'?'flex':'none';
+  document.getElementById('email-month-day-row').style.display=mode==='monthly'?'flex':'none';
+};
+
 OT.saveEmailConfig = async function saveEmailConfig(){
   const rc=document.getElementById('email-recipients').value.split('\n').map(s=>s.trim()).filter(Boolean),pass=document.getElementById('email-pass').value;
-  const body={smtp_host:document.getElementById('email-host').value,smtp_port:+document.getElementById('email-port').value,smtp_user:document.getElementById('email-user').value,sender_name:document.getElementById('email-sender').value,recipients:rc,schedule_hour:+document.getElementById('email-hour').value,schedule_minute:+document.getElementById('email-min').value,enabled:document.getElementById('set-email-enabled').classList.contains('on')?1:0};
-  if(pass&&pass!=='••••••')body.smtp_pass=pass;
-  try{await api('/email-config',{method:'PUT',body:JSON.stringify(body)});showToast('✅ 邮件配置已保存');loadEmailConfig()}catch(e){showToast('❌ '+e.message)}
+  const body={
+    smtp_host:document.getElementById('email-host').value,
+    smtp_port:+document.getElementById('email-port').value,
+    smtp_user:document.getElementById('email-user').value,
+    sender_name:document.getElementById('email-sender').value,
+    recipients:rc,
+    schedule_hour:+document.getElementById('email-hour').value,
+    schedule_minute:+document.getElementById('email-min').value,
+    enabled:document.getElementById('set-email-enabled').classList.contains('on')?1:0,
+    schedule_frequency:document.getElementById('email-frequency').value,
+    schedule_weekday:+document.getElementById('email-weekday').value,
+    schedule_month_day:document.getElementById('email-month-day').value,
+    report_period:document.getElementById('email-report-period').value,
+    report_content:document.getElementById('email-report-content').value,
+    member_filter:document.getElementById('email-member-filter').value,
+    include_out_of_range:document.getElementById('email-include-out-of-range').classList.contains('on')?1:0
+  };
+  if(pass&&pass!=='\u2022\u2022\u2022\u2022\u2022\u2022')body.smtp_pass=pass;
+  try{await api('/email-config',{method:'PUT',body:JSON.stringify(body)});showToast('\u2705 \u90ae\u4ef6\u914d\u7f6e\u5df2\u4fdd\u5b58');loadEmailConfig()}catch(e){showToast('\u274c '+e.message)}
 };
 
 OT.testEmail = async function testEmail(){const to=prompt('输入测试收件邮箱：');if(!to)return;try{showToast('⏳ 发送中...');const d=await api('/email-config/test',{method:'POST',body:JSON.stringify({to})});showToast(d.ok?'✅ 已发送':'❌ '+d.message)}catch(e){showToast('❌ '+e.message)}};

@@ -1,5 +1,6 @@
 """考勤助手 - 后端 API"""
 import os, json, hashlib, time, sqlite3, smtplib, secrets, math
+from calendar import monthrange
 from html import escape
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -30,6 +31,20 @@ REMOVED_SETTING_KEYS = ("lunch" + "Start", "lunch" + "End")
 OLD_DEFAULT_START = "09" + ":00"
 OLD_DEFAULT_END = "18" + ":00"
 
+EMAIL_CONFIG_DEFAULTS = {
+    "schedule_frequency": "daily",
+    "schedule_weekday": 1,
+    "schedule_month_day": "last",
+    "report_period": "this_month",
+    "report_content": "summary",
+    "member_filter": "all",
+    "include_out_of_range": 1,
+}
+VALID_EMAIL_FREQUENCIES = {"daily", "weekly", "monthly"}
+VALID_REPORT_PERIODS = {"yesterday", "this_week", "last_week", "this_month", "last_month"}
+VALID_REPORT_CONTENTS = {"summary", "csv", "summary_csv"}
+VALID_MEMBER_FILTERS = {"all", "with_records"}
+
 def normalized_settings(data=None):
     raw = data or {}
     settings = {**DEFAULT_SETTINGS, **raw}
@@ -39,6 +54,38 @@ def normalized_settings(data=None):
     for key in REMOVED_SETTING_KEYS:
         settings.pop(key, None)
     return settings
+
+
+def normalize_email_config(data=None):
+    raw = dict(data or {})
+    cfg = {**EMAIL_CONFIG_DEFAULTS, **raw}
+    if cfg.get('schedule_frequency') not in VALID_EMAIL_FREQUENCIES:
+        cfg['schedule_frequency'] = EMAIL_CONFIG_DEFAULTS['schedule_frequency']
+    try:
+        cfg['schedule_weekday'] = int(cfg.get('schedule_weekday') or EMAIL_CONFIG_DEFAULTS['schedule_weekday'])
+    except (TypeError, ValueError):
+        cfg['schedule_weekday'] = EMAIL_CONFIG_DEFAULTS['schedule_weekday']
+    if cfg['schedule_weekday'] not in range(1, 8):
+        cfg['schedule_weekday'] = EMAIL_CONFIG_DEFAULTS['schedule_weekday']
+    schedule_month_day = str(cfg.get('schedule_month_day') or EMAIL_CONFIG_DEFAULTS['schedule_month_day'])
+    if schedule_month_day == 'last':
+        cfg['schedule_month_day'] = 'last'
+    else:
+        try:
+            cfg['schedule_month_day'] = str(min(28, max(1, int(schedule_month_day))))
+        except (TypeError, ValueError):
+            cfg['schedule_month_day'] = EMAIL_CONFIG_DEFAULTS['schedule_month_day']
+    if cfg.get('report_period') not in VALID_REPORT_PERIODS:
+        cfg['report_period'] = EMAIL_CONFIG_DEFAULTS['report_period']
+    if cfg.get('report_content') not in VALID_REPORT_CONTENTS:
+        cfg['report_content'] = EMAIL_CONFIG_DEFAULTS['report_content']
+    if cfg.get('member_filter') not in VALID_MEMBER_FILTERS:
+        cfg['member_filter'] = EMAIL_CONFIG_DEFAULTS['member_filter']
+    try:
+        cfg['include_out_of_range'] = 1 if int(cfg.get('include_out_of_range', EMAIL_CONFIG_DEFAULTS['include_out_of_range']) or 0) else 0
+    except (TypeError, ValueError):
+        cfg['include_out_of_range'] = EMAIL_CONFIG_DEFAULTS['include_out_of_range']
+    return cfg
 
 def load_jwt_secret():
     env_secret = os.environ.get('JWT_SECRET')
@@ -123,7 +170,10 @@ def init_db():
             sender_name TEXT DEFAULT '考勤助手',
             recipients TEXT DEFAULT '[]',
             schedule_hour INTEGER DEFAULT 9, schedule_minute INTEGER DEFAULT 0,
-            enabled INTEGER DEFAULT 0
+            enabled INTEGER DEFAULT 0,
+            schedule_frequency TEXT DEFAULT 'daily', schedule_weekday INTEGER DEFAULT 1,
+            schedule_month_day TEXT DEFAULT 'last', report_period TEXT DEFAULT 'this_month',
+            report_content TEXT DEFAULT 'summary', member_filter TEXT DEFAULT 'all', include_out_of_range INTEGER DEFAULT 1
         );
     ''')
     # Migrate whitelist table: drop old (code-based) if exists, recreate (name-based)
@@ -152,6 +202,19 @@ def init_db():
         if normalized != json.loads(settings_row['data'] or '{}'):
             conn.execute("UPDATE settings SET data=? WHERE id=1", (json.dumps(normalized),))
             conn.commit()
+    for sql in [
+        "ALTER TABLE email_config ADD COLUMN schedule_frequency TEXT DEFAULT 'daily'",
+        "ALTER TABLE email_config ADD COLUMN schedule_weekday INTEGER DEFAULT 1",
+        "ALTER TABLE email_config ADD COLUMN schedule_month_day TEXT DEFAULT 'last'",
+        "ALTER TABLE email_config ADD COLUMN report_period TEXT DEFAULT 'this_month'",
+        "ALTER TABLE email_config ADD COLUMN report_content TEXT DEFAULT 'summary'",
+        "ALTER TABLE email_config ADD COLUMN member_filter TEXT DEFAULT 'all'",
+        "ALTER TABLE email_config ADD COLUMN include_out_of_range INTEGER DEFAULT 1",
+    ]:
+        try:
+            conn.execute(sql)
+        except Exception:
+            pass
     # Default email config
     if not conn.execute("SELECT 1 FROM email_config WHERE id=1").fetchone():
         conn.execute("INSERT INTO email_config (id) VALUES (1)")
@@ -478,8 +541,9 @@ def api_get_email_config():
     row = conn.execute("SELECT * FROM email_config WHERE id=1").fetchone()
     conn.close()
     if not row: return jsonify(config={})
-    d = dict(row)
+    d = normalize_email_config(dict(row))
     d['recipients'] = json.loads(d.get('recipients','[]'))
+    d['schedule_month_day'] = str(d.get('schedule_month_day', 'last'))
     if d.get('smtp_pass'): d['smtp_pass'] = '••••••'  # Mask password
     return jsonify(config=d)
 
@@ -496,13 +560,20 @@ def api_update_email_config():
     for k in ['smtp_host','smtp_port','smtp_user','sender_name','schedule_hour','schedule_minute','enabled']:
         if k in d: cur[k] = d[k]
     if 'recipients' in d: cur['recipients'] = json.dumps(d['recipients'])
+    for k in ['schedule_frequency','schedule_weekday','schedule_month_day','report_period','report_content','member_filter','include_out_of_range']:
+        if k in d: cur[k] = d[k]
+    cur = normalize_email_config(cur)
     conn.execute("""UPDATE email_config SET smtp_host=?,smtp_port=?,smtp_user=?,smtp_pass=?,
-                    smtp_ssl=?,sender_name=?,recipients=?,schedule_hour=?,schedule_minute=?,enabled=?
+                    smtp_ssl=?,sender_name=?,recipients=?,schedule_hour=?,schedule_minute=?,enabled=?,
+                    schedule_frequency=?,schedule_weekday=?,schedule_month_day=?,report_period=?,
+                    report_content=?,member_filter=?,include_out_of_range=?
                     WHERE id=1""",
                  (cur.get('smtp_host',''), cur.get('smtp_port',465), cur.get('smtp_user',''),
                   cur.get('smtp_pass',''), cur.get('smtp_ssl',1), cur.get('sender_name','考勤助手'),
                   cur.get('recipients','[]'), cur.get('schedule_hour',9), cur.get('schedule_minute',0),
-                  cur.get('enabled',0)))
+                  cur.get('enabled',0), cur.get('schedule_frequency','daily'), cur.get('schedule_weekday',1),
+                  cur.get('schedule_month_day','last'), cur.get('report_period','this_month'),
+                  cur.get('report_content','summary'), cur.get('member_filter','all'), cur.get('include_out_of_range',1)))
     conn.commit(); conn.close()
     schedule_email_task()
     return jsonify(ok=True)
@@ -668,7 +739,7 @@ def format_min(m):
     if mm == 0: return f"{h}小时"
     return f"{h}小时{mm}分钟"
 
-def send_email(to, subject, html_body):
+def send_email(to, subject, html_body, attachments=None):
     conn = get_db()
     row = conn.execute("SELECT * FROM email_config WHERE id=1").fetchone()
     conn.close()
@@ -677,11 +748,20 @@ def send_email(to, subject, html_body):
     if not cfg.get('smtp_host') or not cfg.get('smtp_user'):
         return False, "SMTP 未配置"
     try:
-        msg = MIMEMultipart('alternative')
+        msg = MIMEMultipart('mixed' if attachments else 'alternative')
         msg['From'] = formataddr((cfg.get('sender_name',''), cfg['smtp_user']), 'utf-8')
         msg['To'] = to
         msg['Subject'] = subject
-        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+        if attachments:
+            alt = MIMEMultipart('alternative')
+            alt.attach(MIMEText(html_body, 'html', 'utf-8'))
+            msg.attach(alt)
+            for attachment in attachments or []:
+                part = MIMEText(attachment.get('content',''), 'csv', 'utf-8')
+                part.add_header('Content-Disposition', 'attachment', filename=attachment.get('filename','report.csv'))
+                msg.attach(part)
+        else:
+            msg.attach(MIMEText(html_body, 'html', 'utf-8'))
         port = int(cfg.get('smtp_port', 465) or 465)
         use_ssl = cfg.get('smtp_ssl', 1)
         if use_ssl or port == 465:
@@ -703,38 +783,241 @@ def send_email(to, subject, html_body):
     except Exception as e:
         return False, f"发送失败: {str(e)[:200]}"
 
+def resolve_report_period(period, now):
+    today = now.date()
+    if period == 'yesterday':
+        day = today - timedelta(days=1)
+        return day.isoformat(), day.isoformat()
+    if period == 'this_week':
+        start = today - timedelta(days=today.weekday())
+        return start.isoformat(), today.isoformat()
+    if period == 'last_week':
+        this_week_start = today - timedelta(days=today.weekday())
+        start = this_week_start - timedelta(days=7)
+        end = this_week_start - timedelta(days=1)
+        return start.isoformat(), end.isoformat()
+    if period == 'last_month':
+        first_this_month = today.replace(day=1)
+        last_prev_month = first_this_month - timedelta(days=1)
+        start = last_prev_month.replace(day=1)
+        return start.isoformat(), last_prev_month.isoformat()
+    start = today.replace(day=1)
+    return start.isoformat(), today.isoformat()
+
+
+def month_target_day(year, month, value):
+    if str(value) == 'last':
+        return monthrange(year, month)[1]
+    try:
+        return min(28, max(1, int(value)))
+    except (TypeError, ValueError):
+        return monthrange(year, month)[1]
+
+
+def next_schedule_time(cfg, now):
+    cfg = normalize_email_config(cfg)
+    hour = int(cfg.get('schedule_hour', 9) or 9)
+    minute = int(cfg.get('schedule_minute', 0) or 0)
+    frequency = cfg.get('schedule_frequency', 'daily')
+    if frequency == 'weekly':
+        weekday = int(cfg.get('schedule_weekday', 1) or 1) - 1
+        days_ahead = (weekday - now.weekday()) % 7
+        target = now.replace(hour=hour, minute=minute, second=0, microsecond=0) + timedelta(days=days_ahead)
+        if target <= now:
+            target += timedelta(days=7)
+        return target
+    if frequency == 'monthly':
+        month_day = cfg.get('schedule_month_day', 'last')
+        day = month_target_day(now.year, now.month, month_day)
+        target = now.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
+        if target <= now:
+            next_month = (now.replace(day=28) + timedelta(days=4)).replace(day=1)
+            day = month_target_day(next_month.year, next_month.month, month_day)
+            target = next_month.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
+        return target
+    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if target <= now:
+        target += timedelta(days=1)
+    return target
+
+
+
+def calc_records_minutes(records, settings):
+    if not records: return 0
+    date_groups = {}
+    for r in records:
+        date_groups.setdefault(r['date'], []).append(r)
+    total = 0
+    for date, recs in date_groups.items():
+        dt = datetime.strptime(date, '%Y-%m-%d')
+        if is_working_day(dt, settings):
+            work_start = time_to_min(settings.get('workStart','08:30'))
+            work_end = time_to_min(settings.get('workEnd','17:30'))
+            for r, next_out in paired_records(recs):
+                in_min = record_minute(r)
+                out_min = record_minute(next_out)
+                total += overlap_minutes(in_min, out_min, 0, work_start)
+                total += overlap_minutes(in_min, out_min, work_end, 24 * 60)
+        else:
+            for r, next_out in paired_records(recs):
+                total += round(max(0, next_out['ts'] - r['ts']) / 60000)
+    return total
+
+
+def get_report_records(from_date, to_date):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT r.*,u.display_name FROM records r JOIN users u ON r.user_id=u.username WHERE r.date>=? AND r.date<=? ORDER BY r.user_id,r.date,r.ts",
+        (from_date, to_date),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_report_users():
+    conn = get_db()
+    rows = conn.execute("SELECT username,display_name FROM users WHERE role='user' ORDER BY display_name").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def filter_report_users(users, records, member_filter):
+    if member_filter == 'with_records':
+        active = {r['user_id'] for r in records}
+        return [u for u in users if u['username'] in active]
+    return users
+
+
+def actual_location_text(record, settings):
+    if int(record.get('out_of_range') or 0) != 1: return ''
+    lat = record.get('lat'); lng = record.get('lng')
+    if lat is None or lng is None: return ''
+    parts = [f"{float(lat):.6f},{float(lng):.6f}"]
+    if record.get('accuracy') is not None:
+        parts.append(f"精度 {round(float(record['accuracy']))}m")
+    if settings.get('lat') is not None and settings.get('lng') is not None:
+        parts.append(f"距离 {round(haversine(settings['lat'], settings['lng'], lat, lng))}m")
+    return '; '.join(parts)
+
+
+def csv_cell(value):
+    return '"' + str(value or '').replace('"', '""') + '"'
+
+
+def csv_hour_text(minutes):
+    h, m = divmod(max(0, int(minutes or 0)), 60)
+    if h <= 0: return f"{m}m"
+    return f"{h}h{m}m" if m else f"{h}h"
+
+
+def build_email_export_csv(records, settings, include_person_subtotals=True):
+    rows = []
+    grouped = {}
+    for r in records:
+        grouped.setdefault((r['user_id'], r['date']), []).append(r)
+    for (user_id, date), recs in grouped.items():
+        recs = sorted(recs, key=lambda r: r['ts'])
+        dt = datetime.strptime(date, '%Y-%m-%d')
+        weekday = ['周一','周二','周三','周四','周五','周六','周日'][dt.weekday()]
+        first_in = next((r for r in recs if r['type'] == 'in'), None)
+        last_out = next((r for r in reversed(recs) if r['type'] == 'out'), None)
+        reasons = '; '.join([r.get('note') or '' for r in recs if r.get('note')])
+        remote = any(int(r.get('out_of_range') or 0) == 1 for r in recs)
+        actual = next((actual_location_text(r, settings) for r in recs if actual_location_text(r, settings)), '')
+        minutes = calc_records_minutes(recs, settings)
+        rows.append({
+            'name': recs[0].get('display_name') or user_id,
+            'user_id': user_id,
+            'date': date,
+            'weekday': weekday,
+            'first_in': (first_in.get('time_str') or '')[:5] if first_in else '',
+            'last_out': (last_out.get('time_str') or '')[:5] if last_out else '',
+            'type': '工作日' if is_working_day(dt, settings) else '休息日',
+            'reasons': reasons,
+            'remote_text': '是' if remote else '',
+            'actual': actual,
+            'remote': remote,
+            'minutes': minutes,
+            'hours': csv_hour_text(minutes),
+        })
+    rows.sort(key=lambda r: (r['name'], r['date']))
+    def detail_line(r):
+        return ','.join([csv_cell(r['name']),csv_cell(r['date']),csv_cell(r['weekday']),csv_cell(r['first_in']),csv_cell(r['last_out']),csv_cell(r['type']),csv_cell(r['reasons']),csv_cell(r['remote_text']),csv_cell(r['actual']),str(r['minutes']),csv_cell(r['hours'])])
+    def summary_line(label, summary_rows, type_label):
+        total = sum(r['minutes'] for r in summary_rows)
+        remote_days = sum(1 for r in summary_rows if r['remote'])
+        return ','.join([csv_cell(label),'""','""','""','""',csv_cell(type_label),'""',csv_cell(f"远程 {remote_days} 天"),'""',str(total),csv_cell(csv_hour_text(total))])
+    lines = []
+    if include_person_subtotals:
+        people = {}
+        for r in rows:
+            people.setdefault(r['user_id'], []).append(r)
+        for person_rows in people.values():
+            for r in person_rows:
+                lines.append(detail_line(r))
+            lines.append(summary_line(person_rows[0]['name'], person_rows, '小计'))
+    else:
+        lines.extend(detail_line(r) for r in rows)
+    lines.append(summary_line('汇总', rows, '总计'))
+    return '姓名,日期,星期,上班,下班,类型,事由,远程,实际位置,工时(分),工时(h)\n' + '\n'.join(lines)
+
+
+def build_email_summary_html(users, records, settings, cfg, from_date, to_date, now):
+    records_by_user = {}
+    for r in records:
+        records_by_user.setdefault(r['user_id'], []).append(r)
+    total_minutes = 0
+    rows_html = ''
+    for u in users:
+        user_records = records_by_user.get(u['username'], [])
+        minutes = calc_records_minutes(user_records, settings)
+        total_minutes += minutes
+        remote_days = len({r['date'] for r in user_records if int(r.get('out_of_range') or 0) == 1})
+        color = '#DC2626' if minutes > 0 else '#16A34A'
+        rows_html += f"<tr><td style='padding:8px 12px;border:1px solid #E2E8F0'>{escape(u['display_name'])}</td><td style='padding:8px 12px;border:1px solid #E2E8F0;color:{color};font-weight:600;text-align:center'>{format_min(minutes)}</td><td style='padding:8px 12px;border:1px solid #E2E8F0;text-align:center'>{remote_days}</td></tr>"
+    if not rows_html:
+        rows_html = "<tr><td colspan='3' style='padding:12px;text-align:center;color:#94A3B8'>暂无记录</td></tr>"
+    remote_html = ''
+    if cfg.get('include_out_of_range'):
+        remote_rows = [r for r in records if int(r.get('out_of_range') or 0) == 1]
+        if remote_rows:
+            items = ''.join(f"<li>{escape(r['date'])} {escape(r.get('display_name') or '')} {escape(r.get('note') or '')} {escape(actual_location_text(r, settings))}</li>" for r in remote_rows)
+            remote_html = f"<h3 style='color:#4F46E5;margin-top:20px'>范围外记录</h3><ul>{items}</ul>"
+    return f"""<div style="font-family:-apple-system,sans-serif;max-width:680px;margin:0 auto">
+        <h2 style="color:#4F46E5">📊 {escape(from_date)} 至 {escape(to_date)} 工时统计</h2>
+        <p style="color:#64748B">自动生成于 {now.strftime('%Y-%m-%d %H:%M')}</p>
+        <p style="font-weight:600">团队总计：{format_min(total_minutes)}</p>
+        <table style="width:100%;border-collapse:collapse;margin-top:16px">
+        <tr style="background:#F8FAFC"><th style="padding:8px 12px;border:1px solid #E2E8F0;text-align:left">成员</th><th style="padding:8px 12px;border:1px solid #E2E8F0;text-align:center">工时</th><th style="padding:8px 12px;border:1px solid #E2E8F0;text-align:center">范围外天数</th></tr>
+        {rows_html}
+        </table>{remote_html}
+        <p style="color:#94A3B8;font-size:12px;margin-top:24px">— 考勤助手自动发送</p></div>"""
 def send_overtime_report():
     settings = get_settings_data()
     conn = get_db()
     cfg = conn.execute("SELECT * FROM email_config WHERE id=1").fetchone()
     conn.close()
     if not cfg: return False, "邮件未配置"
-    cfg = dict(cfg)
+    cfg = normalize_email_config(dict(cfg))
     recipients = json.loads(cfg.get('recipients','[]'))
     if not recipients: return False, "无收件人"
-    conn = get_db()
-    users = conn.execute("SELECT username,display_name FROM users WHERE role='user'").fetchall()
-    conn.close()
     now = bj_now()
-    month_str = now.strftime('%Y-%m')
-    rows_html = ""
-    for u in users:
-        ot = calc_user_ot(u['username'], settings, month_str)
-        color = "#DC2626" if ot > 0 else "#16A34A"
-        rows_html += f"<tr><td style='padding:8px 12px;border:1px solid #E2E8F0'>{escape(u['display_name'])}</td><td style='padding:8px 12px;border:1px solid #E2E8F0;color:{color};font-weight:600;text-align:center'>{format_min(ot)}</td></tr>"
-    if not rows_html:
-        rows_html = "<tr><td colspan='2' style='padding:12px;text-align:center;color:#94A3B8'>本月暂无打卡记录</td></tr>"
-    html = f"""<div style="font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto">
-        <h2 style="color:#4F46E5">📊 {now.strftime('%Y年%m月')} 工时统计报告</h2>
-        <p style="color:#64748B">自动生成于 {now.strftime('%Y-%m-%d %H:%M')}</p>
-        <table style="width:100%;border-collapse:collapse;margin-top:16px">
-        <tr style="background:#F8FAFC"><th style="padding:8px 12px;border:1px solid #E2E8F0;text-align:left">成员</th><th style="padding:8px 12px;border:1px solid #E2E8F0;text-align:center">本月工时</th></tr>
-        {rows_html}
-        </table>
-        <p style="color:#94A3B8;font-size:12px;margin-top:24px">— 考勤助手自动发送</p></div>"""
+    from_date, to_date = resolve_report_period(cfg.get('report_period', 'this_month'), now)
+    records = get_report_records(from_date, to_date)
+    users = filter_report_users(get_report_users(), records, cfg.get('member_filter', 'all'))
+    html = build_email_summary_html(users, records, settings, cfg, from_date, to_date, now)
+    attachments = []
+    if cfg.get('report_content') in ('csv', 'summary_csv'):
+        attachments.append({
+            'filename': f"工时报表_{from_date}_{to_date}.csv",
+            'content': build_email_export_csv(records, settings, include_person_subtotals=True),
+        })
+    if cfg.get('report_content') == 'csv':
+        html = f"<div style=\"font-family:-apple-system,sans-serif;max-width:680px;margin:0 auto\"><h2 style=\"color:#4F46E5\">📎 CSV 附件</h2><p style=\"color:#64748B\">{escape(from_date)} 至 {escape(to_date)} 的工时报表已作为附件发送。</p><p style=\"color:#94A3B8;font-size:12px;margin-top:24px\">— 考勤助手自动发送</p></div>"
+    subject = f"📊 {from_date} 至 {to_date} 工时统计"
     errors = []
     for to in recipients:
-        ok, msg = send_email(to, f"📊 {now.strftime('%Y年%m月')} 工时统计", html)
+        ok, msg = send_email(to, subject, html, attachments)
         if not ok: errors.append(f"{to}: {msg}")
     if errors:
         return False, "; ".join(errors)
@@ -752,8 +1035,7 @@ def schedule_email_task():
     if not cfg or not cfg['enabled']: return
     cfg = dict(cfg)
     now = bj_now()
-    target = now.replace(hour=cfg.get('schedule_hour',9), minute=cfg.get('schedule_minute',0), second=0, microsecond=0)
-    if target <= now: target += timedelta(days=1)
+    target = next_schedule_time(cfg, now)
     delay = (target - now).total_seconds()
     def job():
         send_overtime_report()

@@ -61,6 +61,21 @@ def test_export_dialog_uses_shared_form_classes():
         assert f".{class_name}" in css
 
 
+def test_email_page_exposes_schedule_and_report_option_controls():
+    index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+
+    for token in [
+        'id="email-frequency"',
+        'id="email-weekday"',
+        'id="email-month-day"',
+        'id="email-report-period"',
+        'id="email-report-content"',
+        'id="email-member-filter"',
+        'id="email-include-out-of-range"',
+    ]:
+        assert token in index
+
+
 def test_static_asset_cache_version_is_current_and_consistent():
     index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
     app = (ROOT / "frontend" / "js" / "app.js").read_text(encoding="utf-8")
@@ -72,7 +87,9 @@ def test_static_asset_cache_version_is_current_and_consistent():
     assert "ot-tracker-v11" not in sw
     assert "ot-tracker-v12" not in sw
     assert "ot-tracker-v13" not in sw
-    assert 'ot-tracker-v14' in sw
+    assert "v=14" not in index + app + sw
+    assert "ot-tracker-v14" not in sw
+    assert 'ot-tracker-v15' in sw
     for asset in [
         "/css/style.css",
         "/js/utils.js",
@@ -85,5 +102,5 @@ def test_static_asset_cache_version_is_current_and_consistent():
         "/使用指南.html",
         "/管理员使用指南.html",
     ]:
-        assert f"{asset}?v=14" in index + app + sw
+        assert f"{asset}?v=15" in index + app + sw
 
