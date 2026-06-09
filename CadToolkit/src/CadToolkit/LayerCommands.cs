@@ -67,19 +67,21 @@ namespace CadToolkit
             string layerWhitelist = Config.LayerStandardWhitelist;
             foreach (var pair in layerCounts)
             {
-                if (IsLayerWhitelisted(pair.Key, layerWhitelist))
+                var whitelistMatch = MatchWhitelistPattern(pair.Key, layerWhitelist);
+                if (whitelistMatch != null)
                 {
-                    whitelistPlans.Add(new LayerStandardPlan { SourceLayer = pair.Key, TargetLayer = "", Count = pair.Value, Rule = null });
+                    whitelistPlans.Add(new LayerStandardPlan { SourceLayer = pair.Key, TargetLayer = "", Count = pair.Value, Rule = null, Reason = FormatWhitelistReason(whitelistMatch) });
                     continue;
                 }
-                var rule = MatchLayerRule(pair.Key, rules);
-                if (rule == null)
+                var match = MatchLayerRuleDetail(pair.Key, rules);
+                if (match == null)
                 {
-                    fallbackPlans.Add(new LayerStandardPlan { SourceLayer = pair.Key, TargetLayer = "0", Count = pair.Value, Rule = null });
+                    fallbackPlans.Add(new LayerStandardPlan { SourceLayer = pair.Key, TargetLayer = "0", Count = pair.Value, Rule = null, Reason = "\u672a\u8bc6\u522b\u4e14\u672a\u547d\u4e2d\u767d\u540d\u5355" });
                     continue;
                 }
+                var rule = match.Rule;
                 if (pair.Key.Equals(rule.Name, StringComparison.OrdinalIgnoreCase)) continue;
-                plans.Add(new LayerStandardPlan { SourceLayer = pair.Key, TargetLayer = rule.Name, Count = pair.Value, Rule = rule });
+                plans.Add(new LayerStandardPlan { SourceLayer = pair.Key, TargetLayer = rule.Name, Count = pair.Value, Rule = rule, Reason = FormatLayerRuleReason(match) });
             }
             plans.Sort(delegate(LayerStandardPlan a, LayerStandardPlan b) { return a.TargetLayer.CompareTo(b.TargetLayer); });
             fallbackPlans.Sort(delegate(LayerStandardPlan a, LayerStandardPlan b) { return a.SourceLayer.CompareTo(b.SourceLayer); });
