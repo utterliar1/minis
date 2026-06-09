@@ -162,6 +162,7 @@ function Node-Text($node) { return [string]$node.Text }
 $treeWithoutFallback = $buildTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $rules, $false))
 Assert-Equal 'tree preview top node count' 4 $treeWithoutFallback.Length
 Assert-Contains 'tree summary node text' (Node-Text $treeWithoutFallback[0]) '^\u6458\u8981'
+Assert-Equal 'tree summary does not repeat detail children' 0 $treeWithoutFallback[0].Nodes.Count
 Assert-Contains 'tree unknown node preserves layers' (Node-Text $treeWithoutFallback[1]) '\u4FDD\u6301\u539F\u6837'
 Assert-Contains 'tree migration node exists' (Node-Text $treeWithoutFallback[2]) '^\u5C06\u8FC1\u79FB\u56FE\u5C42'
 Assert-Contains 'tree whitelist node exists' (Node-Text $treeWithoutFallback[3]) '^\u767D\u540D\u5355\u56FE\u5C42'

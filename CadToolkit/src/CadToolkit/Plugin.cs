@@ -502,11 +502,6 @@ namespace CadToolkit
 
             var summary = new TreeNode(string.Format("摘要：标准图层 {0} 个；将迁移 {1} 层 / {2} 对象；未识别 {3} 层 / {4} 对象；白名单 {5} 层 / {6} 对象",
                 rules.Count, plans.Count, migrateObjects, fallbackPlans.Count, fallbackObjects, whitelistPlans.Count, whitelistObjects));
-            summary.Nodes.Add(new TreeNode(string.Format("标准图层：{0} 个", rules.Count)));
-            summary.Nodes.Add(new TreeNode(string.Format("将迁移：{0} 个旧图层 / {1} 个对象", plans.Count, migrateObjects)));
-            summary.Nodes.Add(new TreeNode(string.Format("未识别：{0} 个图层 / {1} 个对象", fallbackPlans.Count, fallbackObjects)));
-            summary.Nodes.Add(new TreeNode(string.Format("白名单：{0} 个图层 / {1} 个对象", whitelistPlans.Count, whitelistObjects)));
-            summary.Expand();
             nodes.Add(summary);
 
             var unknown = new TreeNode(string.Format("未识别图层（{0} 层 / {1} 对象，{2}）",
