@@ -93,8 +93,16 @@ namespace CadToolkit.Core
         static void EnsureOfficialCommands()
         {
             var lines = new List<string>(File.ReadAllLines(IniPath, Encoding.UTF8));
-            if (HasConfigKey(lines, "改块基点")) return;
+            bool changed = false;
+            changed |= EnsureOfficialCommand(lines, "改块基点", "CT_CHANGEBASEPOINT", "快捷建块");
+            changed |= EnsureOfficialCommand(lines, "文字样式规范", "CT_TEXTSTYLESTANDARD", "文字编号");
+            if (changed)
+                lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
+        }
 
+        static bool EnsureOfficialCommand(List<string> lines, string label, string command, string afterLabel)
+        {
+            if (HasConfigKey(lines, label)) return false;
             int commandsHeader = -1;
             int insertAt = -1;
             for (int i = 0; i < lines.Count; i++)
@@ -110,7 +118,7 @@ namespace CadToolkit.Core
                 {
                     if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
                         break;
-                    if (trimmed.Equals("快捷建块=CT_QUICKBLOCK", StringComparison.OrdinalIgnoreCase))
+                    if (trimmed.StartsWith(afterLabel + "=", StringComparison.OrdinalIgnoreCase))
                     {
                         insertAt = i + 1;
                         break;
@@ -120,11 +128,11 @@ namespace CadToolkit.Core
                 }
             }
 
-            if (commandsHeader < 0) return;
+            if (commandsHeader < 0) return false;
             if (insertAt < 0) insertAt = lines.Count;
 
-            lines.Insert(insertAt, "改块基点=CT_CHANGEBASEPOINT");
-            lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
+            lines.Insert(insertAt, label + "=" + command);
+            return true;
         }
 
         static bool HasConfigKey(List<string> lines, string key)

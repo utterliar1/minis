@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $src = Join-Path $repo 'CadToolkit\src'
@@ -18,6 +18,16 @@ function Assert-ContainsLiteral($name, $text, $literal) {
 
 function Assert-NotNull($name, $value) {
     if ($null -eq $value) { throw "$name expected a value but got null" }
+    Write-Host "PASS $name"
+}
+
+function Assert-Equal($name, $expected, $actual) {
+    if ($expected -ne $actual) { throw "$name expected [$expected] but got [$actual]" }
+    Write-Host "PASS $name"
+}
+
+function Assert-NotContains($name, $text, $pattern) {
+    if ($text -match $pattern) { throw "$name unexpectedly found pattern: $pattern" }
     Write-Host "PASS $name"
 }
 
@@ -96,3 +106,220 @@ Assert-ContainsLiteral 'readme documents text style command label' $readme $text
 Assert-ContainsLiteral 'readme documents text style command name' $readme 'CT_TEXTSTYLESTANDARD'
 Assert-ContainsLiteral 'manual documents text style command label' $manual $textStyleCommandLabel
 Assert-ContainsLiteral 'manual documents text style command name' $manual 'CT_TEXTSTYLESTANDARD'
+
+$textStyleCommandsSource = Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit\TextStyleCommands.cs') -Raw
+
+$matchDetail = $commandsType.GetMethod('MatchTextStyleMapDetail', [Reflection.BindingFlags]'NonPublic, Static')
+Assert-NotNull 'text style map detail helper exists' $matchDetail
+$whitelistDetail = $commandsType.GetMethod('MatchTextStyleWhitelistPattern', [Reflection.BindingFlags]'NonPublic, Static')
+Assert-NotNull 'text style whitelist detail helper exists' $whitelistDetail
+
+$mapRulesType = [Collections.Generic.List``1].MakeGenericType($mapRuleType)
+$mapRules = [Activator]::CreateInstance($mapRulesType)
+
+function New-TextStyleMapRule($target, $aliases) {
+    $rule = [Activator]::CreateInstance($mapRuleType)
+    $mapRuleType.GetField('TargetStyle').SetValue($rule, $target)
+    $aliasList = $mapRuleType.GetField('Aliases').GetValue($rule)
+    foreach ($alias in $aliases) { [void]$aliasList.Add($alias) }
+    return $rule
+}
+
+[void]$mapRules.Add((New-TextStyleMapRule 'STANDARD-TEXT' @('Standard', 'txt', '*宋体*', 'HZTXT')))
+[void]$mapRules.Add((New-TextStyleMapRule 'TITLE-TEXT' @('*标题*', 'TITLE')))
+
+function Match-TextStyleTarget($styleName) {
+    $detail = $matchDetail.Invoke($null, @($styleName, $mapRules))
+    if ($null -eq $detail) { return '' }
+    $rule = $detail.GetType().GetField('Rule').GetValue($detail)
+    return [string]$mapRuleType.GetField('TargetStyle').GetValue($rule)
+}
+
+Assert-Equal 'text style standard name matches target' 'STANDARD-TEXT' (Match-TextStyleTarget 'STANDARD-TEXT')
+Assert-Equal 'text style plain alias exact match' 'STANDARD-TEXT' (Match-TextStyleTarget 'txt')
+Assert-Equal 'text style plain alias does not contain-match' '' (Match-TextStyleTarget 'my-txt-style')
+Assert-Equal 'text style wildcard alias contains-match' 'STANDARD-TEXT' (Match-TextStyleTarget '仿宋体_GB2312')
+
+$exactMode = '全字匹配'
+$wildcardMode = '通配匹配'
+$wildcardDetail = $matchDetail.Invoke($null, @('仿宋体_GB2312', $mapRules))
+Assert-NotNull 'text style wildcard detail returns match' $wildcardDetail
+Assert-Equal 'text style wildcard detail reports alias' '*宋体*' ([string]$wildcardDetail.GetType().GetField('Pattern').GetValue($wildcardDetail))
+Assert-Equal 'text style wildcard detail reports match mode' $wildcardMode ([string]$wildcardDetail.GetType().GetField('MatchMode').GetValue($wildcardDetail))
+
+$exactDetail = $matchDetail.Invoke($null, @('txt', $mapRules))
+Assert-NotNull 'text style exact detail returns match' $exactDetail
+Assert-Equal 'text style exact detail reports alias' 'txt' ([string]$exactDetail.GetType().GetField('Pattern').GetValue($exactDetail))
+Assert-Equal 'text style exact detail reports match mode' $exactMode ([string]$exactDetail.GetType().GetField('MatchMode').GetValue($exactDetail))
+
+$whiteExact = $whitelistDetail.Invoke($null, @('Standard', 'Standard,Annotative,*DIM*'))
+Assert-NotNull 'text style whitelist exact returns match' $whiteExact
+Assert-Equal 'text style whitelist exact reports pattern' 'Standard' ([string]$whiteExact.GetType().GetField('Pattern').GetValue($whiteExact))
+Assert-Equal 'text style whitelist exact reports match mode' $exactMode ([string]$whiteExact.GetType().GetField('MatchMode').GetValue($whiteExact))
+$whiteMiss = $whitelistDetail.Invoke($null, @('Standard-OLD', 'Standard,Annotative,*DIM*'))
+Assert-Equal 'text style whitelist exact does not contain-match' $true ($null -eq $whiteMiss)
+$whiteWildcard = $whitelistDetail.Invoke($null, @('A-DIM-TEXT', 'Standard,Annotative,*DIM*'))
+Assert-NotNull 'text style whitelist wildcard returns match' $whiteWildcard
+Assert-Equal 'text style whitelist wildcard reports match mode' $wildcardMode ([string]$whiteWildcard.GetType().GetField('MatchMode').GetValue($whiteWildcard))
+
+$planType = $commandsType.GetNestedType('TextStyleStandardPlan', [Reflection.BindingFlags]'NonPublic')
+Assert-NotNull 'text style standard plan type exists' $planType
+$filterType = $commandsType.GetNestedType('TextStylePlanTreeFilter', [Reflection.BindingFlags]'NonPublic')
+Assert-NotNull 'text style tree preview filter enum exists' $filterType
+$buildTree = $commandsType.GetMethod('BuildTextStylePlanTreeNodes', [Reflection.BindingFlags]'NonPublic, Static')
+Assert-NotNull 'text style tree preview helper exists' $buildTree
+$buildFilteredTree = $commandsType.GetMethod('BuildFilteredTextStylePlanTreeNodes', [Reflection.BindingFlags]'NonPublic, Static')
+Assert-NotNull 'text style filtered tree preview helper exists' $buildFilteredTree
+$buildSearchTree = $commandsType.GetMethod('BuildSearchedTextStylePlanTreeNodes', [Reflection.BindingFlags]'NonPublic, Static')
+Assert-NotNull 'text style searched tree preview helper exists' $buildSearchTree
+$formatTreeReport = $commandsType.GetMethod('FormatTextStylePlanTreeReport', [Reflection.BindingFlags]'NonPublic, Static')
+Assert-NotNull 'text style tree report formatter exists' $formatTreeReport
+
+function New-TextStylePlan($source, $target, $count, $reason) {
+    $plan = [Activator]::CreateInstance($planType)
+    $planType.GetField('SourceStyle').SetValue($plan, $source)
+    $planType.GetField('TargetStyle').SetValue($plan, $target)
+    $planType.GetField('Count').SetValue($plan, $count)
+    $planType.GetField('Reason').SetValue($plan, $reason)
+    return $plan
+}
+
+$standardRulesType = ([Collections.Generic.List``1].MakeGenericType($standardRuleType))
+$standardRules = [Activator]::CreateInstance($standardRulesType)
+function New-TextStyleStandardRule($name) {
+    $rule = [Activator]::CreateInstance($standardRuleType)
+    $standardRuleType.GetField('Name').SetValue($rule, $name)
+    return $rule
+}
+[void]$standardRules.Add((New-TextStyleStandardRule 'STANDARD-TEXT'))
+[void]$standardRules.Add((New-TextStyleStandardRule 'TITLE-TEXT'))
+
+$planListType = ([Collections.Generic.List``1].MakeGenericType($planType))
+$plansForPreview = [Activator]::CreateInstance($planListType)
+$fallbackForPreview = [Activator]::CreateInstance($planListType)
+$whitelistForPreview = [Activator]::CreateInstance($planListType)
+[void]$plansForPreview.Add((New-TextStylePlan 'txt' 'STANDARD-TEXT' 4 '命中别名 "txt"（全字匹配）'))
+[void]$plansForPreview.Add((New-TextStylePlan 'OLD-TITLE-A' 'TITLE-TEXT' 7 'title reason A'))
+[void]$plansForPreview.Add((New-TextStylePlan 'OLD-TITLE-B' 'TITLE-TEXT' 11 'title reason B'))
+[void]$fallbackForPreview.Add((New-TextStylePlan 'UNKNOWN-STYLE' 'STANDARD-TEXT' 2 '未识别且未命中白名单'))
+[void]$fallbackForPreview.Add((New-TextStylePlan 'UNKNOWN-BIG' 'STANDARD-TEXT' 9 'fallback big reason'))
+[void]$whitelistForPreview.Add((New-TextStylePlan 'Standard' '' 1 'white exact reason'))
+[void]$whitelistForPreview.Add((New-TextStylePlan 'A-DIM-TEXT' '' 13 'white wildcard reason'))
+
+function Node-Text($node) { return [string]$node.Text }
+
+$treeWithoutFallback = $buildTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $standardRules, $false, 'STANDARD-TEXT'))
+Assert-Equal 'text style tree preview top node count' 4 $treeWithoutFallback.Length
+Assert-Contains 'text style tree summary node text' (Node-Text $treeWithoutFallback[0]) '^摘要'
+Assert-Equal 'text style tree summary does not repeat detail children' 0 ($treeWithoutFallback[0].Nodes.Count)
+Assert-Contains 'text style tree unknown node preserves styles' (Node-Text $treeWithoutFallback[1]) '保持原样'
+Assert-Contains 'text style tree merge node exists' (Node-Text $treeWithoutFallback[2]) '^将归并文字样式'
+Assert-Contains 'text style tree whitelist node exists' (Node-Text $treeWithoutFallback[3]) '^白名单文字样式'
+
+$treeWithFallback = $buildTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $standardRules, $true, 'STANDARD-TEXT'))
+Assert-Contains 'text style tree unknown node moves to fallback style' (Node-Text $treeWithFallback[1]) '将归到 STANDARD-TEXT'
+Assert-Contains 'text style tree unknown child moves to fallback style' (Node-Text ($treeWithFallback[1].Nodes[0])) '-> STANDARD-TEXT'
+
+$mergeNode = $treeWithoutFallback[2]
+Assert-Contains 'text style first merge group sorted by object count' (Node-Text ($mergeNode.Nodes[0])) '^TITLE-TEXT'
+Assert-Contains 'text style second merge group sorted by object count' (Node-Text ($mergeNode.Nodes[1])) '^STANDARD-TEXT'
+Assert-Contains 'text style first source sorted by object count' (Node-Text ($mergeNode.Nodes[0].Nodes[0])) '^OLD-TITLE-B'
+Assert-Contains 'text style whitelist child includes reason' (Node-Text ($treeWithoutFallback[3].Nodes[0])) 'white wildcard reason'
+
+$filterAll = [Enum]::Parse($filterType, 'All')
+$filterUnknown = [Enum]::Parse($filterType, 'Unknown')
+$filterMigration = [Enum]::Parse($filterType, 'Migration')
+$filterWhitelistOnly = [Enum]::Parse($filterType, 'Whitelist')
+
+$filteredUnknown = $buildFilteredTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $standardRules, $false, 'STANDARD-TEXT', $filterUnknown))
+Assert-Equal 'text style filtered tree unknown node count' 2 $filteredUnknown.Length
+Assert-Contains 'text style filtered tree unknown keeps summary first' (Node-Text $filteredUnknown[0]) '^摘要'
+Assert-Contains 'text style filtered tree unknown shows only unknown section' (Node-Text $filteredUnknown[1]) '^未识别文字样式'
+
+$filteredMigration = $buildFilteredTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $standardRules, $false, 'STANDARD-TEXT', $filterMigration))
+Assert-Equal 'text style filtered tree migration node count' 2 $filteredMigration.Length
+Assert-Contains 'text style filtered tree migration shows only merge section' (Node-Text $filteredMigration[1]) '^将归并文字样式'
+
+$filteredWhitelistOnly = $buildFilteredTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $standardRules, $false, 'STANDARD-TEXT', $filterWhitelistOnly))
+Assert-Equal 'text style filtered tree whitelist node count' 2 $filteredWhitelistOnly.Length
+Assert-Contains 'text style filtered tree whitelist shows only whitelist section' (Node-Text $filteredWhitelistOnly[1]) '^白名单文字样式'
+
+$searchedUnknown = $buildSearchTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $standardRules, $false, 'STANDARD-TEXT', $filterAll, 'UNKNOWN-BIG'))
+Assert-Equal 'text style searched tree keeps summary and unknown section' 2 $searchedUnknown.Length
+Assert-Equal 'text style searched tree unknown keeps one matching child' 1 ($searchedUnknown[1].Nodes.Count)
+Assert-Contains 'text style searched tree unknown child matches keyword' (Node-Text ($searchedUnknown[1].Nodes[0])) 'UNKNOWN-BIG'
+
+$searchedMigration = $buildSearchTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $standardRules, $false, 'STANDARD-TEXT', $filterAll, 'OLD-TITLE-B'))
+Assert-Equal 'text style searched tree keeps summary and merge section' 2 $searchedMigration.Length
+Assert-Equal 'text style searched tree merge keeps one target group' 1 ($searchedMigration[1].Nodes.Count)
+Assert-Contains 'text style searched tree merge group is target style' (Node-Text ($searchedMigration[1].Nodes[0])) '^TITLE-TEXT'
+Assert-Equal 'text style searched tree merge group keeps one child' 1 ($searchedMigration[1].Nodes[0].Nodes.Count)
+Assert-Contains 'text style searched tree merge child matches keyword' (Node-Text ($searchedMigration[1].Nodes[0].Nodes[0])) 'OLD-TITLE-B'
+
+$searchedWhitelist = $buildSearchTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $standardRules, $false, 'STANDARD-TEXT', $filterAll, 'A-DIM-TEXT'))
+Assert-Equal 'text style searched tree keeps summary and whitelist section' 2 $searchedWhitelist.Length
+Assert-Equal 'text style searched tree whitelist keeps one child' 1 ($searchedWhitelist[1].Nodes.Count)
+Assert-Contains 'text style searched tree whitelist child matches keyword' (Node-Text ($searchedWhitelist[1].Nodes[0])) 'A-DIM-TEXT'
+
+$searchedNoMatch = $buildSearchTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $standardRules, $false, 'STANDARD-TEXT', $filterAll, 'NO-SUCH-STYLE'))
+Assert-Equal 'text style searched tree without matches keeps summary only' 1 $searchedNoMatch.Length
+
+$searchedMigrationReportArgs = New-Object 'object[]' 1
+$searchedMigrationReportArgs[0] = [System.Windows.Forms.TreeNode[]]$searchedMigration
+$searchedMigrationReport = [string]$formatTreeReport.Invoke($null, $searchedMigrationReportArgs)
+Assert-Contains 'text style tree report includes visible merge child' $searchedMigrationReport 'OLD-TITLE-B'
+Assert-NotContains 'text style tree report excludes hidden merge child' $searchedMigrationReport 'OLD-TITLE-A'
+Assert-NotContains 'text style tree report excludes hidden unknown child' $searchedMigrationReport 'UNKNOWN-BIG'
+
+Assert-Contains 'text style command source has tree preview builder' $textStyleCommandsSource 'BuildTextStylePlanTreePreview'
+Assert-Contains 'text style preview uses tree view' $textStyleCommandsSource 'new\s+TreeView\s*\('
+Assert-Contains 'text style preview has keyword filter box' $textStyleCommandsSource 'new\s+TextBox\s*\('
+Assert-ContainsLiteral 'text style preview all filter label' $textStyleCommandsSource '全部'
+Assert-ContainsLiteral 'text style preview unknown filter label' $textStyleCommandsSource '未识别'
+Assert-ContainsLiteral 'text style preview migration filter label' $textStyleCommandsSource '将归并'
+Assert-ContainsLiteral 'text style preview whitelist filter label' $textStyleCommandsSource '白名单'
+Assert-ContainsLiteral 'text style preview current-space scope checkbox' $textStyleCommandsSource '处理当前空间文字'
+Assert-ContainsLiteral 'text style preview attribute scope checkbox' $textStyleCommandsSource '处理块参照属性'
+Assert-ContainsLiteral 'text style preview block definition scope checkbox' $textStyleCommandsSource '处理块定义内部文字'
+Assert-ContainsLiteral 'text style preview fallback checkbox' $textStyleCommandsSource '未识别文字样式归到标准样式'
+Assert-ContainsLiteral 'text style preview normalize height checkbox' $textStyleCommandsSource '同步固定字高'
+Assert-ContainsLiteral 'text style preview normalize width checkbox' $textStyleCommandsSource '同步宽度因子'
+Assert-ContainsLiteral 'text style preview normalize oblique checkbox' $textStyleCommandsSource '同步倾斜角'
+Assert-ContainsLiteral 'text style preview normalize color checkbox' $textStyleCommandsSource '颜色改为 ByLayer'
+Assert-ContainsLiteral 'text style preview delete unused checkbox' $textStyleCommandsSource '删除未使用旧文字样式'
+Assert-ContainsLiteral 'text style preview copy button label' $textStyleCommandsSource '复制当前'
+Assert-ContainsLiteral 'text style preview execute button label' $textStyleCommandsSource '执行'
+Assert-ContainsLiteral 'text style preview cancel button label' $textStyleCommandsSource '取消'
+Assert-Contains 'text style preview copies current tree' $textStyleCommandsSource 'Clipboard\.SetText'
+Assert-Contains 'text style preview rebuilds tree on keyword change' $textStyleCommandsSource 'TextChanged\s*\+='
+Assert-Contains 'text style focused preview expands tree' $textStyleCommandsSource 'tree\.ExpandAll\s*\('
+Assert-Contains 'text style current-space scope defaults checked' $textStyleCommandsSource 'chkCurrentSpace\.Checked\s*=\s*true'
+Assert-Contains 'text style attribute scope defaults unchecked' $textStyleCommandsSource 'chkAttributes\.Checked\s*=\s*false'
+Assert-Contains 'text style block definition scope defaults unchecked' $textStyleCommandsSource 'chkBlockDefinitions\.Checked\s*=\s*false'
+Assert-Contains 'text style fallback checkbox uses config default' $textStyleCommandsSource 'chkFallback\.Checked\s*=\s*fallbackToStandard'
+Assert-Contains 'text style normalize height uses config default' $textStyleCommandsSource 'chkHeight\.Checked\s*=\s*Config\.TextStyleNormalizeHeight'
+Assert-Contains 'text style normalize width uses config default' $textStyleCommandsSource 'chkWidthFactor\.Checked\s*=\s*Config\.TextStyleNormalizeWidthFactor'
+Assert-Contains 'text style normalize oblique uses config default' $textStyleCommandsSource 'chkOblique\.Checked\s*=\s*Config\.TextStyleNormalizeOblique'
+Assert-Contains 'text style normalize color uses config default' $textStyleCommandsSource 'chkColorByLayer\.Checked\s*=\s*Config\.TextStyleNormalizeColorByLayer'
+Assert-Contains 'text style delete unused uses config default' $textStyleCommandsSource 'chkDeleteUnused\.Checked\s*=\s*Config\.TextStyleDeleteUnusedOldStyles'
+Assert-Contains 'text style command builds preview plans from drawing' $textStyleCommandsSource 'BuildTextStyleStandardPlans'
+Assert-Contains 'text style command scans current space' $textStyleCommandsSource 'CountCurrentSpaceTextStyles'
+Assert-Contains 'text style command scans block reference attributes' $textStyleCommandsSource 'CountBlockReferenceAttributesTextStyles'
+Assert-Contains 'text style command scans block definition text' $textStyleCommandsSource 'CountBlockDefinitionTextStyles'
+Assert-Contains 'text style command applies changes inside undo' $textStyleCommandsSource 'RunWithUndo\("CT_TEXTSTYLESTANDARD"'
+Assert-Contains 'text style command ensures standard records' $textStyleCommandsSource 'EnsureTextStyleRecord'
+Assert-Contains 'text style command applies standard records' $textStyleCommandsSource 'ApplyTextStyleRule'
+Assert-Contains 'text style command sets text style id' $textStyleCommandsSource 'TextStyleId\s*=\s*targetId'
+Assert-Contains 'text style command normalizes DBText height' $textStyleCommandsSource 'dt\.Height\s*=\s*rule\.FixedHeight'
+Assert-Contains 'text style command normalizes DBText width factor' $textStyleCommandsSource 'dt\.WidthFactor\s*=\s*rule\.WidthFactor'
+Assert-Contains 'text style command normalizes MText height' $textStyleCommandsSource 'mt\.TextHeight\s*=\s*rule\.FixedHeight'
+Assert-Contains 'text style command normalizes color by layer' $textStyleCommandsSource 'text\.ColorIndex\s*=\s*256'
+Assert-Contains 'text style command deletes unused old styles' $textStyleCommandsSource 'DeleteUnusedOldTextStyles'
+Assert-Contains 'text style command protects standard style during cleanup' $textStyleCommandsSource 'IsStandardTextStyle'
+Assert-Contains 'text style command protects whitelisted style during cleanup' $textStyleCommandsSource 'IsTextStyleWhitelisted'
+Assert-Contains 'text style plan skips standard style names independent of map' $textStyleCommandsSource 'IsStandardTextStyle\(pair\.Key,\s*standards\)'
+Assert-Contains 'text style command skips external block definitions' $textStyleCommandsSource 'IsSkippedTextStyleBlockRecord'
+Assert-Contains 'text style command checks layout block definitions' $textStyleCommandsSource 'IsLayout'
+Assert-Contains 'text style command checks anonymous block definitions' $textStyleCommandsSource 'IsAnonymous'
+Assert-Contains 'text style command uses text style table records' $textStyleCommandsSource 'TextStyleTableRecord'
+Assert-Contains 'text style stubs include text style table record' (Get-Content -Encoding UTF8 (Join-Path $repo '.github\stubs\AutoCAD.cs') -Raw) 'class\s+TextStyleTableRecord'

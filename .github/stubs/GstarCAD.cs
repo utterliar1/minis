@@ -132,6 +132,10 @@ namespace GrxCAD.DatabaseServices
     {
         public string Name { get; set; }
         public bool IsLayout { get; set; }
+        public bool IsAnonymous { get; set; }
+        public bool IsDependent { get; set; }
+        public bool IsFromExternalReference { get; set; }
+        public bool IsFromOverlayReference { get; set; }
         public bool HasPreviewIcon { get { return false; } }
         public System.Drawing.Bitmap PreviewIcon { get { return null; } }
         public Geometry.Point3d Origin { get; set; }
@@ -191,7 +195,8 @@ namespace GrxCAD.DatabaseServices
         public AttachmentPoint Attachment { get; set; }
         public string TextStyleName { get; set; }
     }
-    public class AttributeReference : Entity { public string TextString { get; set; } public string Tag { get; set; } }
+    public class AttributeReference : DBText { public string Tag { get; set; } }
+    public class AttributeDefinition : DBText { public string Tag { get; set; } }
     public class AttributeCollection : IEnumerable<ObjectId>
     {
         public int Count { get; set; }
@@ -227,10 +232,21 @@ namespace GrxCAD.DatabaseServices
     }
     public class TextStyleTable : DBObject, IEnumerable<ObjectId>
     {
+        public void Add(TextStyleTableRecord record) {}
         public bool Has(string name) { return false; }
         public ObjectId this[string name] => new ObjectId();
         public IEnumerator<ObjectId> GetEnumerator() { yield break; }
         IEnumerator IEnumerable.GetEnumerator() { yield break; }
+    }
+    public class TextStyleTableRecord : DBObject
+    {
+        public string Name { get; set; }
+        public string FileName { get; set; }
+        public string BigFontFileName { get; set; }
+        public double TextSize { get; set; }
+        public double XScale { get; set; }
+        public double ObliquingAngle { get; set; }
+        public bool IsDependent { get; set; }
     }
     public class Circle : Entity
     {
