@@ -1,17 +1,17 @@
-const CACHE_NAME = 'ot-tracker-v11';
+const CACHE_NAME = 'ot-tracker-v12';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/css/style.css?v=11',
-  '/js/utils.js?v=11',
-  '/js/auth.js?v=11',
-  '/js/stats.js?v=11',
-  '/js/records.js?v=11',
-  '/js/clock.js?v=11',
-  '/js/admin.js?v=11',
-  '/js/app.js?v=11',
-  '/使用指南.html?v=11',
-  '/管理员使用指南.html?v=11',
+  '/css/style.css?v=12',
+  '/js/utils.js?v=12',
+  '/js/auth.js?v=12',
+  '/js/stats.js?v=12',
+  '/js/records.js?v=12',
+  '/js/clock.js?v=12',
+  '/js/admin.js?v=12',
+  '/js/app.js?v=12',
+  '/使用指南.html?v=12',
+  '/管理员使用指南.html?v=12',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png'
