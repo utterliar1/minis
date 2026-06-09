@@ -52,7 +52,7 @@ OT.showDayDetail = function showDayDetail(y,m,d){
   else{
     c+=`<div style="margin-bottom:12px">`;
     dayRecs.forEach(r=>{const icon=r.type==='in'?'🟢':'🔴',label=r.type==='in'?'上班':'下班';
-      c+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)"><span>${icon}</span><div style="flex:1"><div style="font-weight:600;font-size:15px">${label} ${escapeHtml(r.time_str||'')}</div>${r.note?`<div style="font-size:12px;color:var(--text-sec);margin-top:2px">${escapeHtml(r.note)}</div>`:''}</div></div>`});
+      c+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)"><span>${icon}</span><div style="flex:1"><div style="font-weight:600;font-size:15px">${label} ${escapeHtml(r.time_str||'')}</div>${OT.actualLocationHtml(r)}${r.note?`<div style="font-size:12px;color:var(--text-sec);margin-top:2px">${escapeHtml(r.note)}</div>`:''}</div></div>`});
     c+=`</div>`;
     c+=`<div style="background:#EEF2FF;border-radius:8px;padding:12px;text-align:center;font-weight:600;color:var(--primary)">工时：${formatMinutes(ot)}</div>`;
   }
