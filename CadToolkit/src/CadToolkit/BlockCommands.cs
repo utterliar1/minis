@@ -149,6 +149,125 @@ namespace CadToolkit
             Ed.WriteMessage(string.Format("\n\u5df2\u521b\u5efa\u5757 \"{0}\" \uff0c\u5305\u542b {1} \u4e2a\u5bf9\u8c61\u3002", createdName, objectCount));
         }
 
+[CommandMethod("CT_CHANGEBASEPOINT")]
+        public void ChangeBlockBasepoint()
+        {
+            EnsureInit();
+            if (!CheckDoc()) return;
+
+            var peo = new PromptEntityOptions("\n选择要改基点的块：");
+            peo.SetRejectMessage("\n只能选择块参照。");
+            peo.AddAllowedClass(typeof(BlockReference), true);
+            var per = Ed.GetEntity(peo);
+            if (per.Status != PromptStatus.OK) return;
+
+            string blockName = "";
+            string rejectReason = "";
+            ObjectId blockDefId = default(ObjectId);
+            ObjectId[] referenceIds = null;
+
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                var br = (BlockReference)tr.GetObject(per.ObjectId, OpenMode.ForRead);
+                var btr = (BlockTableRecord)tr.GetObject(br.BlockTableRecord, OpenMode.ForRead);
+                blockName = btr.Name;
+                blockDefId = br.BlockTableRecord;
+
+                if (!CanChangeBlockBasepoint(br, btr, out rejectReason))
+                {
+                    Ed.WriteMessage("\n当前块不支持改基点：" + rejectReason);
+                    return;
+                }
+
+                tr.Commit();
+            }
+
+            var ppo = new PromptPointOptions("\n指定新的块基点：");
+            ppo.AllowNone = false;
+            var ppr = Ed.GetPoint(ppo);
+            if (ppr.Status != PromptStatus.OK) return;
+
+            bool changed = RunWithUndo("CT_CHANGEBASEPOINT", delegate
+            {
+                using (var tr = Db.TransactionManager.StartTransaction())
+                {
+                    var selectedBr = (BlockReference)tr.GetObject(per.ObjectId, OpenMode.ForRead);
+                    var selectedBtr = (BlockTableRecord)tr.GetObject(blockDefId, OpenMode.ForWrite);
+                    if (!CanChangeBlockBasepoint(selectedBr, selectedBtr, out rejectReason))
+                    {
+                        Ed.WriteMessage("\n当前块不支持改基点：" + rejectReason);
+                        return false;
+                    }
+
+                    Point3d oldOrigin = selectedBtr.Origin;
+                    Point3d newOrigin = ppr.Value.TransformBy(selectedBr.BlockTransform.Inverse());
+                    referenceIds = GetBlockReferencesForDefinition(tr, blockDefId);
+
+                    var shifts = new Dictionary<ObjectId, Vector3d>();
+                    foreach (ObjectId id in referenceIds)
+                    {
+                        var br = tr.GetObject(id, OpenMode.ForRead) as BlockReference;
+                        if (br == null) continue;
+                        Point3d oldBasePoint = oldOrigin.TransformBy(br.BlockTransform);
+                        Point3d newBasePoint = newOrigin.TransformBy(br.BlockTransform);
+                        shifts[id] = oldBasePoint.GetVectorTo(newBasePoint);
+                    }
+
+                    selectedBtr.Origin = newOrigin;
+
+                    foreach (var pair in shifts)
+                    {
+                        var br = tr.GetObject(pair.Key, OpenMode.ForWrite) as BlockReference;
+                        if (br == null) continue;
+                        Vector3d shift = pair.Value;
+                        br.Position = br.Position + shift;
+                    }
+
+                    tr.Commit();
+                }
+                return true;
+            });
+
+            if (!changed) return;
+            int affectedReferences = referenceIds == null ? 0 : referenceIds.Length;
+            Ed.WriteMessage(string.Format("\n已修改块 \"{0}\" 的基点，影响 {1} 个同定义参照。", blockName, affectedReferences));
+        }
+
+        static bool CanChangeBlockBasepoint(BlockReference br, BlockTableRecord btr, out string reason)
+        {
+            reason = "";
+            if (br == null || btr == null) { reason = "块数据无效"; return false; }
+            if (TryGetBoolProperty(br, "IsDynamicBlock")) { reason = "动态块暂不支持"; return false; }
+            if (TryGetBoolProperty(btr, "IsDynamicBlock")) { reason = "动态块暂不支持"; return false; }
+            if (TryGetBoolProperty(btr, "IsAnonymous")) { reason = "匿名块暂不支持"; return false; }
+            if (TryGetBoolProperty(btr, "IsLayout")) { reason = "布局块不支持"; return false; }
+            if (TryGetBoolProperty(btr, "IsFromExternalReference") || TryGetBoolProperty(btr, "IsFromOverlayReference") || TryGetBoolProperty(btr, "IsDependent"))
+            {
+                reason = "外部参照或依赖块不支持";
+                return false;
+            }
+            return true;
+        }
+
+        static ObjectId[] GetBlockReferencesForDefinition(Transaction tr, ObjectId blockDefId)
+        {
+            var ids = new List<ObjectId>();
+            var bt = (BlockTable)tr.GetObject(Db.BlockTableId, OpenMode.ForRead);
+            foreach (ObjectId btrId in bt)
+            {
+                var owner = tr.GetObject(btrId, OpenMode.ForRead) as BlockTableRecord;
+                if (owner == null) continue;
+                if (TryGetBoolProperty(owner, "IsFromExternalReference") || TryGetBoolProperty(owner, "IsFromOverlayReference") || TryGetBoolProperty(owner, "IsDependent")) continue;
+                foreach (ObjectId entId in owner)
+                {
+                    var br = tr.GetObject(entId, OpenMode.ForRead) as BlockReference;
+                    if (br == null) continue;
+                    if (br.BlockTableRecord == blockDefId) ids.Add(entId);
+                }
+            }
+            return ids.ToArray();
+        }
+
 [CommandMethod("CT_SELECTBYBLOCK")]
         public void SelectByBlock()
         {
