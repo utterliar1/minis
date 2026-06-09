@@ -1,5 +1,6 @@
 """考勤助手 - 后端 API"""
 import os, json, hashlib, time, sqlite3, smtplib, secrets, math
+from calendar import monthrange
 from html import escape
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -773,13 +774,71 @@ def send_email(to, subject, html_body):
     except Exception as e:
         return False, f"发送失败: {str(e)[:200]}"
 
+def resolve_report_period(period, now):
+    today = now.date()
+    if period == 'yesterday':
+        day = today - timedelta(days=1)
+        return day.isoformat(), day.isoformat()
+    if period == 'this_week':
+        start = today - timedelta(days=today.weekday())
+        return start.isoformat(), today.isoformat()
+    if period == 'last_week':
+        this_week_start = today - timedelta(days=today.weekday())
+        start = this_week_start - timedelta(days=7)
+        end = this_week_start - timedelta(days=1)
+        return start.isoformat(), end.isoformat()
+    if period == 'last_month':
+        first_this_month = today.replace(day=1)
+        last_prev_month = first_this_month - timedelta(days=1)
+        start = last_prev_month.replace(day=1)
+        return start.isoformat(), last_prev_month.isoformat()
+    start = today.replace(day=1)
+    return start.isoformat(), today.isoformat()
+
+
+def month_target_day(year, month, value):
+    if str(value) == 'last':
+        return monthrange(year, month)[1]
+    try:
+        return min(28, max(1, int(value)))
+    except (TypeError, ValueError):
+        return monthrange(year, month)[1]
+
+
+def next_schedule_time(cfg, now):
+    cfg = normalize_email_config(cfg)
+    hour = int(cfg.get('schedule_hour', 9) or 9)
+    minute = int(cfg.get('schedule_minute', 0) or 0)
+    frequency = cfg.get('schedule_frequency', 'daily')
+    if frequency == 'weekly':
+        weekday = int(cfg.get('schedule_weekday', 1) or 1) - 1
+        days_ahead = (weekday - now.weekday()) % 7
+        target = now.replace(hour=hour, minute=minute, second=0, microsecond=0) + timedelta(days=days_ahead)
+        if target <= now:
+            target += timedelta(days=7)
+        return target
+    if frequency == 'monthly':
+        month_day = cfg.get('schedule_month_day', 'last')
+        day = month_target_day(now.year, now.month, month_day)
+        target = now.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
+        if target <= now:
+            next_month = (now.replace(day=28) + timedelta(days=4)).replace(day=1)
+            day = month_target_day(next_month.year, next_month.month, month_day)
+            target = next_month.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
+        return target
+    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if target <= now:
+        target += timedelta(days=1)
+    return target
+
+
 def send_overtime_report():
     settings = get_settings_data()
     conn = get_db()
     cfg = conn.execute("SELECT * FROM email_config WHERE id=1").fetchone()
     conn.close()
     if not cfg: return False, "邮件未配置"
-    cfg = dict(cfg)
+    cfg = normalize_email_config(dict(cfg))
     recipients = json.loads(cfg.get('recipients','[]'))
     if not recipients: return False, "无收件人"
     conn = get_db()
@@ -822,8 +881,7 @@ def schedule_email_task():
     if not cfg or not cfg['enabled']: return
     cfg = dict(cfg)
     now = bj_now()
-    target = now.replace(hour=cfg.get('schedule_hour',9), minute=cfg.get('schedule_minute',0), second=0, microsecond=0)
-    if target <= now: target += timedelta(days=1)
+    target = next_schedule_time(cfg, now)
     delay = (target - now).total_seconds()
     def job():
         send_overtime_report()
