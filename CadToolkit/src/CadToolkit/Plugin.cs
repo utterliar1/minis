@@ -250,12 +250,34 @@ namespace CadToolkit
             public string TargetLayer;
             public int Count;
             public LayerStandardRule Rule;
+            public string Reason;
+        }
+
+        class LayerRuleMatch
+        {
+            public LayerStandardRule Rule;
+            public string Pattern;
+            public string MatchMode;
+            public bool IsStandardName;
+        }
+
+        class LayerPatternMatch
+        {
+            public string Pattern;
+            public string MatchMode;
         }
 
         static LayerStandardRule MatchLayerRule(string layerName, List<LayerStandardRule> rules)
         {
+            var match = MatchLayerRuleDetail(layerName, rules);
+            return match == null ? null : match.Rule;
+        }
+
+        static LayerRuleMatch MatchLayerRuleDetail(string layerName, List<LayerStandardRule> rules)
+        {
             foreach (var rule in rules)
-                if (rule.Name.Equals(layerName, StringComparison.OrdinalIgnoreCase)) return rule;
+                if (rule.Name.Equals(layerName, StringComparison.OrdinalIgnoreCase))
+                    return new LayerRuleMatch { Rule = rule, Pattern = rule.Name, MatchMode = GetLayerPatternMatchMode(rule.Name), IsStandardName = true };
 
             foreach (var rule in rules)
             {
@@ -263,39 +285,34 @@ namespace CadToolkit
                 {
                     if (alias.Length == 0) continue;
                     if (IsLayerAliasMatch(layerName, alias))
-                        return rule;
+                        return new LayerRuleMatch { Rule = rule, Pattern = alias, MatchMode = GetLayerPatternMatchMode(alias), IsStandardName = false };
                 }
             }
             return null;
         }
 
+        static string FormatLayerRuleReason(LayerRuleMatch match)
+        {
+            if (match == null) return "";
+            if (match.IsStandardName) return "\u547d\u4e2d\u6807\u51c6\u56fe\u5c42\u540d";
+            return string.Format("\u547d\u4e2d\u522b\u540d \"{0}\"\uff08{1}\uff09", match.Pattern, match.MatchMode);
+        }
+
+        static string FormatWhitelistReason(LayerPatternMatch match)
+        {
+            if (match == null) return "";
+            return string.Format("\u547d\u4e2d\u767d\u540d\u5355 \"{0}\"\uff08{1}\uff09", match.Pattern, match.MatchMode);
+        }
+
+        static string GetLayerPatternMatchMode(string pattern)
+        {
+            return SafeStr(pattern).IndexOf('*') >= 0 ? "\u901a\u914d\u5339\u914d" : "\u5168\u5b57\u5339\u914d";
+        }
+
         static bool IsLayerAliasMatch(string layerName, string alias)
         {
             if (string.IsNullOrEmpty(layerName) || string.IsNullOrEmpty(alias)) return false;
-            bool hasDigit = false;
-            for (int i = 0; i < alias.Length; i++)
-            {
-                if (char.IsDigit(alias[i])) { hasDigit = true; break; }
-            }
-            if (!hasDigit)
-                return layerName.IndexOf(alias, StringComparison.OrdinalIgnoreCase) >= 0;
-
-            int start = 0;
-            while (start <= layerName.Length - alias.Length)
-            {
-                int index = layerName.IndexOf(alias, start, StringComparison.OrdinalIgnoreCase);
-                if (index < 0) return false;
-                if (IsLayerAliasBoundary(layerName, index - 1) && IsLayerAliasBoundary(layerName, index + alias.Length))
-                    return true;
-                start = index + 1;
-            }
-            return false;
-        }
-
-        static bool IsLayerAliasBoundary(string text, int index)
-        {
-            if (index < 0 || index >= text.Length) return true;
-            return !char.IsLetterOrDigit(text[index]);
+            return SimpleWildcardMatch(layerName, alias);
         }
 
         static bool SimpleWildcardMatch(string text, string pattern)
@@ -313,13 +330,20 @@ namespace CadToolkit
 
         static bool IsLayerWhitelisted(string layerName, string whitelist)
         {
+            return MatchWhitelistPattern(layerName, whitelist) != null;
+        }
+
+        static LayerPatternMatch MatchWhitelistPattern(string layerName, string whitelist)
+        {
             string[] items = SafeStr(whitelist).Split(',');
             foreach (string item in items)
             {
                 string pattern = item.Trim();
-                if (SimpleWildcardMatch(layerName, pattern)) return true;
+                if (pattern.Length == 0) continue;
+                if (SimpleWildcardMatch(layerName, pattern))
+                    return new LayerPatternMatch { Pattern = pattern, MatchMode = GetLayerPatternMatchMode(pattern) };
             }
-            return false;
+            return null;
         }
 
         static ObjectId[] GetSelectionInScopeOrAll(SelectionFilter sf, string message, Func<Entity, Transaction, bool> matches)
@@ -431,10 +455,12 @@ namespace CadToolkit
             else
             {
                 foreach (var p in plans)
-                    sb.AppendLine(string.Format("  {0}  ->  {1}    {2} \u4e2a\u5bf9\u8c61", p.SourceLayer, p.TargetLayer, p.Count));
+                    sb.AppendLine(string.Format("  {0}  ->  {1}    {2} \u4e2a\u5bf9\u8c61    \u539f\u56e0\uff1a{3}", p.SourceLayer, p.TargetLayer, p.Count, SafeStr(p.Reason)));
             }
             sb.AppendLine();
             sb.AppendLine("\u672a\u8bc6\u522b\u56fe\u5c42\u7684\u5904\u7406\u65b9\u5f0f\uff1a" + (fallbackTo0 ? "\u5f00\u542f\uff08\u4e0d\u5728\u767d\u540d\u5355\u91cc\u7684\u672a\u8bc6\u522b\u56fe\u5c42\u4f1a\u5f52\u5230 0 \u5c42\uff09" : "\u5173\u95ed\uff08\u672a\u8bc6\u522b\u56fe\u5c42\u4fdd\u6301\u539f\u6837\uff09"));
+            if (fallbackTo0 && fallbackPlans.Count > 0)
+                sb.AppendLine("  \u6ce8\u610f\uff1a\u4ee5\u4e0b\u672a\u8bc6\u522b\u4e14\u975e\u767d\u540d\u5355\u56fe\u5c42\u4f1a\u88ab\u5f52\u5230 0 \u5c42\u3002");
             if (fallbackPlans.Count == 0)
             {
                 sb.AppendLine("  \u6ca1\u6709\u672a\u8bc6\u522b\u7684\u975e\u767d\u540d\u5355\u56fe\u5c42\u3002");
@@ -442,7 +468,12 @@ namespace CadToolkit
             else
             {
                 foreach (var p in fallbackPlans)
-                    sb.AppendLine(string.Format("  {0}  ->  0    {1} \u4e2a\u5bf9\u8c61", p.SourceLayer, p.Count));
+                {
+                    if (fallbackTo0)
+                        sb.AppendLine(string.Format("  {0}  ->  0    {1} \u4e2a\u5bf9\u8c61    \u539f\u56e0\uff1a{2}", p.SourceLayer, p.Count, SafeStr(p.Reason)));
+                    else
+                        sb.AppendLine(string.Format("  {0}    {1} \u4e2a\u5bf9\u8c61    \u5c06\u4fdd\u6301\u539f\u6837    \u539f\u56e0\uff1a{2}", p.SourceLayer, p.Count, SafeStr(p.Reason)));
+                }
             }
             sb.AppendLine();
             sb.AppendLine("\u767d\u540d\u5355\u56fe\u5c42\uff08\u4fdd\u6301\u539f\u6837\uff0c\u4e0d\u53c2\u4e0e\u89c4\u8303\u5316\uff0c\u4e5f\u4e0d\u4f1a\u5f52\u5230 0 \u5c42\uff09\uff1a");
@@ -453,7 +484,7 @@ namespace CadToolkit
             else
             {
                 foreach (var p in whitelistPlans)
-                    sb.AppendLine(string.Format("  {0}    {1} \u4e2a\u5bf9\u8c61", p.SourceLayer, p.Count));
+                    sb.AppendLine(string.Format("  {0}    {1} \u4e2a\u5bf9\u8c61    \u539f\u56e0\uff1a{2}", p.SourceLayer, p.Count, SafeStr(p.Reason)));
             }
             return sb.ToString();
         }
