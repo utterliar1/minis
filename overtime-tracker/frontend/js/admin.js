@@ -111,7 +111,9 @@ OT.loadDashboard = async function loadDashboard(){
     
     // Export dropdown
     const sel=document.getElementById('export-scope');
+    const selectedScope=sel.value;
     sel.innerHTML='<option value="all">所有人</option>'+uList.map(u=>`<option value="${escapeHtml(u.username)}">${escapeHtml(u.display_name)}</option>`).join('');
+    if(selectedScope==='all'||uList.some(u=>u.username===selectedScope))sel.value=selectedScope;
   }catch(e){document.getElementById('dash-content').innerHTML='<div class="empty-state"><span class="note-text">加载失败</span></div>'}
 };
 
