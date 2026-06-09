@@ -284,8 +284,8 @@ LayerStandardWhitelist=0,Defpoints,*图框*,*视口*,*原有*,*新增*
   </table>
 
   <h4>旧图层识别</h4>
-  <p><code>[LayerMap]</code> 格式为：<code>标准图层=别名1,别名2,别名3</code>。旧图层名只要包含某个别名，就会归到对应标准图层。</p>
-  <p>例如 <code>风管-一层</code> 包含 <code>风管</code>，会归到 <code>5-风网</code>。</p>
+  <p><code>[LayerMap]</code> 格式为：<code>标准图层=别名1,别名2,别名3</code>。别名默认全字匹配；需要包含、前缀、后缀匹配时用 <code>*</code> 通配符。</p>
+  <p>例如 <code>0-4</code> 只匹配名为 <code>0-4</code> 的图层，<code>*风管*</code> 才会匹配 <code>风管-一层</code> 并归到 <code>5-风网</code>。</p>
 
   <h4>完整示例</h4>
   <pre>LayerStandardFallbackTo0=false
@@ -298,11 +298,11 @@ LayerStandardWhitelist=0,Defpoints,*图框*,*视口*,*原有*,*新增*
 3-文字层=3|CONTINUOUS|Default|true
 
 [LayerMap]
-0-设备层=设备,0-4
-1-中心线层=中心,中心线,CENTER,0-1,1,AXIS,CLEARANCE
-2-虚线层=虚线,HIDDEN,DASH
-3-文字层=文字,说明,编号,TEXT,txt
-5-风网=风网,风管,风道,0-5</pre>
+0-设备层=*设备*,0-4
+1-中心线层=*中心*,*中心线*,CENTER,0-1,1,AXIS,CLEARANCE
+2-虚线层=*虚线*,HIDDEN,DASH
+3-文字层=*文字*,*说明*,*编号*,TEXT,txt
+5-风网=*风网*,*风管*,*风道*,0-5</pre>
   <div class="tip">建议第一次使用时保持 <code>LayerStandardFallbackTo0=false</code>。先看预览，把暂时不确定的图层加进白名单，确认无误后再执行。</div>
 </div>
 

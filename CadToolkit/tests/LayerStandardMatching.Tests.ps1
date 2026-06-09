@@ -155,6 +155,9 @@ Assert-Contains 'layer standard migrates all gathered scopes' $layerCommands 'Mo
 $projectConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.ini') -Raw
 $defaultConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.default.ini') -Raw
 $configSource = Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit.Core\Config.cs') -Raw
+$readme = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\README.md') -Raw
+$manualFileName = 'CadToolkit' + (-join ([char[]](0x4F7F, 0x7528, 0x624B, 0x518C))) + '.html'
+$manual = Get-Content -Encoding UTF8 (Join-Path (Join-Path $repo 'CadToolkit') $manualFileName) -Raw
 $localConfigPath = 'C:\CadToolkit\CadToolkit.ini'
 $localConfig = if (Test-Path -LiteralPath $localConfigPath) { Get-Content -Encoding UTF8 -LiteralPath $localConfigPath -Raw } else { '' }
 
@@ -168,3 +171,7 @@ Assert-Contains 'embedded default uses explicit wildcard layer map' $configSourc
 Assert-Contains 'local config uses explicit wildcard layer map' $localConfig $equipmentLinePattern
 Assert-NotContains 'project config removes old contains-style layer map' $projectConfig $oldEquipmentLinePattern
 Assert-NotContains 'default config removes old contains-style layer map' $defaultConfig $oldEquipmentLinePattern
+Assert-Contains 'readme documents exact default matching' $readme '\u5168\u5B57\u5339\u914D'
+Assert-Contains 'manual documents exact default matching' $manual '\u5168\u5B57\u5339\u914D'
+Assert-NotContains 'readme removes old contains alias wording' $readme '\u53EA\u8981\u5305\u542B\u67D0\u4E2A\u522B\u540D'
+Assert-NotContains 'manual removes old contains alias wording' $manual '\u53EA\u8981\u5305\u542B\u67D0\u4E2A\u522B\u540D'
