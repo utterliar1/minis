@@ -28,7 +28,8 @@ OT.renderRecordsList = function renderRecordsList(dg){
     const d=new Date(date+'T12:00:00'),recs=dg[date].sort((a,b)=>a.ts-b.ts),ot=calcTodayOT(recs,d),wd=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
     const fi=recs.find(r=>r.type==='in'),lo=[...recs].reverse().find(r=>r.type==='out');
     const badge=isWorkingDay(d)?'<span class="badge badge-workday">工作日</span>':'<span class="badge badge-holiday">休息日</span>';
-    return`<div class="record-card"><div><div><span class="record-date">${d.getMonth()+1}月${d.getDate()}日</span><span class="record-weekday">${wd}</span></div><div class="record-times">${fi?(fi.time_str||'').slice(0,5):'--:--'} → ${lo?(lo.time_str||'').slice(0,5):'进行中'}</div>${badge}</div><div><div class="record-overtime">+${formatMinutes(ot)}</div></div></div>`;
+    const rangeBadge=recs.some(r=>Number(r.out_of_range)===1)?'<span class="record-flag-badge">范围外</span>':'';
+    return`<div class="record-card"><div><div><span class="record-date">${d.getMonth()+1}月${d.getDate()}日</span><span class="record-weekday">${wd}</span></div><div class="record-times">${fi?(fi.time_str||'').slice(0,5):'--:--'} → ${lo?(lo.time_str||'').slice(0,5):'进行中'}</div><div class="record-badges">${badge}${rangeBadge}</div></div><div><div class="record-overtime">+${formatMinutes(ot)}</div></div></div>`;
   }).join('');
 };
 

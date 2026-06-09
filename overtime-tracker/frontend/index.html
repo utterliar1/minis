@@ -10,7 +10,7 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <title>考勤助手</title>
-<link rel="stylesheet" href="/css/style.css?v=13">
+<link rel="stylesheet" href="/css/style.css?v=14">
 </head>
 <body>
 
@@ -53,17 +53,17 @@
 
   <!-- ===== ADMIN: Dashboard ===== -->
   <div class="page active" id="page-dashboard">
-    <div class="card">
-      <div class="card-title">📊 团队工时概览</div>
-      <div id="dash-content"><div class="empty-state"><span class="note-text">加载中...</span></div></div>
-    </div>
-    <div class="card">
+    <div class="card admin-export-card">
       <div class="card-title">📤 导出工时报表</div>
-      <div class="export-bar">
+      <div class="export-bar admin-export-bar">
         <select id="export-scope"><option value="all">所有人</option></select>
         <select id="export-period" onchange="OT.loadDashboard()"><option value="month">本月</option><option value="week">本周</option><option value="today">今日</option><option value="all">全部</option></select>
-        <button class="btn btn-primary btn-sm" onclick="doExport()" style="width:auto">📥 导出 CSV</button>
+        <button class="btn btn-primary btn-sm export-action-btn" onclick="doExport()">📥 导出 CSV</button>
       </div>
+    </div>
+    <div class="card admin-dashboard-card">
+      <div class="card-title">📊 团队工时概览</div>
+      <div id="dash-content"><div class="empty-state"><span class="note-text">加载中...</span></div></div>
     </div>
   </div>
 
@@ -214,12 +214,12 @@
 <div class="toast" id="toast"></div>
 <div class="modal-overlay" id="modal" onclick="closeModal(event)"><div class="modal-content" id="modal-body" onclick="event.stopPropagation()"></div></div>
 
-<script src="/js/utils.js?v=13"></script>
-<script src="/js/auth.js?v=13"></script>
-<script src="/js/stats.js?v=13"></script>
-<script src="/js/records.js?v=13"></script>
-<script src="/js/clock.js?v=13"></script>
-<script src="/js/admin.js?v=13"></script>
-<script src="/js/app.js?v=13"></script>
+<script src="/js/utils.js?v=14"></script>
+<script src="/js/auth.js?v=14"></script>
+<script src="/js/stats.js?v=14"></script>
+<script src="/js/records.js?v=14"></script>
+<script src="/js/clock.js?v=14"></script>
+<script src="/js/admin.js?v=14"></script>
+<script src="/js/app.js?v=14"></script>
 </body>
 </html>
