@@ -190,7 +190,7 @@ LayerStandardWhitelist=0,Defpoints,*图框*,*视口*,*原有*,*新增*
 10-非标=31|CONTINUOUS|Default|true
 
 [LayerMap]
-0-设备层=*设备*,0-4
+0-设备层=*设备*,0-4,*VIS*
 1-中心线层=*中心*,*中心线*,CENTER,0-1,1,AXIS,CLEARANCE
 3-文字层=*文字*,*说明*,*编号*,TEXT,txt
 4-标注层=*标注*,*尺寸*,DIM,dim

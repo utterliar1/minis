@@ -253,6 +253,14 @@ namespace CadToolkit
             public string Reason;
         }
 
+        enum LayerPlanTreeFilter
+        {
+            All,
+            Unknown,
+            Migration,
+            Whitelist
+        }
+
         class LayerRuleMatch
         {
             public LayerStandardRule Rule;
@@ -531,6 +539,19 @@ namespace CadToolkit
                 whitelist.Nodes.Add(new TreeNode(string.Format("{0}    {1} 对象    {2}", p.SourceLayer, p.Count, SafeStr(p.Reason))));
             nodes.Add(whitelist);
 
+            return nodes.ToArray();
+        }
+
+        static TreeNode[] BuildFilteredLayerPlanTreeNodes(List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0, LayerPlanTreeFilter filter)
+        {
+            var allNodes = BuildLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0);
+            if (filter == LayerPlanTreeFilter.All) return allNodes;
+
+            var nodes = new List<TreeNode>();
+            nodes.Add((TreeNode)allNodes[0].Clone());
+            if (filter == LayerPlanTreeFilter.Unknown) nodes.Add((TreeNode)allNodes[1].Clone());
+            if (filter == LayerPlanTreeFilter.Migration) nodes.Add((TreeNode)allNodes[2].Clone());
+            if (filter == LayerPlanTreeFilter.Whitelist) nodes.Add((TreeNode)allNodes[3].Clone());
             return nodes.ToArray();
         }
 

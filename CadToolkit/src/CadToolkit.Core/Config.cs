@@ -165,7 +165,7 @@ namespace CadToolkit.Core
             sb.AppendLine("11-\u586B\u5145=8|CONTINUOUS|Default|true");
             sb.AppendLine();
             sb.AppendLine("[LayerMap]");
-            sb.AppendLine("0-\u8BBE\u5907\u5C42=*\u8BBE\u5907*,0-4,VIS35");
+            sb.AppendLine("0-\u8BBE\u5907\u5C42=*\u8BBE\u5907*,0-4,*VIS*");
             sb.AppendLine("1-\u4E2D\u5FC3\u7EBF\u5C42=*\u4E2D\u5FC3*,*\u4E2D\u5FC3\u7EBF*,CENTER,0-1,1,AXIS,CLEARANCE");
             sb.AppendLine("2-\u865A\u7EBF\u5C42=*\u865A\u7EBF*,HIDDEN,DASH,HID");
             sb.AppendLine("3-\u6587\u5B57\u5C42=*\u6587\u5B57*,*\u8BF4\u660E*,*\u7F16\u53F7*,TEXT,txt");
