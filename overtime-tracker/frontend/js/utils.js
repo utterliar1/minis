@@ -56,7 +56,7 @@ OT.dateKey = function dateKey(d){const x=d?new Date(d.getTime()+8*3600000):bjNow
 
 OT.calendarKey = function calendarKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 
-OT.timeToMin = function timeToMin(t){if(!t)return 540;const[h,m]=t.split(':');return +h*60+(+m)};
+OT.timeToMin = function timeToMin(t){if(!t)return 510;const[h,m]=t.split(':');return +h*60+(+m)};
 
 OT.msToMin = function msToMin(ts,timeStr){if(timeStr){const p=timeStr.split(':');return(+p[0])*60+(+p[1])}const d=new Date(ts+8*3600000);return d.getUTCHours()*60+d.getUTCMinutes()};
 

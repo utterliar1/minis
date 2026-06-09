@@ -10,7 +10,7 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <title>考勤助手</title>
-<link rel="stylesheet" href="/css/style.css?v=6">
+<link rel="stylesheet" href="/css/style.css?v=7">
 </head>
 <body>
 
@@ -97,10 +97,8 @@
     </div>
     <div class="setting-group-title">⏰ 工作时间</div>
     <div class="setting-group">
-      <div class="setting-item"><span class="setting-label">上班</span><input class="setting-input" type="time" id="set-work-start" value="09:00"></div>
-      <div class="setting-item"><span class="setting-label">下班</span><input class="setting-input" type="time" id="set-work-end" value="18:00"></div>
-      <div class="setting-item"><span class="setting-label">午休开始</span><input class="setting-input" type="time" id="set-lunch-start" value="12:00"></div>
-      <div class="setting-item"><span class="setting-label">午休结束</span><input class="setting-input" type="time" id="set-lunch-end" value="13:00"></div>
+      <div class="setting-item"><span class="setting-label">上班</span><input class="setting-input" type="time" id="set-work-start" value="08:30"></div>
+      <div class="setting-item"><span class="setting-label">下班</span><input class="setting-input" type="time" id="set-work-end" value="17:30"></div>
       <div class="setting-item" style="flex-direction:column;align-items:flex-start"><span class="setting-label">工作日</span><div class="weekday-row" id="set-weekdays"></div></div>
     </div>
     <div class="setting-group-title">🎌 法定节假日</div>
@@ -178,8 +176,7 @@
     </div>
     <div class="card">
       <div class="card-title">ℹ️ 考勤规则</div>
-      <div class="summary-row"><span class="label">工作时间</span><span class="value" id="info-worktime">09:00 - 18:00</span></div>
-      <div class="summary-row"><span class="label">午休时间</span><span class="value" id="info-lunch">12:00 - 13:00</span></div>
+      <div class="summary-row"><span class="label">工作时间</span><span class="value" id="info-worktime">08:30 - 17:30</span></div>
       <div class="summary-row"><span class="label">打卡范围</span><span class="value" id="info-radius">500 米</span></div>
     </div>
   </div>
@@ -217,12 +214,12 @@
 <div class="toast" id="toast"></div>
 <div class="modal-overlay" id="modal" onclick="closeModal(event)"><div class="modal-content" id="modal-body" onclick="event.stopPropagation()"></div></div>
 
-<script src="/js/utils.js?v=6"></script>
-<script src="/js/auth.js?v=6"></script>
-<script src="/js/stats.js?v=6"></script>
-<script src="/js/records.js?v=6"></script>
-<script src="/js/clock.js?v=6"></script>
-<script src="/js/admin.js?v=6"></script>
-<script src="/js/app.js?v=6"></script>
+<script src="/js/utils.js?v=7"></script>
+<script src="/js/auth.js?v=7"></script>
+<script src="/js/stats.js?v=7"></script>
+<script src="/js/records.js?v=7"></script>
+<script src="/js/clock.js?v=7"></script>
+<script src="/js/admin.js?v=7"></script>
+<script src="/js/app.js?v=7"></script>
 </body>
 </html>
