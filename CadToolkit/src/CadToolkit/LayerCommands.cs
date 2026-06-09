@@ -95,41 +95,92 @@ namespace CadToolkit
             f.StartPosition = FormStartPosition.CenterScreen;
             f.FormBorderStyle = FormBorderStyle.FixedDialog;
             f.MaximizeBox = false; f.MinimizeBox = false; f.ShowInTaskbar = false;
-            f.AutoScaleMode = AutoScaleMode.None; f.AutoScroll = true; f.ClientSize = new Size(UiScale(560), UiScale(510));
+            LayerPlanTreeFilter previewFilter = LayerPlanTreeFilter.All;
+            f.AutoScaleMode = AutoScaleMode.None; f.AutoScroll = true; f.ClientSize = new Size(UiScale(620), UiScale(540));
+
+            var rbAll = new RadioButton();
+            rbAll.Text = "\u5168\u90e8"; rbAll.Left = UiScale(12); rbAll.Top = UiScale(12); rbAll.Width = UiScale(70); rbAll.Height = UiScale(24); rbAll.Checked = true;
+            rbAll.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
+            var rbUnknown = new RadioButton();
+            rbUnknown.Text = "\u672a\u8bc6\u522b"; rbUnknown.Left = UiScale(88); rbUnknown.Top = UiScale(12); rbUnknown.Width = UiScale(86); rbUnknown.Height = UiScale(24);
+            rbUnknown.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
+            var rbMigration = new RadioButton();
+            rbMigration.Text = "\u5c06\u8fc1\u79fb"; rbMigration.Left = UiScale(180); rbMigration.Top = UiScale(12); rbMigration.Width = UiScale(86); rbMigration.Height = UiScale(24);
+            rbMigration.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
+            var rbWhitelist = new RadioButton();
+            rbWhitelist.Text = "\u767d\u540d\u5355"; rbWhitelist.Left = UiScale(272); rbWhitelist.Top = UiScale(12); rbWhitelist.Width = UiScale(86); rbWhitelist.Height = UiScale(24);
+            rbWhitelist.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
+            var search = new TextBox();
+            search.Left = UiScale(368); search.Top = UiScale(12); search.Width = UiScale(240); search.Height = UiScale(24);
+            search.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var tree = new TreeView();
             tree.HideSelection = false;
             tree.FullRowSelect = true;
             tree.ShowNodeToolTips = true;
             tree.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            tree.Left = UiScale(12); tree.Top = UiScale(12); tree.Width = UiScale(536); tree.Height = UiScale(340);
-            BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, fallbackTo0);
+            tree.Left = UiScale(12); tree.Top = UiScale(42); tree.Width = UiScale(596); tree.Height = UiScale(340);
+            BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, fallbackTo0, previewFilter, search.Text);
 
             var chkByLayer = new CheckBox();
             chkByLayer.Text = "\u5c06\u8fc1\u79fb\u5bf9\u8c61\u7684\u989c\u8272/\u7ebf\u578b/\u7ebf\u5bbd\u6539\u4e3a ByLayer";
-            chkByLayer.Left = UiScale(12); chkByLayer.Top = UiScale(358); chkByLayer.Width = UiScale(536); chkByLayer.Height = UiScale(24); chkByLayer.Checked = true;
+            chkByLayer.Left = UiScale(12); chkByLayer.Top = UiScale(390); chkByLayer.Width = UiScale(596); chkByLayer.Height = UiScale(24); chkByLayer.Checked = true;
             chkByLayer.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkDelete = new CheckBox();
             chkDelete.Text = "\u5220\u9664\u7a7a\u7684\u65e7\u56fe\u5c42";
-            chkDelete.Left = UiScale(12); chkDelete.Top = UiScale(386); chkDelete.Width = UiScale(190); chkDelete.Height = UiScale(24); chkDelete.Checked = false;
+            chkDelete.Left = UiScale(12); chkDelete.Top = UiScale(418); chkDelete.Width = UiScale(190); chkDelete.Height = UiScale(24); chkDelete.Checked = false;
             chkDelete.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkFallback = new CheckBox();
             chkFallback.Text = "\u672a\u8bc6\u522b\u56fe\u5c42\u5f52 0 \u5c42\uff08\u767d\u540d\u5355\u4e0d\u5904\u7406\uff09";
-            chkFallback.Left = UiScale(12); chkFallback.Top = UiScale(414); chkFallback.Width = UiScale(536); chkFallback.Height = UiScale(24); chkFallback.Checked = fallbackTo0;
+            chkFallback.Left = UiScale(12); chkFallback.Top = UiScale(446); chkFallback.Width = UiScale(596); chkFallback.Height = UiScale(24); chkFallback.Checked = fallbackTo0;
             chkFallback.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            chkFallback.CheckedChanged += delegate { BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked); };
+            chkFallback.CheckedChanged += delegate { BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked, previewFilter, search.Text); };
+
+            EventHandler filterChanged = delegate
+            {
+                if (rbUnknown.Checked) previewFilter = LayerPlanTreeFilter.Unknown;
+                else if (rbMigration.Checked) previewFilter = LayerPlanTreeFilter.Migration;
+                else if (rbWhitelist.Checked) previewFilter = LayerPlanTreeFilter.Whitelist;
+                else previewFilter = LayerPlanTreeFilter.All;
+                BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked, previewFilter, search.Text);
+            };
+            rbAll.CheckedChanged += filterChanged;
+            rbUnknown.CheckedChanged += filterChanged;
+            rbMigration.CheckedChanged += filterChanged;
+            rbWhitelist.CheckedChanged += filterChanged;
+            search.TextChanged += delegate { BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked, previewFilter, search.Text); };
+
+            var copy = new Button();
+            copy.Text = "\u590d\u5236\u5f53\u524d";
+            copy.Left = UiScale(336); copy.Top = UiScale(500); copy.Width = UiScale(88); copy.Height = UiScale(28); copy.FlatStyle = FlatStyle.System;
+            copy.Click += delegate
+            {
+                try
+                {
+                    Clipboard.SetText(FormatLayerPlanTreeReport(BuildSearchedLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked, previewFilter, search.Text)));
+                    MessageBox.Show("\u5df2\u590d\u5236\u5f53\u524d\u89c6\u56fe\u3002", "\u63d0\u793a", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (System.Exception ex)
+                {
+                    MessageBox.Show("\u590d\u5236\u5f53\u524d\u89c6\u56fe\u5931\u8d25\uff1a" + ex.Message, "\u63d0\u793a", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            };
 
             var ok = new Button();
             ok.Text = "\u6267\u884c"; ok.DialogResult = DialogResult.OK;
-            ok.Left = UiScale(376); ok.Top = UiScale(470); ok.Width = UiScale(80); ok.Height = UiScale(28); ok.FlatStyle = FlatStyle.System;
+            ok.Left = UiScale(432); ok.Top = UiScale(500); ok.Width = UiScale(80); ok.Height = UiScale(28); ok.FlatStyle = FlatStyle.System;
 
             var cancel = new Button();
             cancel.Text = "\u53d6\u6d88"; cancel.DialogResult = DialogResult.Cancel;
-            cancel.Left = UiScale(468); cancel.Top = UiScale(470); cancel.Width = UiScale(80); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
+            cancel.Left = UiScale(528); cancel.Top = UiScale(500); cancel.Width = UiScale(80); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
 
-            f.Controls.AddRange(new Control[] { tree, chkByLayer, chkDelete, chkFallback, ok, cancel });
+            f.Controls.AddRange(new Control[] { rbAll, rbUnknown, rbMigration, rbWhitelist, search, tree, chkByLayer, chkDelete, chkFallback, copy, ok, cancel });
             f.AcceptButton = ok; f.CancelButton = cancel;
             if (f.ShowDialog() != DialogResult.OK) { f.Dispose(); return; }
             setByLayer = chkByLayer.Checked;
@@ -339,13 +390,15 @@ namespace CadToolkit
             return false;
         }
 
-        static void BuildLayerPlanTreePreview(TreeView tree, List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0)
+        static void BuildLayerPlanTreePreview(TreeView tree, List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0, LayerPlanTreeFilter filter, string searchText)
         {
             tree.BeginUpdate();
             try
             {
                 tree.Nodes.Clear();
-                tree.Nodes.AddRange(BuildLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0));
+                tree.Nodes.AddRange(BuildSearchedLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0, filter, searchText));
+                if (filter != LayerPlanTreeFilter.All || SafeStr(searchText).Trim().Length > 0)
+                    tree.ExpandAll();
             }
             finally
             {

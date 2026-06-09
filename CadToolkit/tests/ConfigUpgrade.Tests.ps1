@@ -32,6 +32,8 @@ if ($LASTEXITCODE -ne 0) { throw 'CadToolkit.Core build failed' }
 $assembly = [Reflection.Assembly]::LoadFrom($coreDll)
 $configType = $assembly.GetType('CadToolkit.Core.Config', $true)
 $init = $configType.GetMethod('Init', [Reflection.BindingFlags]'Public, Static')
+$changeBasepointCommand = (-join ([char[]](0x6539, 0x5757, 0x57FA, 0x70B9))) + '=CT_CHANGEBASEPOINT'
+$changeBasepointPattern = '(?m)^' + [regex]::Escape($changeBasepointCommand) + '$'
 
 $tmpRoot = Join-Path ([IO.Path]::GetTempPath()) ('CadToolkitConfigUpgrade-' + [Guid]::NewGuid().ToString('N'))
 $platformDir = Join-Path $tmpRoot 'acad'
@@ -66,6 +68,8 @@ try {
     Assert-Contains 'upgrade appends missing layer whitelist default' $upgraded '(?m)^LayerStandardWhitelist=0,Defpoints,'
     Assert-Before 'upgrade keeps scalar defaults before sections' $upgraded 'DeleteOriginal=true' '[Commands]'
     Assert-Contains 'upgrade preserves custom command section' $upgraded '(?m)^Custom=MY_CUSTOM_CMD$'
+    Assert-Contains 'upgrade appends missing official new command' $upgraded $changeBasepointPattern
+    Assert-Before 'upgrade inserts new block command before next section' $upgraded $changeBasepointCommand '[LayerStandard]'
     Assert-Contains 'upgrade preserves custom layer standard' $upgraded '(?m)^CUSTOM-LAYER=2\|CONTINUOUS\|Default\|true$'
     Assert-Contains 'upgrade preserves custom layer map' $upgraded '(?m)^CUSTOM-LAYER=CUSTOM$'
     Assert-NotContains 'upgrade does not merge default command list into existing user config' $upgraded '(?m)=CT_FINDREPLACE$'

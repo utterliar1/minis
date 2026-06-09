@@ -51,6 +51,7 @@ namespace CadToolkit.Core
                     return;
                 }
                 EnsureRootDefaults();
+                EnsureOfficialCommands();
             }
             catch (Exception ex) { LogConfigError("EnsureConfig failed: " + ex.Message); }
         }
@@ -79,6 +80,43 @@ namespace CadToolkit.Core
 
             if (changed)
                 lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
+        }
+
+        static void EnsureOfficialCommands()
+        {
+            var lines = new List<string>(File.ReadAllLines(IniPath, Encoding.UTF8));
+            if (HasConfigKey(lines, "改块基点")) return;
+
+            int commandsHeader = -1;
+            int insertAt = -1;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                string trimmed = lines[i].Trim();
+                if (trimmed.Equals("[Commands]", StringComparison.OrdinalIgnoreCase))
+                {
+                    commandsHeader = i;
+                    insertAt = i + 1;
+                    continue;
+                }
+                if (commandsHeader >= 0)
+                {
+                    if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                        break;
+                    if (trimmed.Equals("快捷建块=CT_QUICKBLOCK", StringComparison.OrdinalIgnoreCase))
+                    {
+                        insertAt = i + 1;
+                        break;
+                    }
+                    if (trimmed.Length > 0)
+                        insertAt = i + 1;
+                }
+            }
+
+            if (commandsHeader < 0) return;
+            if (insertAt < 0) insertAt = lines.Count;
+
+            lines.Insert(insertAt, "改块基点=CT_CHANGEBASEPOINT");
+            lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
         }
 
         static bool HasConfigKey(List<string> lines, string key)
@@ -143,6 +181,7 @@ namespace CadToolkit.Core
             sb.AppendLine("# \u56FE\u5757\u64CD\u4F5C");
             sb.AppendLine("\u91CD\u547D\u540D\u5757=CT_RENAMEBLOCK");
             sb.AppendLine("\u5FEB\u6377\u5EFA\u5757=CT_QUICKBLOCK");
+            sb.AppendLine("\u6539\u5757\u57FA\u70B9=CT_CHANGEBASEPOINT");
             sb.AppendLine("\u6309\u5757\u9009\u62E9=CT_SELECTBYBLOCK");
             sb.AppendLine("# \u7ED8\u56FE\u6807\u6CE8");
             sb.AppendLine("\u753B\u4E2D\u5FC3\u7EBF=CT_CENTERLINE");
@@ -165,7 +204,7 @@ namespace CadToolkit.Core
             sb.AppendLine("11-\u586B\u5145=8|CONTINUOUS|Default|true");
             sb.AppendLine();
             sb.AppendLine("[LayerMap]");
-            sb.AppendLine("0-\u8BBE\u5907\u5C42=*\u8BBE\u5907*,0-4,VIS35");
+            sb.AppendLine("0-\u8BBE\u5907\u5C42=*\u8BBE\u5907*,0-4,*VIS*");
             sb.AppendLine("1-\u4E2D\u5FC3\u7EBF\u5C42=*\u4E2D\u5FC3*,*\u4E2D\u5FC3\u7EBF*,CENTER,0-1,1,AXIS,CLEARANCE");
             sb.AppendLine("2-\u865A\u7EBF\u5C42=*\u865A\u7EBF*,HIDDEN,DASH,HID");
             sb.AppendLine("3-\u6587\u5B57\u5C42=*\u6587\u5B57*,*\u8BF4\u660E*,*\u7F16\u53F7*,TEXT,txt");
