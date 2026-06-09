@@ -177,6 +177,58 @@ if (text !== '') throw new Error(`Expected empty actual location, got ${text}`);
     assert result.returncode == 0, result.stderr
 
 
+def test_actual_location_appends_address_only_when_map_key_is_configured():
+    script = r"""
+const fs = require('fs');
+const vm = require('vm');
+
+const sandbox = {
+  console,
+  location: { origin: 'http://127.0.0.1' },
+  localStorage: { getItem() { return null; } },
+  setTimeout() {},
+  document: {
+    getElementById() { return { textContent: '', innerHTML: '', classList: { add() {}, remove() {} } }; },
+    createElement() { return { click() {} }; },
+  },
+  URL: { createObjectURL() { return 'blob:'; }, revokeObjectURL() {} },
+};
+sandbox.window = sandbox;
+vm.createContext(sandbox);
+vm.runInContext(fs.readFileSync('frontend/js/utils.js', 'utf8'), sandbox, { filename: 'frontend/js/utils.js' });
+for (const key of Object.keys(sandbox.OT)) sandbox[key] = sandbox.OT[key];
+
+const record = {
+  out_of_range: 1,
+  lat: 31.24,
+  lng: 121.48,
+  accuracy: 42,
+  address: '上海市黄浦区测试路',
+};
+
+sandbox.OT.settings = sandbox.settings = { lat: 31.23, lng: 121.47 };
+const withoutKey = sandbox.OT.actualLocationText(record);
+if (withoutKey.includes('地址')) throw new Error(`Address should not be included without map key: ${withoutKey}`);
+if (withoutKey !== '31.240000,121.480000; 精度 42m; 距离 1463m') throw new Error(`Unexpected location without key: ${withoutKey}`);
+
+sandbox.OT.settings = sandbox.settings = { lat: 31.23, lng: 121.47, mapKey: 'test-key' };
+const withKey = sandbox.OT.actualLocationText(record);
+if (withKey !== '31.240000,121.480000; 精度 42m; 距离 1463m; 地址 上海市黄浦区测试路') {
+  throw new Error(`Unexpected location with key: ${withKey}`);
+}
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_personal_and_manager_exports_download_unified_csv():
     script = r"""
 (async () => {
