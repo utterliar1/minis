@@ -51,6 +51,7 @@ namespace CadToolkit.Core
                     return;
                 }
                 EnsureRootDefaults();
+                EnsureOfficialCommands();
             }
             catch (Exception ex) { LogConfigError("EnsureConfig failed: " + ex.Message); }
         }
@@ -79,6 +80,43 @@ namespace CadToolkit.Core
 
             if (changed)
                 lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
+        }
+
+        static void EnsureOfficialCommands()
+        {
+            var lines = new List<string>(File.ReadAllLines(IniPath, Encoding.UTF8));
+            if (HasConfigKey(lines, "改块基点")) return;
+
+            int commandsHeader = -1;
+            int insertAt = -1;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                string trimmed = lines[i].Trim();
+                if (trimmed.Equals("[Commands]", StringComparison.OrdinalIgnoreCase))
+                {
+                    commandsHeader = i;
+                    insertAt = i + 1;
+                    continue;
+                }
+                if (commandsHeader >= 0)
+                {
+                    if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                        break;
+                    if (trimmed.Equals("快捷建块=CT_QUICKBLOCK", StringComparison.OrdinalIgnoreCase))
+                    {
+                        insertAt = i + 1;
+                        break;
+                    }
+                    if (trimmed.Length > 0)
+                        insertAt = i + 1;
+                }
+            }
+
+            if (commandsHeader < 0) return;
+            if (insertAt < 0) insertAt = lines.Count;
+
+            lines.Insert(insertAt, "改块基点=CT_CHANGEBASEPOINT");
+            lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
         }
 
         static bool HasConfigKey(List<string> lines, string key)
