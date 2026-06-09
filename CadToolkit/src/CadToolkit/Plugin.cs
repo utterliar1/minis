@@ -571,6 +571,24 @@ namespace CadToolkit
             return nodes.ToArray();
         }
 
+        static string FormatLayerPlanTreeReport(TreeNode[] nodes)
+        {
+            var sb = new StringBuilder();
+            if (nodes == null) return "";
+            foreach (TreeNode node in nodes)
+                AppendLayerPlanTreeReportNode(sb, node, 0);
+            return sb.ToString();
+        }
+
+        static void AppendLayerPlanTreeReportNode(StringBuilder sb, TreeNode node, int depth)
+        {
+            if (sb == null || node == null) return;
+            if (depth > 0) sb.Append(new string(' ', depth * 2));
+            sb.AppendLine(SafeStr(node.Text));
+            foreach (TreeNode child in node.Nodes)
+                AppendLayerPlanTreeReportNode(sb, child, depth + 1);
+        }
+
         static TreeNode CloneLayerPlanNodeMatches(TreeNode node, string needle)
         {
             bool selfMatches = NodeTextContains(node, needle);

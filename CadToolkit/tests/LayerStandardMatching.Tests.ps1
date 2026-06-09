@@ -160,6 +160,8 @@ $buildFilteredTree = $commandsType.GetMethod('BuildFilteredLayerPlanTreeNodes', 
 Assert-NotNull 'filtered tree preview helper exists' $buildFilteredTree
 $buildSearchTree = $commandsType.GetMethod('BuildSearchedLayerPlanTreeNodes', [Reflection.BindingFlags]'NonPublic, Static')
 Assert-NotNull 'searched tree preview helper exists' $buildSearchTree
+$formatTreeReport = $commandsType.GetMethod('FormatLayerPlanTreeReport', [Reflection.BindingFlags]'NonPublic, Static')
+Assert-NotNull 'tree report formatter exists' $formatTreeReport
 $filterType = $commandsType.GetNestedType('LayerPlanTreeFilter', [Reflection.BindingFlags]'NonPublic')
 Assert-NotNull 'tree preview filter enum exists' $filterType
 
@@ -233,6 +235,19 @@ Assert-Contains 'searched tree whitelist child text matches keyword' (Node-Text 
 $searchedNoMatch = $buildSearchTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $rules, $false, $filterAll, 'NO-SUCH-LAYER'))
 Assert-Equal 'searched tree without matches keeps summary only' 1 $searchedNoMatch.Length
 
+$searchedMigrationReportArgs = New-Object 'object[]' 1
+$searchedMigrationReportArgs[0] = [System.Windows.Forms.TreeNode[]]$searchedMigration
+$searchedMigrationReport = [string]$formatTreeReport.Invoke($null, $searchedMigrationReportArgs)
+Assert-Contains 'tree report includes visible migration child' $searchedMigrationReport 'TEXT-OLD-B'
+Assert-NotContains 'tree report excludes hidden migration child' $searchedMigrationReport 'TEXT-OLD-A'
+Assert-NotContains 'tree report excludes hidden unknown child' $searchedMigrationReport 'UNKNOWN-BIG'
+
+$unknownOnlyReportArgs = New-Object 'object[]' 1
+$unknownOnlyReportArgs[0] = [System.Windows.Forms.TreeNode[]]$filteredUnknownFallback
+$unknownOnlyReport = [string]$formatTreeReport.Invoke($null, $unknownOnlyReportArgs)
+Assert-Contains 'tree report follows current fallback state' $unknownOnlyReport '\u5C06\u5F52\u5230 0 \u5C42'
+Assert-NotContains 'tree report excludes migration section when unknown filter is active' $unknownOnlyReport '\u5C06\u8FC1\u79FB\u56FE\u5C42'
+
 $layerCommands = Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit\LayerCommands.cs') -Raw
 Assert-Contains 'layer standard gathers block/layout scopes' $layerCommands 'GetLayerStandardScopeIds'
 Assert-Contains 'layer standard migrates all gathered scopes' $layerCommands 'MoveLayerStandardEntities'
@@ -244,8 +259,10 @@ Assert-Contains 'layer standard preview has all filter button' $layerCommands '\
 Assert-Contains 'layer standard preview has unknown filter button' $layerCommands '\\u672a\\u8bc6\\u522b'
 Assert-Contains 'layer standard preview has migration filter button' $layerCommands '\\u5c06\\u8fc1\\u79fb'
 Assert-Contains 'layer standard preview has whitelist filter button' $layerCommands '\\u767d\\u540d\\u5355'
-Assert-Contains 'layer standard preview has copy report button' $layerCommands '\\u590d\\u5236\\u62a5\\u544a'
+Assert-Contains 'layer standard preview has copy current button' $layerCommands '\\u590d\\u5236\\u5f53\\u524d'
 Assert-Contains 'layer standard copy report uses clipboard' $layerCommands 'Clipboard\.SetText'
+Assert-Contains 'layer standard copy report formats current tree' $layerCommands 'FormatLayerPlanTreeReport'
+Assert-NotContains 'layer standard copy report no longer copies full plan directly' $layerCommands 'Clipboard\.SetText\(FormatLayerPlan\('
 Assert-NotContains 'layer standard no longer creates text preview variable' $layerCommands 'var\s+txt\s*=\s*new\s+TextBox\s*\('
 
 $projectConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.ini') -Raw
@@ -274,5 +291,7 @@ Assert-NotContains 'project config removes old contains-style layer map' $projec
 Assert-NotContains 'default config removes old contains-style layer map' $defaultConfig $oldEquipmentLinePattern
 Assert-Contains 'readme documents exact default matching' $readme '\u5168\u5B57\u5339\u914D'
 Assert-Contains 'manual documents exact default matching' $manual '\u5168\u5B57\u5339\u914D'
+Assert-Contains 'readme documents copying current layer preview' $readme '\u590D\u5236\u5F53\u524D'
+Assert-Contains 'manual documents copying current layer preview' $manual '\u590D\u5236\u5F53\u524D'
 Assert-NotContains 'readme removes old contains alias wording' $readme '\u53EA\u8981\u5305\u542B\u67D0\u4E2A\u522B\u540D'
 Assert-NotContains 'manual removes old contains alias wording' $manual '\u53EA\u8981\u5305\u542B\u67D0\u4E2A\u522B\u540D'

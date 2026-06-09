@@ -157,18 +157,18 @@ namespace CadToolkit
             search.TextChanged += delegate { BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked, previewFilter, search.Text); };
 
             var copy = new Button();
-            copy.Text = "\u590d\u5236\u62a5\u544a";
+            copy.Text = "\u590d\u5236\u5f53\u524d";
             copy.Left = UiScale(336); copy.Top = UiScale(500); copy.Width = UiScale(88); copy.Height = UiScale(28); copy.FlatStyle = FlatStyle.System;
             copy.Click += delegate
             {
                 try
                 {
-                    Clipboard.SetText(FormatLayerPlan(plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked));
-                    MessageBox.Show("\u5df2\u590d\u5236\u62a5\u544a\u3002", "\u63d0\u793a", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Clipboard.SetText(FormatLayerPlanTreeReport(BuildSearchedLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked, previewFilter, search.Text)));
+                    MessageBox.Show("\u5df2\u590d\u5236\u5f53\u524d\u89c6\u56fe\u3002", "\u63d0\u793a", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (System.Exception ex)
                 {
-                    MessageBox.Show("\u590d\u5236\u62a5\u544a\u5931\u8d25\uff1a" + ex.Message, "\u63d0\u793a", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("\u590d\u5236\u5f53\u524d\u89c6\u56fe\u5931\u8d25\uff1a" + ex.Message, "\u63d0\u793a", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             };
 
