@@ -119,10 +119,10 @@ OT.showExportDialog = function showExportDialog(){
   const isAdmin=currentUser&&currentUser.role==='admin';
   let html=`<div class="modal-title">📥 导出工时报表</div>`;
   if(isAdmin){
-    html+=`<div style="margin-bottom:12px"><label style="font-size:13px;color:var(--text-sec);display:block;margin-bottom:4px">人员</label><select id="exp-uid" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit"><option value="all">所有人</option></select></div>`;
+    html+=`<div class="export-modal-field"><label class="export-modal-label">人员</label><select id="exp-uid" class="export-modal-select"><option value="all">所有人</option></select></div>`;
   }
-  html+=`<div style="margin-bottom:12px"><label style="font-size:13px;color:var(--text-sec);display:block;margin-bottom:4px">时间范围</label><select id="exp-period" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit"><option value="month">本月</option><option value="today">今日</option><option value="week">本周</option><option value="all">全部</option><option value="range">自定义日期...</option></select></div>`;
-  html+=`<div id="exp-range-box" style="display:none;margin-bottom:12px"><div style="display:flex;gap:8px"><input type="date" id="exp-from" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit"><input type="date" id="exp-to" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit"></div></div>`;
+  html+=`<div class="export-modal-field"><label class="export-modal-label">时间范围</label><select id="exp-period" class="export-modal-select"><option value="month">本月</option><option value="today">今日</option><option value="week">本周</option><option value="all">全部</option><option value="range">自定义日期...</option></select></div>`;
+  html+=`<div id="exp-range-box" class="export-range-box"><div class="export-range-row"><input type="date" id="exp-from" class="export-date-input"><input type="date" id="exp-to" class="export-date-input"></div></div>`;
   html+=`<button class="btn btn-primary btn-block" onclick="doUnifiedExport()">📥 导出 CSV</button>`;
   showModal(html);
   if(isAdmin){api('/users').then(d=>{const sel=document.getElementById('exp-uid');d.users.filter(u=>u.username!=='admin').forEach(u=>{sel.innerHTML+=`<option value="${escapeHtml(u.username)}">${escapeHtml(u.display_name)}</option>`})})}
