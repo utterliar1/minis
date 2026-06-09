@@ -24,6 +24,7 @@ Object.assign(window, {
   bjNow: OT.bjNow,
   bjTimeStr: OT.bjTimeStr,
   bjWeekday: OT.bjWeekday,
+  buildExportCsv: OT.buildExportCsv,
   buildTabNav: OT.buildTabNav,
   calcTodayOT: OT.calcTodayOT,
   calendarKey: OT.calendarKey,
@@ -33,6 +34,7 @@ Object.assign(window, {
   closeModalDirect: OT.closeModalDirect,
   confirmLoc: OT.confirmLoc,
   csvCell: OT.csvCell,
+  csvHourText: OT.csvHourText,
   dateKey: OT.dateKey,
   delUser: OT.delUser,
   deleteWL: OT.deleteWL,
@@ -46,10 +48,12 @@ Object.assign(window, {
   downloadBlob: OT.downloadBlob,
   enterApp: OT.enterApp,
   escapeHtml: OT.escapeHtml,
+  exportRowFromGroup: OT.exportRowFromGroup,
   exportMyRecords: OT.exportMyRecords,
   fmtMin: OT.fmtMin,
   formatMinutes: OT.formatMinutes,
   getLastTodayRecord: OT.getLastTodayRecord,
+  groupExportRecords: OT.groupExportRecords,
   getWorkMinutes: OT.getWorkMinutes,
   handleClock: OT.handleClock,
   haversineDistance: OT.haversineDistance,
@@ -106,12 +110,12 @@ Object.assign(window, {
     // 管理员登录页：隐藏注册 tab，显示管理员指南
     const tabReg = document.getElementById('tab-register');
     if(tabReg) tabReg.style.display = 'none';
-    guideLinks.innerHTML = '<a href="/使用指南.html?v=7" style="color:#4F46E5;text-decoration:underline;margin:0 8px">📋 使用指南</a><a href="/管理员使用指南.html?v=7" style="color:#4F46E5;text-decoration:underline;margin:0 8px">🔧 管理员指南</a>';
+    guideLinks.innerHTML = '<a href="/使用指南.html?v=8" style="color:#4F46E5;text-decoration:underline;margin:0 8px">📋 使用指南</a><a href="/管理员使用指南.html?v=8" style="color:#4F46E5;text-decoration:underline;margin:0 8px">🔧 管理员指南</a>';
   } else {
     // 成员登录页：显示注册 tab（需要管理员先加入白名单）
     const tabReg = document.getElementById('tab-register');
     if(tabReg) tabReg.style.display = '';
-    guideLinks.innerHTML = '<a href="/使用指南.html?v=7" style="color:#4F46E5;text-decoration:underline;margin:0 8px">📋 使用指南</a>';
+    guideLinks.innerHTML = '<a href="/使用指南.html?v=8" style="color:#4F46E5;text-decoration:underline;margin:0 8px">📋 使用指南</a>';
   }
 })();
 

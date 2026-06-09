@@ -155,28 +155,8 @@ OT.exportCsv = async function exportCsv(uid, period, from='', to=''){
     const data=await api(url);
     const recs=data.records||[];
     if(!recs.length){showToast('暂无数据');return false}
-    // Group by (display_name, date)
-    const groups={};
-    recs.forEach(r=>{
-      const key=(r.display_name||r.user_id)+'|'+r.date;
-      if(!groups[key])groups[key]={name:r.display_name||r.user_id,date:r.date,records:[]};
-      groups[key].records.push(r);
-    });
-    const header='姓名,日期,星期,上班,下班,类型,事由,远程,工时(分),工时(h)\n';
-    const rows=Object.values(groups).map(g=>{
-      const d=new Date(g.date+'T12:00:00');
-      const wd=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
-      const sorted=g.records.sort((a,b)=>a.ts-b.ts);
-      const fi=sorted.find(r=>r.type==='in');
-      const lo=[...sorted].reverse().find(r=>r.type==='out');
-      const reasons=sorted.filter(r=>r.note).map(r=>r.note).filter(Boolean).join('; ');
-      const remote=sorted.some(r=>Number(r.out_of_range)===1)?'是':'';
-      const isWork=isWorkingDay(d);
-      const ot=calcTodayOT(sorted,d);
-      const hrs=ot>=60?Math.floor(ot/60)+'h'+(ot%60?ot%60+'m':''):ot+'m';
-      return [csvCell(g.name),csvCell(g.date),csvCell(wd),csvCell(fi?(fi.time_str||'').slice(0,5):''),csvCell(lo?(lo.time_str||'').slice(0,5):''),csvCell(isWork?'工作日':'休息日'),csvCell(reasons),csvCell(remote),ot,csvCell(hrs)].join(',');
-    }).join('\n');
-    downloadBlob(new Blob(['\uFEFF'+header+rows],{type:'text/csv;charset=utf-8'}),`工时报表_${uid||'me'}_${period}_${dateKey(bjNow())}.csv`);
+    const csv=OT.buildExportCsv(recs);
+    downloadBlob(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}),`工时报表_${uid||'me'}_${period}_${dateKey(bjNow())}.csv`);
     showToast('📥 已导出');
     return true;
   }catch(e){showToast('❌ '+e.message);return false}

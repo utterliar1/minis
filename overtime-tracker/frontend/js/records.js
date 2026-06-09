@@ -34,12 +34,8 @@ OT.renderRecordsList = function renderRecordsList(dg){
 
 OT.exportMyRecords = async function exportMyRecords(){
   try{const d=await api('/records');const recs=d.records||[];if(!recs.length){showToast('暂无数据');return}
-    const dg={};recs.forEach(r=>{if(!dg[r.date])dg[r.date]=[];dg[r.date].push(r)});
-    let csv='日期,上班,下班,类型,工时(分)\n';
-    Object.keys(dg).sort().reverse().forEach(date=>{
-      const recs=dg[date],d=new Date(date+'T12:00:00'),fi=recs.find(r=>r.type==='in'),lo=[...recs].reverse().find(r=>r.type==='out'),ot=calcTodayOT(recs,d),wk=isWorkingDay(d)?'工作日':'休息日';
-      csv+=`${date},${fi?(fi.time_str||'').slice(0,5):''},${lo?(lo.time_str||'').slice(0,5):''},${wk},${ot}\n`;
-    });
+    const dn=(currentUser&&currentUser.displayName)||'';
+    const csv=OT.buildExportCsv(recs.map(r=>({...r,display_name:r.display_name||dn||r.user_id})));
     downloadBlob(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}),`我的工时记录_${dateKey(new Date())}.csv`);showToast('📤 已导出');
   }catch(e){showToast('导出失败')}
 };

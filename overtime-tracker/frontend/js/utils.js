@@ -25,6 +25,58 @@ OT.safeToken = function safeToken(v){return encodeURIComponent(String(v??'')).re
 
 OT.csvCell = function csvCell(v){return `"${String(v??'').replace(/"/g,'""')}"`};
 
+OT.csvHourText = function csvHourText(minutes){
+  const m=Math.max(0,Number(minutes)||0),h=Math.floor(m/60),mm=m%60;
+  if(h<=0)return `${mm}m`;
+  return mm?`${h}h${mm}m`:`${h}h`;
+};
+
+OT.groupExportRecords = function groupExportRecords(records){
+  const groups={};
+  (records||[]).forEach(r=>{
+    const key=(r.display_name||r.user_id||'')+'|'+r.date;
+    if(!groups[key])groups[key]={name:r.display_name||r.user_id||'',date:r.date,records:[]};
+    groups[key].records.push(r);
+  });
+  return Object.values(groups).sort((a,b)=>a.date===b.date?String(a.name).localeCompare(String(b.name)):String(a.date).localeCompare(String(b.date)));
+};
+
+OT.exportRowFromGroup = function exportRowFromGroup(group){
+  const d=new Date(group.date+'T12:00:00');
+  const wd=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+  const sorted=[...group.records].sort((a,b)=>a.ts-b.ts);
+  const fi=sorted.find(r=>r.type==='in');
+  const lo=[...sorted].reverse().find(r=>r.type==='out');
+  const reasons=sorted.filter(r=>r.note).map(r=>r.note).filter(Boolean).join('; ');
+  const remote=sorted.some(r=>Number(r.out_of_range)===1);
+  const minutes=OT.calcTodayOT(sorted,d);
+  return {
+    name: group.name,
+    date: group.date,
+    weekday: wd,
+    firstIn: fi?(fi.time_str||'').slice(0,5):'',
+    lastOut: lo?(lo.time_str||'').slice(0,5):'',
+    type: OT.isWorkingDay(d)?'工作日':'休息日',
+    reasons,
+    remoteText: remote?'是':'',
+    remote,
+    minutes,
+    hours: OT.csvHourText(minutes)
+  };
+};
+
+OT.buildExportCsv = function buildExportCsv(records){
+  const rows=OT.groupExportRecords(records).map(OT.exportRowFromGroup);
+  const detailLines=rows.map(r=>[
+    OT.csvCell(r.name),OT.csvCell(r.date),OT.csvCell(r.weekday),OT.csvCell(r.firstIn),OT.csvCell(r.lastOut),
+    OT.csvCell(r.type),OT.csvCell(r.reasons),OT.csvCell(r.remoteText),r.minutes,OT.csvCell(r.hours)
+  ].join(','));
+  const totalMinutes=rows.reduce((sum,r)=>sum+r.minutes,0);
+  const remoteDays=rows.filter(r=>r.remote).length;
+  const summary=[OT.csvCell('汇总'),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(`远程天数 ${remoteDays}`),totalMinutes,OT.csvCell(OT.csvHourText(totalMinutes))].join(',');
+  return '姓名,日期,星期,上班,下班,类型,事由,远程,工时(分),工时(h)\n'+detailLines.concat(summary).join('\n');
+};
+
 OT.geoErrorMessage = function geoErrorMessage(err){
   const code=err&&Number(err.code);
   const msg=String(err&&err.message||'').toLowerCase();
