@@ -397,6 +397,8 @@ namespace CadToolkit
             {
                 tree.Nodes.Clear();
                 tree.Nodes.AddRange(BuildSearchedLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0, filter, searchText));
+                if (filter != LayerPlanTreeFilter.All || SafeStr(searchText).Trim().Length > 0)
+                    tree.ExpandAll();
             }
             finally
             {
