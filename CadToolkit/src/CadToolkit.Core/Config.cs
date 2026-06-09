@@ -143,6 +143,7 @@ namespace CadToolkit.Core
             sb.AppendLine("# \u56FE\u5757\u64CD\u4F5C");
             sb.AppendLine("\u91CD\u547D\u540D\u5757=CT_RENAMEBLOCK");
             sb.AppendLine("\u5FEB\u6377\u5EFA\u5757=CT_QUICKBLOCK");
+            sb.AppendLine("\u6539\u5757\u57FA\u70B9=CT_CHANGEBASEPOINT");
             sb.AppendLine("\u6309\u5757\u9009\u62E9=CT_SELECTBYBLOCK");
             sb.AppendLine("# \u7ED8\u56FE\u6807\u6CE8");
             sb.AppendLine("\u753B\u4E2D\u5FC3\u7EBF=CT_CENTERLINE");

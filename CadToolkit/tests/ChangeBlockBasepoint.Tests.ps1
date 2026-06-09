@@ -38,11 +38,14 @@ $changeBody = $changeBlockBasepointMatch.Value
 
 Assert-Contains 'change basepoint asks for block reference' $changeBody 'AddAllowedClass\(typeof\(BlockReference\),\s*true\)'
 Assert-Contains 'change basepoint asks for new base point' $changeBody '指定新的块基点'
-Assert-Contains 'change basepoint converts world point to definition coordinates' $changeBody 'BlockTransform\.Inverse\(\)'
+Assert-Contains 'change basepoint converts world point to definition coordinates' $changeBody 'TransformPointByInverse\([^,]+,\s*selectedBr\.BlockTransform\)'
 Assert-Contains 'change basepoint updates block definition origin' $changeBody '\.Origin\s*='
-Assert-Contains 'change basepoint compensates references by position' $changeBody '(\.Position\s*=[\s\S]*(GetVectorTo|Vector3d|TransformBy))|((GetVectorTo|Vector3d|TransformBy)[\s\S]*\.Position\s*=)'
+Assert-Contains 'change basepoint transforms old base point per reference' $changeBody 'oldOrigin\.TransformBy\(br\.BlockTransform\)'
+Assert-Contains 'change basepoint transforms new base point per reference' $changeBody 'newOrigin\.TransformBy\(br\.BlockTransform\)'
+Assert-Contains 'change basepoint compensates references by position' $changeBody 'VectorBetween\(oldBasePoint,\s*newBasePoint\)[\s\S]*\.Position\s*=\s*AddVector\([^,]+\.Position'
 Assert-Contains 'change basepoint counts affected references' $changeBody 'affectedReferences'
 Assert-Contains 'change basepoint rejects unsupported block records' $blockCommands 'CanChangeBlockBasepoint'
+Assert-Contains 'change basepoint inverse helper avoids direct SDK-only call' $blockCommands 'static\s+Point3d\s+TransformPointByInverse'
 Assert-Contains 'change basepoint scans all block references' $blockCommands 'GetBlockReferencesForDefinition'
 
 Assert-ContainsLiteral 'project config contains command label' $projectConfig '改块基点=CT_CHANGEBASEPOINT'

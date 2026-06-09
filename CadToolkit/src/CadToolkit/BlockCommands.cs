@@ -182,9 +182,7 @@ namespace CadToolkit
                 tr.Commit();
             }
 
-            var ppo = new PromptPointOptions("\n指定新的块基点：");
-            ppo.AllowNone = false;
-            var ppr = Ed.GetPoint(ppo);
+            var ppr = Ed.GetPoint("\n指定新的块基点：");
             if (ppr.Status != PromptStatus.OK) return;
 
             bool changed = RunWithUndo("CT_CHANGEBASEPOINT", delegate
@@ -200,7 +198,7 @@ namespace CadToolkit
                     }
 
                     Point3d oldOrigin = selectedBtr.Origin;
-                    Point3d newOrigin = ppr.Value.TransformBy(selectedBr.BlockTransform.Inverse());
+                    Point3d newOrigin = TransformPointByInverse(ppr.Value, selectedBr.BlockTransform);
                     referenceIds = GetBlockReferencesForDefinition(tr, blockDefId);
 
                     var shifts = new Dictionary<ObjectId, Vector3d>();
@@ -210,7 +208,7 @@ namespace CadToolkit
                         if (br == null) continue;
                         Point3d oldBasePoint = oldOrigin.TransformBy(br.BlockTransform);
                         Point3d newBasePoint = newOrigin.TransformBy(br.BlockTransform);
-                        shifts[id] = oldBasePoint.GetVectorTo(newBasePoint);
+                        shifts[id] = VectorBetween(oldBasePoint, newBasePoint);
                     }
 
                     selectedBtr.Origin = newOrigin;
@@ -220,7 +218,7 @@ namespace CadToolkit
                         var br = tr.GetObject(pair.Key, OpenMode.ForWrite) as BlockReference;
                         if (br == null) continue;
                         Vector3d shift = pair.Value;
-                        br.Position = br.Position + shift;
+                        br.Position = AddVector(br.Position, shift);
                     }
 
                     tr.Commit();
@@ -247,6 +245,31 @@ namespace CadToolkit
                 return false;
             }
             return true;
+        }
+
+        static Point3d TransformPointByInverse(Point3d point, Matrix3d matrix)
+        {
+            try
+            {
+                var method = typeof(Matrix3d).GetMethod("Inverse", new Type[0]);
+                if (method != null)
+                {
+                    var inverse = (Matrix3d)method.Invoke(matrix, null);
+                    return point.TransformBy(inverse);
+                }
+            }
+            catch (System.Exception ex) { Log("Transform point by inverse failed: " + ex.Message); }
+            return point;
+        }
+
+        static Vector3d VectorBetween(Point3d fromPoint, Point3d toPoint)
+        {
+            return new Vector3d(toPoint.X - fromPoint.X, toPoint.Y - fromPoint.Y, toPoint.Z - fromPoint.Z);
+        }
+
+        static Point3d AddVector(Point3d point, Vector3d vector)
+        {
+            return new Point3d(point.X + vector.X, point.Y + vector.Y, point.Z + vector.Z);
         }
 
         static ObjectId[] GetBlockReferencesForDefinition(Transaction tr, ObjectId blockDefId)
