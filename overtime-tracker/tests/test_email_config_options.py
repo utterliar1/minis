@@ -1,6 +1,7 @@
 import importlib
 import sys
 from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -105,3 +106,29 @@ def test_email_config_put_preserves_masked_password_and_saves_options(monkeypatc
         assert config["report_content"] == "summary_csv"
         assert config["member_filter"] == "with_records"
         assert config["include_out_of_range"] == 1
+
+
+def test_email_config_get_includes_next_schedule_display(monkeypatch, tmp_path):
+    with load_app(monkeypatch, tmp_path) as app_module:
+        fixed_now = datetime(2026, 6, 9, 15, 0, tzinfo=timezone(timedelta(hours=8)))
+        monkeypatch.setattr(app_module, "bj_now", lambda: fixed_now)
+        client = app_module.app.test_client()
+        token = login(client, "admin", "admin123")
+
+        response = client.put(
+            "/api/email-config",
+            headers=auth_headers(token),
+            json={
+                "enabled": 1,
+                "schedule_frequency": "weekly",
+                "schedule_weekday": 5,
+                "schedule_hour": 8,
+                "schedule_minute": 45,
+            },
+        )
+        assert response.status_code == 200
+
+        config = client.get("/api/email-config", headers=auth_headers(token)).get_json()["config"]
+
+        assert config["next_schedule_at"] == "2026-06-12T08:45:00+08:00"
+        assert config["next_schedule_text"] == "2026-06-12 08:45"

@@ -70,6 +70,7 @@ sandbox.OT.api = sandbox.api = async function(path, opts) {
       report_content: 'summary_csv',
       member_filter: 'with_records',
       include_out_of_range: 1,
+      next_schedule_text: '2026-06-12 08:45',
     }};
   }
   if (path === '/email-config' && opts && opts.method === 'PUT') {
@@ -88,6 +89,7 @@ sandbox.OT.api = sandbox.api = async function(path, opts) {
   if (element('email-report-content').value !== 'summary_csv') throw new Error('report content not loaded');
   if (element('email-member-filter').value !== 'with_records') throw new Error('member filter not loaded');
   if (!element('email-include-out-of-range').className.includes('on')) throw new Error('range toggle not loaded');
+  if (element('email-next-send-at').textContent !== '2026-06-12 08:45') throw new Error('next schedule not loaded');
 
   element('email-frequency').value = 'monthly';
   sandbox.OT.toggleEmailScheduleMode();

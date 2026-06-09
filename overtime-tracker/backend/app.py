@@ -544,6 +544,7 @@ def api_get_email_config():
     d = normalize_email_config(dict(row))
     d['recipients'] = json.loads(d.get('recipients','[]'))
     d['schedule_month_day'] = str(d.get('schedule_month_day', 'last'))
+    d['next_schedule_at'], d['next_schedule_text'] = email_next_schedule_display(d)
     if d.get('smtp_pass'): d['smtp_pass'] = '••••••'  # Mask password
     return jsonify(config=d)
 
@@ -839,6 +840,13 @@ def next_schedule_time(cfg, now):
     if target <= now:
         target += timedelta(days=1)
     return target
+
+
+def email_next_schedule_display(cfg, now=None):
+    if not int(cfg.get('enabled') or 0):
+        return None, "\u672a\u5f00\u542f"
+    target = next_schedule_time(cfg, now or bj_now())
+    return target.isoformat(), target.strftime("%Y-%m-%d %H:%M")
 
 
 

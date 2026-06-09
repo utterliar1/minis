@@ -1,3 +1,4 @@
+from html import unescape
 from pathlib import Path
 
 
@@ -7,8 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_docker_image_includes_guide_pages_in_static_root():
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
 
-    assert "使用指南.html" in dockerfile
-    assert "管理员使用指南.html" in dockerfile
+    assert "\u4f7f\u7528\u6307\u5357.html" in dockerfile
+    assert "\u7ba1\u7406\u5458\u4f7f\u7528\u6307\u5357.html" in dockerfile
     assert "/app/frontend/" in dockerfile
 
 
@@ -72,8 +73,22 @@ def test_email_page_exposes_schedule_and_report_option_controls():
         'id="email-report-content"',
         'id="email-member-filter"',
         'id="email-include-out-of-range"',
+        'id="email-next-send-at"',
     ]:
         assert token in index
+
+
+def test_email_page_uses_clear_location_summary_copy_and_next_send_label():
+    index = unescape((ROOT / "frontend" / "index.html").read_text(encoding="utf-8"))
+    guide = unescape((ROOT / "\u7ba1\u7406\u5458\u4f7f\u7528\u6307\u5357.html").read_text(encoding="utf-8"))
+
+    assert "\u4e0b\u6b21\u53d1\u9001\u65f6\u95f4" in index
+    assert "\u8303\u56f4\u5916\u4f4d\u7f6e\u6458\u8981" in index
+    assert "\u8303\u56f4\u5916\u6458\u8981" not in index
+
+    assert "\u8303\u56f4\u5916\u4f4d\u7f6e\u6458\u8981" in guide
+    assert "\u5b9a\u4f4d\u8303\u56f4\u5916\u8bb0\u5f55" in guide
+    assert "\u8303\u56f4\u5916\u6458\u8981" not in guide
 
 
 def test_static_asset_cache_version_is_current_and_consistent():
@@ -89,7 +104,9 @@ def test_static_asset_cache_version_is_current_and_consistent():
     assert "ot-tracker-v13" not in sw
     assert "v=14" not in index + app + sw
     assert "ot-tracker-v14" not in sw
-    assert 'ot-tracker-v15' in sw
+    assert "v=15" not in index + app + sw
+    assert "ot-tracker-v15" not in sw
+    assert "ot-tracker-v16" in sw
     for asset in [
         "/css/style.css",
         "/js/utils.js",
@@ -99,8 +116,7 @@ def test_static_asset_cache_version_is_current_and_consistent():
         "/js/clock.js",
         "/js/admin.js",
         "/js/app.js",
-        "/使用指南.html",
-        "/管理员使用指南.html",
+        "/\u4f7f\u7528\u6307\u5357.html",
+        "/\u7ba1\u7406\u5458\u4f7f\u7528\u6307\u5357.html",
     ]:
-        assert f"{asset}?v=15" in index + app + sw
-
+        assert f"{asset}?v=16" in index + app + sw
