@@ -108,17 +108,22 @@
   </div>
   <div class="step">
     <div class="step-num">2</div>
-    <div class="step-text"><strong>上班打卡</strong><br>点击蓝色「打卡上班」按钮<br>系统会弹窗让你填写<strong>事由</strong>（填你在做什么工作）</div>
+    <div class="step-text"><strong>上班打卡</strong><br>点击蓝色「打卡上班」按钮<br>系统会弹窗让你先选择<strong>工作类别</strong>，再填写<strong>事由</strong>（说明具体工作内容）</div>
   </div>
   <div class="step">
     <div class="step-num">3</div>
     <div class="step-text"><strong>下班打卡</strong><br>点击红色「打卡下班」按钮<br>下班打卡不需要重复填写事由，系统会自动与上班记录配对计算工时</div>
   </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-text"><strong>需要复核时填写下班说明</strong><br>如果上班和下班位置不一致，或记录跨天结束，系统会弹出下班说明。跨天时可选择「实际工作持续到次日」「忘记下班打卡，当前补记」「定位或设备原因导致延后记录」「跨天且结束位置变化」或「其他」。</div>
+  </div>
   <div class="warn">⚠️ <strong>打卡注意事项：</strong>
     <ul>
       <li>必须在公司 GPS 范围内才能打卡（状态显示「✅ 范围内」）</li>
       <li>如果显示「❌ 范围外」，可能是 GPS 漂移，可以点击确认强制打卡</li>
-      <li>上班打卡需要填写事由，下班打卡不需要重复填写事由</li>
+      <li>上班打卡需要填写事由，并需要先选择工作类别；下班打卡不需要重复填写事由</li>
+      <li>位置不一致或跨天记录会生成复核标记，管理员会根据下班说明线下确认</li>
       <li>同一天可以多次打卡（上班→下班→再上班→再下班）</li>
     </ul>
   </div>
@@ -142,8 +147,9 @@
   <ul>
     <li><strong>本周/本月/累计</strong>工时</li>
     <li><strong>月度趋势</strong>：查看工时变化</li>
-    <li><strong>导出</strong>：点击右上角「📤 导出」可以导出自己的 CSV 报表，包含事由、远程标记、实际位置和汇总行；实际位置默认显示经纬度、精度和距离，配置地图 Key 后可追加地址</li>
+    <li><strong>导出</strong>：点击右上角「📤 导出」可以导出自己的 CSV 报表，包含姓名、日期、星期、上班、下班、类型、工作类别、事由、下班说明、远程、实际位置、复核标记、工时和汇总行；实际位置默认显示经纬度、精度和距离，配置地图 Key 后可追加地址</li>
   </ul>
+  <div class="tip">💡 <strong>复核标记：</strong>上班和下班范围状态不同会显示「位置不一致」；跨天结束会显示「跨天」；两种情况同时出现时显示「位置不一致；跨天」。</div>
 </div>
 
 <div class="divider"></div>
@@ -168,7 +174,10 @@
   <div class="a">A：联系管理员重置密码。</div>
 
   <div class="q">Q：下班忘记打卡了？</div>
-  <div class="a">A：补打卡即可，系统会自动计算工作时长。但尽量及时打卡，避免遗漏。</div>
+  <div class="a">A：补打卡即可。跨天补记时请选择「忘记下班打卡，当前补记」并补充实际情况；系统会保留原始记录时间并标记「跨天」，由管理员根据下班说明线下确认。</div>
+
+  <div class="q">Q：为什么下班时要求填写下班说明？</div>
+  <div class="a">A：通常是因为位置不一致或跨天结束。请按实际情况选择快捷说明，例如「实际工作持续到次日」或「忘记下班打卡，当前补记」。</div>
 </div>
 
 <div class="card" style="text-align:center">
