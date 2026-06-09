@@ -11,6 +11,10 @@ $workflow = Get-Content -Encoding UTF8 (Join-Path $repo '.github\workflows\cadto
 $projectConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.ini') -Raw
 $defaultConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.default.ini') -Raw
 $configSource = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit.Core\Config.cs') -Raw
+$assemblyInfo = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit.Core\Properties\AssemblyInfo.cs') -Raw
+$autoload = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\autoload.lsp') -Raw
+$manualFileName = 'CadToolkit' + (-join ([char[]](0x4F7F, 0x7528, 0x624B, 0x518C))) + '.html'
+$manual = Get-Content -Encoding UTF8 (Join-Path (Join-Path $repo 'CadToolkit') $manualFileName) -Raw
 $parseErrors = $null
 [System.Management.Automation.Language.Parser]::ParseFile($deployLocalPath, [ref]$null, [ref]$parseErrors) | Out-Null
 
@@ -67,3 +71,10 @@ Assert-NotContains 'release package does not include user config name' $workflow
 Assert-NotContains 'project config omits version marker' $projectConfig '(?m)^Version='
 Assert-NotContains 'default config omits version marker' $defaultConfig '(?m)^Version='
 Assert-NotContains 'embedded default config omits version marker' $configSource 'AppendLine\("Version='
+Assert-Contains 'assembly version is 1.25' $assemblyInfo 'AssemblyVersion\("1\.25\.0\.0"\)'
+Assert-Contains 'assembly file version is 1.25' $assemblyInfo 'AssemblyFileVersion\("1\.25\.0\.0"\)'
+Assert-Contains 'config fallback version is v1.25' $configSource 'return "v1\.25";'
+Assert-Contains 'local deploy fallback version is v1.25' $deployLocal "return 'v1\.25'"
+Assert-Contains 'autoload announces v1.25' $autoload 'CadToolkit v1\.25 ready'
+Assert-Contains 'manual title uses v1.25' $manual 'CadToolkit v1\.25'
+Assert-NotContains 'manual no longer references v1.24' $manual 'v1\.24'
