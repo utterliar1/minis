@@ -191,15 +191,12 @@ OT.doOldExport = async function doOldExport(){
 OT.renderSettings = function renderSettings(){
   document.getElementById('set-location-name').textContent=settings.locationName||'未设置';
   document.getElementById('set-radius').value=settings.radius||500;
-  document.getElementById('set-work-start').value=settings.workStart||'09:00';
-  document.getElementById('set-work-end').value=settings.workEnd||'18:00';
-  document.getElementById('set-lunch-start').value=settings.lunchStart||'12:00';
-  document.getElementById('set-lunch-end').value=settings.lunchEnd||'13:00';
+  document.getElementById('set-work-start').value=settings.workStart||'08:30';
+  document.getElementById('set-work-end').value=settings.workEnd||'17:30';
   const dn=['日','一','二','三','四','五','六'];
   document.getElementById('set-weekdays').innerHTML=[0,1,2,3,4,5,6].map(d=>`<button class="weekday-chip ${(settings.weekdays||[1,2,3,4,5]).includes(d)?'on':''}" onclick="toggleWeekday(${d})">${dn[d]}</button>`).join('');
   renderHolidayTags();
-  document.getElementById('info-worktime').textContent=`${settings.workStart||'09:00'} - ${settings.workEnd||'18:00'}`;
-  document.getElementById('info-lunch').textContent=`${settings.lunchStart||'12:00'} - ${settings.lunchEnd||'13:00'}`;
+  document.getElementById('info-worktime').textContent=`${settings.workStart||'08:30'} - ${settings.workEnd||'17:30'}`;
   document.getElementById('info-radius').textContent=`${settings.radius||500} 米`;
   if(currentUser&&currentUser.role==='admin'){loadWhitelist();loadUserList();loadEmailConfig()}
 };
@@ -207,7 +204,7 @@ OT.renderSettings = function renderSettings(){
 OT.toggleWeekday = function toggleWeekday(d){if(!settings.weekdays)settings.weekdays=[1,2,3,4,5];const i=settings.weekdays.indexOf(d);if(i>=0)settings.weekdays.splice(i,1);else settings.weekdays.push(d);settings.weekdays.sort()};
 
 OT.saveSettings = async function saveSettings(){
-  settings.radius=+document.getElementById('set-radius').value;settings.workStart=document.getElementById('set-work-start').value;settings.workEnd=document.getElementById('set-work-end').value;settings.lunchStart=document.getElementById('set-lunch-start').value;settings.lunchEnd=document.getElementById('set-lunch-end').value;
+  settings.radius=+document.getElementById('set-radius').value;settings.workStart=document.getElementById('set-work-start').value;settings.workEnd=document.getElementById('set-work-end').value;delete settings['lunch'+'Start'];delete settings['lunch'+'End'];
   try{await api('/settings',{method:'PUT',body:JSON.stringify(settings)});showToast('✅ 设置已保存')}catch(e){showToast('❌ 保存失败')}
 };
 

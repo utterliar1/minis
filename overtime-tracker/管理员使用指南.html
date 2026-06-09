@@ -216,8 +216,7 @@
   <h3>工作时间</h3>
   <table>
     <tr><th>设置项</th><th>说明</th></tr>
-    <tr><td>上班/下班时间</td><td>标准工作时间（如 09:00 - 18:00）</td></tr>
-    <tr><td>午休开始/结束</td><td>午休时段（如 12:00 - 13:00），不计入工时</td></tr>
+    <tr><td>上班/下班时间</td><td>工作日常规时间（默认 08:30 - 17:30）</td></tr>
     <tr><td>工作日</td><td>选择哪几天是默认工作日（如周一至周五）</td></tr>
   </table>
 
@@ -241,7 +240,7 @@
   <h2>📐 工时计算规则</h2>
   <table>
     <tr><th>日期类型</th><th>计算方式</th></tr>
-    <tr><td><strong>工作日</strong> 超出下班时间</td><td>总在岗时间 - 标准工时(8h) - 午休(1h) = 工时</td></tr>
+    <tr><td><strong>工作日</strong></td><td>只统计上班时间之前、下班时间之后的记录时长</td></tr>
     <tr><td><strong>休息日/节假日</strong></td><td>全部在岗时间均计入工时</td></tr>
     <tr><td><strong>调休补班日</strong>（周末补班）</td><td>按工作日规则计算</td></tr>
   </table>
@@ -262,7 +261,7 @@
   <div class="a">A：检查 SMTP 配置，常见问题：授权码错误、服务器地址/端口不对、SSL 设置不匹配。点击「📧 测试」会显示具体错误。</div>
 
   <div class="q">Q：导出的工时数据不准确？</div>
-  <div class="a">A：工时 = 在岗时间 - 标准工时(8h) - 午休。确保工作时间设置正确。</div>
+  <div class="a">A：先确认工作时间、节假日、调休补班日设置是否正确；工作日只统计常规时间外，休息日/节假日整段计入。</div>
 
   <div class="q">Q：如何备份数据？</div>
   <div class="a">A：数据存储在服务器 <code>/root/overtime-tracker/data/overtime.db</code>，可直接拷贝备份。</div>

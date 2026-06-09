@@ -284,8 +284,7 @@
     </div>
     <div class="card">
       <div class="card-title">ℹ️ 考勤规则</div>
-      <div class="summary-row"><span class="label">工作时间</span><span class="value" id="info-worktime">09:00 - 18:00</span></div>
-      <div class="summary-row"><span class="label">午休时间</span><span class="value" id="info-lunch">12:00 - 13:00</span></div>
+      <div class="summary-row"><span class="label">工作时间</span><span class="value" id="info-worktime">08:30 - 17:30</span></div>
       <div class="summary-row"><span class="label">打卡范围</span><span class="value" id="info-radius">500 米</span></div>
     </div>
   </div>
@@ -339,10 +338,8 @@
 
     <div class="setting-group-title">⏰ 工作时间</div>
     <div class="setting-group">
-      <div class="setting-item"><span class="setting-label">上班时间</span><input class="setting-input" type="time" id="set-work-start" value="09:00" onchange="saveSettings()"></div>
-      <div class="setting-item"><span class="setting-label">下班时间</span><input class="setting-input" type="time" id="set-work-end" value="18:00" onchange="saveSettings()"></div>
-      <div class="setting-item"><span class="setting-label">午休开始</span><input class="setting-input" type="time" id="set-lunch-start" value="12:00" onchange="saveSettings()"></div>
-      <div class="setting-item"><span class="setting-label">午休结束</span><input class="setting-input" type="time" id="set-lunch-end" value="13:00" onchange="saveSettings()"></div>
+      <div class="setting-item"><span class="setting-label">上班时间</span><input class="setting-input" type="time" id="set-work-start" value="08:30" onchange="saveSettings()"></div>
+      <div class="setting-item"><span class="setting-label">下班时间</span><input class="setting-input" type="time" id="set-work-end" value="17:30" onchange="saveSettings()"></div>
       <div class="setting-item" style="flex-direction:column;align-items:flex-start;">
         <span class="setting-label">工作日</span>
         <div class="weekday-row" id="set-weekdays"></div>
@@ -439,7 +436,7 @@
 // ==================== DATA LAYER ====================
 const DEFAULT_SETTINGS = {
   locationName:'', lat:null, lng:null, radius:500, gpsAccuracy:100,
-  workStart:'09:00', workEnd:'18:00', lunchStart:'12:00', lunchEnd:'13:00',
+  workStart:'08:30', workEnd:'17:30',
   weekdays:[1,2,3,4,5],
   holidays:[],       // 法定节假日（自动同步+手动添加）
   workdays:[],       // 调休工作日（周末补班）
@@ -452,6 +449,10 @@ function db(key, def) { try { return JSON.parse(localStorage.getItem('ot_'+key))
 function dbSave(key, val) { localStorage.setItem('ot_'+key, JSON.stringify(val)); }
 
 let settings = { ...DEFAULT_SETTINGS, ...db('settings', {}) };
+if ((('lunch'+'Start') in settings || ('lunch'+'End') in settings) && settings.workStart==='09'+':00' && settings.workEnd==='18'+':00') {
+  settings.workStart=DEFAULT_SETTINGS.workStart; settings.workEnd=DEFAULT_SETTINGS.workEnd;
+}
+delete settings['lunch'+'Start']; delete settings['lunch'+'End'];
 let users = db('users', []);
 let records = db('records', []);
 let currentUser = db('currentUser', null);
@@ -663,7 +664,7 @@ function checkAutoClock() {
   const hasOut = today.some(r=>r.type==='out');
   const key = dateKey(now)+'-'+timeStr.slice(0,4);
   if (key === lastAutoAction) return;
-  if (settings.autoIn && !hasIn && timeStr>=settings.workStart && timeStr<=settings.lunchStart && isWithinRange(currentPos)) {
+  if (settings.autoIn && !hasIn && timeStr>=settings.workStart && isWithinRange(currentPos)) {
     lastAutoAction=key; doClock('in',false); showToast('🤖 自动打卡上班');
   }
   if (settings.autoOut && hasIn && !hasOut && timeStr>=settings.workEnd && !isWithinRange(currentPos)) {
@@ -688,28 +689,26 @@ function updateTodayTimeline() {
 function calcTodayOT(dayRecords, date) {
   if (!dayRecords.length) return 0;
   const isWorkday = isWorkingDay(date);
-  const workMin = getWorkMinutes();
   const ins = dayRecords.filter(r=>r.type==='in');
   const outs = dayRecords.filter(r=>r.type==='out');
   if (!ins.length) return 0;
 
   if (isWorkday) {
-    let totalMs = 0;
+    let totalMin = 0;
+    const workStart = timeToMinutes(settings.workStart);
+    const workEnd = timeToMinutes(settings.workEnd);
     const sorted = [...dayRecords].sort((a,b)=>a.ts-b.ts);
     for (let i=0;i<sorted.length;i++) {
       if (sorted[i].type==='in') {
         const nextOut = sorted.slice(i).find((r,j)=>j>0&&r.type==='out');
         if (nextOut) {
-          let dur = nextOut.ts - sorted[i].ts;
           const inMin = msToTimeMin(sorted[i].ts);
           const outMin = msToTimeMin(nextOut.ts);
-          const lunchS = timeToMinutes(settings.lunchStart), lunchE = timeToMinutes(settings.lunchEnd);
-          if (inMin < lunchS && outMin > lunchE) dur -= (lunchE-lunchS)*60000;
-          totalMs += dur;
+          totalMin += overlapMinutes(inMin,outMin,0,workStart) + overlapMinutes(inMin,outMin,workEnd,24*60);
         }
       }
     }
-    return Math.max(0, Math.round((totalMs - workMin*60000)/60000));
+    return totalMin;
   } else {
     let totalMs=0;
     const sorted=[...dayRecords].sort((a,b)=>a.ts-b.ts);
@@ -824,8 +823,6 @@ function renderSettings() {
   document.getElementById('set-gps-accuracy').value=settings.gpsAccuracy;
   document.getElementById('set-work-start').value=settings.workStart;
   document.getElementById('set-work-end').value=settings.workEnd;
-  document.getElementById('set-lunch-start').value=settings.lunchStart;
-  document.getElementById('set-lunch-end').value=settings.lunchEnd;
   document.getElementById('set-min-overtime').value=settings.minOvertime;
   document.getElementById('set-auto-in').className='toggle'+(settings.autoIn?' on':'');
   document.getElementById('set-auto-out').className='toggle'+(settings.autoOut?' on':'');
@@ -833,14 +830,13 @@ function renderSettings() {
   document.getElementById('set-weekdays').innerHTML=[0,1,2,3,4,5,6].map(d=>`<button class="weekday-chip ${settings.weekdays.includes(d)?'on':''}" onclick="toggleWeekday(${d})">${dayNames[d]}</button>`).join('');
   renderHolidayTags();
   document.getElementById('info-worktime').textContent=`${settings.workStart} - ${settings.workEnd}`;
-  document.getElementById('info-lunch').textContent=`${settings.lunchStart} - ${settings.lunchEnd}`;
   document.getElementById('info-radius').textContent=`${settings.radius} 米`;
   renderUserList();
 }
 
 function toggleWeekday(d){const i=settings.weekdays.indexOf(d);if(i>=0)settings.weekdays.splice(i,1);else settings.weekdays.push(d);settings.weekdays.sort();dbSave('settings',settings);renderSettings();}
 function toggleSetting(k){settings[k]=!settings[k];dbSave('settings',settings);renderSettings();}
-function saveSettings(){settings.radius=+document.getElementById('set-radius').value;settings.gpsAccuracy=+document.getElementById('set-gps-accuracy').value;settings.workStart=document.getElementById('set-work-start').value;settings.workEnd=document.getElementById('set-work-end').value;settings.lunchStart=document.getElementById('set-lunch-start').value;settings.lunchEnd=document.getElementById('set-lunch-end').value;settings.minOvertime=+document.getElementById('set-min-overtime').value;dbSave('settings',settings);renderSettings();}
+function saveSettings(){settings.radius=+document.getElementById('set-radius').value;settings.gpsAccuracy=+document.getElementById('set-gps-accuracy').value;settings.workStart=document.getElementById('set-work-start').value;settings.workEnd=document.getElementById('set-work-end').value;delete settings['lunch'+'Start'];delete settings['lunch'+'End'];settings.minOvertime=+document.getElementById('set-min-overtime').value;dbSave('settings',settings);renderSettings();}
 
 // ==================== HOLIDAY SYNC ====================
 const HOLIDAY_SOURCES = [
@@ -1069,7 +1065,8 @@ function isWorkingDay(d){
   // 3. 默认：按配置的工作日判断
   return settings.weekdays.includes(dow);
 }
-function getWorkMinutes(){return timeToMinutes(settings.workEnd)-timeToMinutes(settings.workStart)-(timeToMinutes(settings.lunchEnd)-timeToMinutes(settings.lunchStart));}
+function overlapMinutes(start,end,rangeStart,rangeEnd){return Math.max(0,Math.min(end,rangeEnd)-Math.max(start,rangeStart));}
+function getWorkMinutes(){return timeToMinutes(settings.workEnd)-timeToMinutes(settings.workStart);}
 function formatMinutes(m){if(m<=0)return'0 分钟';const h=Math.floor(m/60),mm=m%60;return h===0?`${mm} 分钟`:mm===0?`${h} 小时`:`${h} 小时 ${mm} 分钟`;}
 function formatMinutesShort(m){if(m<=0)return'0h';const h=Math.floor(m/60),mm=m%60;return mm===0?`${h}h`:`${h}h${mm}m`;}
 function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);}

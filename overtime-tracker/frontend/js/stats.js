@@ -12,13 +12,15 @@ OT.recordPairs = function recordPairs(recs){
 
 OT.calcTodayOT = function calcTodayOT(recs,date){
   if(!recs.length)return 0;const wk=isWorkingDay(date);
-  if(wk){let ms=0;recordPairs(recs).forEach(([i,o])=>{let d=Math.max(0,o.ts-i.ts);const im=msToMin(i.ts,i.time_str),om=msToMin(o.ts,o.time_str),ls=timeToMin(settings.lunchStart||'12:00'),le=timeToMin(settings.lunchEnd||'13:00');if(im<ls&&om>le)d-=(le-ls)*60000;ms+=Math.max(0,d)});return Math.max(0,Math.round((ms-getWorkMinutes()*60000)/60000))}
+  if(wk){const ws=timeToMin(settings.workStart||'08:30'),we=timeToMin(settings.workEnd||'17:30');let mins=0;recordPairs(recs).forEach(([i,o])=>{const im=msToMin(i.ts,i.time_str),om=msToMin(o.ts,o.time_str);mins+=OT.overlapMinutes(im,om,0,ws)+OT.overlapMinutes(im,om,we,24*60)});return mins}
   else{return Math.round(recordPairs(recs).reduce((sum,[i,o])=>sum+Math.max(0,o.ts-i.ts),0)/60000)}
 };
 
 OT.isWorkingDay = function isWorkingDay(d){const dk=calendarKey(d);if((settings.holidays||[]).includes(dk))return false;if((settings.workdays||[]).includes(dk))return true;return(settings.weekdays||[1,2,3,4,5]).includes(d.getDay())};
 
-OT.getWorkMinutes = function getWorkMinutes(){return timeToMin(settings.workEnd||'18:00')-timeToMin(settings.workStart||'09:00')-(timeToMin(settings.lunchEnd||'13:00')-timeToMin(settings.lunchStart||'12:00'))};
+OT.overlapMinutes = function overlapMinutes(start,end,rangeStart,rangeEnd){return Math.max(0,Math.min(end,rangeEnd)-Math.max(start,rangeStart))};
+
+OT.getWorkMinutes = function getWorkMinutes(){return timeToMin(settings.workEnd||'17:30')-timeToMin(settings.workStart||'08:30')};
 
 OT.renderStats = function renderStats(){
   const dg={};allRecords.forEach(r=>{if(!dg[r.date])dg[r.date]=[];dg[r.date].push(r)});

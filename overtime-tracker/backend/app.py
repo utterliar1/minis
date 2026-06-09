@@ -20,6 +20,26 @@ if os.environ.get('CORS_ORIGINS'):
     CORS(app, resources={r"/api/*": {"origins": [o.strip() for o in os.environ['CORS_ORIGINS'].split(',') if o.strip()]}})
 DB_PATH = os.environ.get('DB_PATH', '/data/overtime.db')
 
+DEFAULT_SETTINGS = {
+    "locationName": "", "lat": None, "lng": None, "radius": 500, "gpsAccuracy": 100,
+    "workStart": "08:30", "workEnd": "17:30",
+    "weekdays": [1, 2, 3, 4, 5], "holidays": [], "workdays": [], "holidaySyncTime": None,
+    "autoIn": False, "autoOut": False, "minOvertime": 30
+}
+REMOVED_SETTING_KEYS = ("lunch" + "Start", "lunch" + "End")
+OLD_DEFAULT_START = "09" + ":00"
+OLD_DEFAULT_END = "18" + ":00"
+
+def normalized_settings(data=None):
+    raw = data or {}
+    settings = {**DEFAULT_SETTINGS, **raw}
+    if any(key in raw for key in REMOVED_SETTING_KEYS) and settings.get("workStart") == OLD_DEFAULT_START and settings.get("workEnd") == OLD_DEFAULT_END:
+        settings["workStart"] = DEFAULT_SETTINGS["workStart"]
+        settings["workEnd"] = DEFAULT_SETTINGS["workEnd"]
+    for key in REMOVED_SETTING_KEYS:
+        settings.pop(key, None)
+    return settings
+
 def load_jwt_secret():
     env_secret = os.environ.get('JWT_SECRET')
     if env_secret:
@@ -123,13 +143,15 @@ def init_db():
                      ('admin', '管理员', h, '', 'admin', int(time.time()*1000)))
         conn.commit()
     # Default settings
-    if not conn.execute("SELECT 1 FROM settings WHERE id=1").fetchone():
-        default = {"locationName":"","lat":None,"lng":None,"radius":500,"gpsAccuracy":100,
-                    "workStart":"09:00","workEnd":"18:00","lunchStart":"12:00","lunchEnd":"13:00",
-                    "weekdays":[1,2,3,4,5],"holidays":[],"workdays":[],"holidaySyncTime":None,
-                    "autoIn":False,"autoOut":False,"minOvertime":30}
-        conn.execute("INSERT INTO settings (id,data) VALUES (1,?)", (json.dumps(default),))
+    settings_row = conn.execute("SELECT data FROM settings WHERE id=1").fetchone()
+    if not settings_row:
+        conn.execute("INSERT INTO settings (id,data) VALUES (1,?)", (json.dumps(DEFAULT_SETTINGS),))
         conn.commit()
+    else:
+        normalized = normalized_settings(json.loads(settings_row['data'] or '{}'))
+        if normalized != json.loads(settings_row['data'] or '{}'):
+            conn.execute("UPDATE settings SET data=? WHERE id=1", (json.dumps(normalized),))
+            conn.commit()
     # Default email config
     if not conn.execute("SELECT 1 FROM email_config WHERE id=1").fetchone():
         conn.execute("INSERT INTO email_config (id) VALUES (1)")
@@ -249,7 +271,7 @@ def api_register():
 
 def load_settings_from_conn(conn):
     row = conn.execute("SELECT data FROM settings WHERE id=1").fetchone()
-    return json.loads(row['data']) if row else {}
+    return normalized_settings(json.loads(row['data'])) if row else dict(DEFAULT_SETTINGS)
 
 def to_float(v):
     try: return float(v)
@@ -507,7 +529,7 @@ def api_get_settings():
     conn = get_db()
     row = conn.execute("SELECT data FROM settings WHERE id=1").fetchone()
     conn.close()
-    return jsonify(settings=json.loads(row['data']) if row else {})
+    return jsonify(settings=normalized_settings(json.loads(row['data'])) if row else dict(DEFAULT_SETTINGS))
 
 @app.route('/api/settings', methods=['PUT'])
 @admin_required
@@ -517,6 +539,7 @@ def api_update_settings():
     row = conn.execute("SELECT data FROM settings WHERE id=1").fetchone()
     cur = json.loads(row['data']) if row else {}
     cur.update(d)
+    cur = normalized_settings(cur)
     conn.execute("UPDATE settings SET data=? WHERE id=1", (json.dumps(cur),))
     conn.commit(); conn.close()
     return jsonify(ok=True, settings=cur)
@@ -610,17 +633,15 @@ def calc_user_ot(user_id, settings, month=None):
         dt = datetime.strptime(date, '%Y-%m-%d')
         is_workday = is_working_day(dt, settings)
         if is_workday:
-            work_ms = 0
+            work_start = time_to_min(settings.get('workStart','08:30'))
+            work_end = time_to_min(settings.get('workEnd','17:30'))
+            day_min = 0
             for r, next_out in paired_records(recs):
-                dur = max(0, next_out['ts'] - r['ts'])
                 in_min = record_minute(r)
                 out_min = record_minute(next_out)
-                l_s = time_to_min(settings.get('lunchStart','12:00'))
-                l_e = time_to_min(settings.get('lunchEnd','13:00'))
-                if in_min < l_s and out_min > l_e: dur -= (l_e - l_s) * 60000
-                work_ms += max(0, dur)
-            work_min = get_work_minutes(settings)
-            total += max(0, round((work_ms - work_min * 60000) / 60000))
+                day_min += overlap_minutes(in_min, out_min, 0, work_start)
+                day_min += overlap_minutes(in_min, out_min, work_end, 24 * 60)
+            total += day_min
         else:
             for r, next_out in paired_records(recs):
                 total += round(max(0, next_out['ts'] - r['ts']) / 60000)
@@ -634,12 +655,12 @@ def is_working_day(dt, settings):
     return js_weekday in settings.get('weekdays', [1,2,3,4,5])
 
 def time_to_min(t):
-    if not t: return 720
+    if not t: return 510
     parts = t.split(':')
     return int(parts[0])*60 + int(parts[1])
 
-def get_work_minutes(s):
-    return time_to_min(s.get('workEnd','18:00')) - time_to_min(s.get('workStart','09:00')) - (time_to_min(s.get('lunchEnd','13:00')) - time_to_min(s.get('lunchStart','12:00')))
+def overlap_minutes(start, end, range_start, range_end):
+    return max(0, min(end, range_end) - max(start, range_start))
 
 def format_min(m):
     h, mm = divmod(m, 60)
