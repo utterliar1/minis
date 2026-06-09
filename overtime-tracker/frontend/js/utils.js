@@ -38,15 +38,17 @@ OT.actualLocationText = function actualLocationText(record){
   const hasLat=record.lat!==null&&record.lat!==undefined&&record.lat!=='',hasLng=record.lng!==null&&record.lng!==undefined&&record.lng!=='';
   const lat=Number(record.lat),lng=Number(record.lng),acc=Number(record.accuracy);
   const address=record.actual_address||record.location_address||record.address||'';
+  const cfg=OT.settings||settings||{};
+  const hasMapKey=['mapKey','mapApiKey','amapKey','gaodeMapKey','locationMapKey'].some(k=>String(cfg[k]||'').trim());
   const parts=[];
   if(hasLat&&hasLng&&Number.isFinite(lat)&&Number.isFinite(lng)){
     parts.push(`${lat.toFixed(6)},${lng.toFixed(6)}`);
     if(Number.isFinite(acc))parts.push(`精度 ${Math.round(acc)}m`);
-    const hasBase=settings&&settings.lat!==null&&settings.lat!==undefined&&settings.lat!==''&&settings.lng!==null&&settings.lng!==undefined&&settings.lng!=='';
-    const baseLat=Number(settings&&settings.lat),baseLng=Number(settings&&settings.lng);
+    const hasBase=cfg&&cfg.lat!==null&&cfg.lat!==undefined&&cfg.lat!==''&&cfg.lng!==null&&cfg.lng!==undefined&&cfg.lng!=='';
+    const baseLat=Number(cfg&&cfg.lat),baseLng=Number(cfg&&cfg.lng);
     if(hasBase&&Number.isFinite(baseLat)&&Number.isFinite(baseLng))parts.push(`距离 ${Math.round(OT.haversineDistance(baseLat,baseLng,lat,lng))}m`);
   }
-  if(address)parts.push(`地址 ${address}`);
+  if(address&&hasMapKey)parts.push(`地址 ${address}`);
   return parts.join('; ');
 };
 
