@@ -158,6 +158,8 @@ $buildTree = $commandsType.GetMethod('BuildLayerPlanTreeNodes', [Reflection.Bind
 Assert-NotNull 'tree preview helper exists' $buildTree
 $buildFilteredTree = $commandsType.GetMethod('BuildFilteredLayerPlanTreeNodes', [Reflection.BindingFlags]'NonPublic, Static')
 Assert-NotNull 'filtered tree preview helper exists' $buildFilteredTree
+$buildSearchTree = $commandsType.GetMethod('BuildSearchedLayerPlanTreeNodes', [Reflection.BindingFlags]'NonPublic, Static')
+Assert-NotNull 'searched tree preview helper exists' $buildSearchTree
 $filterType = $commandsType.GetNestedType('LayerPlanTreeFilter', [Reflection.BindingFlags]'NonPublic')
 Assert-NotNull 'tree preview filter enum exists' $filterType
 
@@ -207,11 +209,37 @@ Assert-Contains 'filtered tree whitelist shows only whitelist section' (Node-Tex
 $filteredUnknownFallback = $buildFilteredTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $rules, $true, $filterUnknown))
 Assert-Contains 'filtered unknown respects fallback to 0' (Node-Text $filteredUnknownFallback[1]) '\u5C06\u5F52\u5230 0 \u5C42'
 
+$searchedUnknown = $buildSearchTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $rules, $false, $filterAll, 'UNKNOWN-BIG'))
+Assert-Equal 'searched tree keeps summary and unknown section' 2 $searchedUnknown.Length
+Assert-Contains 'searched tree unknown summary remains first' (Node-Text $searchedUnknown[0]) '^\u6458\u8981'
+Assert-Contains 'searched tree unknown section matches keyword' (Node-Text $searchedUnknown[1]) '^\u672A\u8BC6\u522B\u56FE\u5C42'
+Assert-Equal 'searched tree unknown keeps one matching child' 1 $searchedUnknown[1].Nodes.Count
+Assert-Contains 'searched tree unknown child text matches keyword' (Node-Text $searchedUnknown[1].Nodes[0]) 'UNKNOWN-BIG'
+
+$searchedMigration = $buildSearchTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $rules, $false, $filterAll, 'TEXT-OLD-B'))
+Assert-Equal 'searched tree migration keeps summary and migration section' 2 $searchedMigration.Length
+Assert-Contains 'searched tree migration section exists' (Node-Text $searchedMigration[1]) '^\u5C06\u8FC1\u79FB\u56FE\u5C42'
+Assert-Equal 'searched tree migration keeps one matching target group' 1 $searchedMigration[1].Nodes.Count
+Assert-Contains 'searched tree migration group is target layer' (Node-Text $searchedMigration[1].Nodes[0]) '^3-TEXT'
+Assert-Equal 'searched tree migration group keeps one matching source child' 1 $searchedMigration[1].Nodes[0].Nodes.Count
+Assert-Contains 'searched tree migration child text matches keyword' (Node-Text $searchedMigration[1].Nodes[0].Nodes[0]) 'TEXT-OLD-B'
+
+$searchedWhitelist = $buildSearchTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $rules, $false, $filterAll, 'FRAME-BIG'))
+Assert-Equal 'searched tree whitelist keeps summary and whitelist section' 2 $searchedWhitelist.Length
+Assert-Contains 'searched tree whitelist section exists' (Node-Text $searchedWhitelist[1]) '^\u767D\u540D\u5355\u56FE\u5C42'
+Assert-Equal 'searched tree whitelist keeps one matching child' 1 $searchedWhitelist[1].Nodes.Count
+Assert-Contains 'searched tree whitelist child text matches keyword' (Node-Text $searchedWhitelist[1].Nodes[0]) 'FRAME-BIG'
+
+$searchedNoMatch = $buildSearchTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $rules, $false, $filterAll, 'NO-SUCH-LAYER'))
+Assert-Equal 'searched tree without matches keeps summary only' 1 $searchedNoMatch.Length
+
 $layerCommands = Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit\LayerCommands.cs') -Raw
 Assert-Contains 'layer standard gathers block/layout scopes' $layerCommands 'GetLayerStandardScopeIds'
 Assert-Contains 'layer standard migrates all gathered scopes' $layerCommands 'MoveLayerStandardEntities'
 Assert-Contains 'layer standard preview uses tree view' $layerCommands 'new\s+TreeView\s*\('
 Assert-Contains 'layer standard fallback rebuilds tree preview' $layerCommands 'BuildLayerPlanTreePreview'
+Assert-Contains 'layer standard preview has keyword filter box' $layerCommands 'new\s+TextBox\s*\('
+Assert-Contains 'layer standard preview rebuilds tree on keyword change' $layerCommands 'TextChanged\s*\+='
 Assert-Contains 'layer standard preview has all filter button' $layerCommands '\\u5168\\u90e8'
 Assert-Contains 'layer standard preview has unknown filter button' $layerCommands '\\u672a\\u8bc6\\u522b'
 Assert-Contains 'layer standard preview has migration filter button' $layerCommands '\\u5c06\\u8fc1\\u79fb'

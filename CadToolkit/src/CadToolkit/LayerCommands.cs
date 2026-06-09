@@ -114,13 +114,17 @@ namespace CadToolkit
             rbWhitelist.Text = "\u767d\u540d\u5355"; rbWhitelist.Left = UiScale(272); rbWhitelist.Top = UiScale(12); rbWhitelist.Width = UiScale(86); rbWhitelist.Height = UiScale(24);
             rbWhitelist.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
+            var search = new TextBox();
+            search.Left = UiScale(368); search.Top = UiScale(12); search.Width = UiScale(240); search.Height = UiScale(24);
+            search.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
             var tree = new TreeView();
             tree.HideSelection = false;
             tree.FullRowSelect = true;
             tree.ShowNodeToolTips = true;
             tree.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
             tree.Left = UiScale(12); tree.Top = UiScale(42); tree.Width = UiScale(596); tree.Height = UiScale(340);
-            BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, fallbackTo0, previewFilter);
+            BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, fallbackTo0, previewFilter, search.Text);
 
             var chkByLayer = new CheckBox();
             chkByLayer.Text = "\u5c06\u8fc1\u79fb\u5bf9\u8c61\u7684\u989c\u8272/\u7ebf\u578b/\u7ebf\u5bbd\u6539\u4e3a ByLayer";
@@ -136,7 +140,7 @@ namespace CadToolkit
             chkFallback.Text = "\u672a\u8bc6\u522b\u56fe\u5c42\u5f52 0 \u5c42\uff08\u767d\u540d\u5355\u4e0d\u5904\u7406\uff09";
             chkFallback.Left = UiScale(12); chkFallback.Top = UiScale(446); chkFallback.Width = UiScale(596); chkFallback.Height = UiScale(24); chkFallback.Checked = fallbackTo0;
             chkFallback.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            chkFallback.CheckedChanged += delegate { BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked, previewFilter); };
+            chkFallback.CheckedChanged += delegate { BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked, previewFilter, search.Text); };
 
             EventHandler filterChanged = delegate
             {
@@ -144,12 +148,13 @@ namespace CadToolkit
                 else if (rbMigration.Checked) previewFilter = LayerPlanTreeFilter.Migration;
                 else if (rbWhitelist.Checked) previewFilter = LayerPlanTreeFilter.Whitelist;
                 else previewFilter = LayerPlanTreeFilter.All;
-                BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked, previewFilter);
+                BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked, previewFilter, search.Text);
             };
             rbAll.CheckedChanged += filterChanged;
             rbUnknown.CheckedChanged += filterChanged;
             rbMigration.CheckedChanged += filterChanged;
             rbWhitelist.CheckedChanged += filterChanged;
+            search.TextChanged += delegate { BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked, previewFilter, search.Text); };
 
             var copy = new Button();
             copy.Text = "\u590d\u5236\u62a5\u544a";
@@ -175,7 +180,7 @@ namespace CadToolkit
             cancel.Text = "\u53d6\u6d88"; cancel.DialogResult = DialogResult.Cancel;
             cancel.Left = UiScale(528); cancel.Top = UiScale(500); cancel.Width = UiScale(80); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
 
-            f.Controls.AddRange(new Control[] { rbAll, rbUnknown, rbMigration, rbWhitelist, tree, chkByLayer, chkDelete, chkFallback, copy, ok, cancel });
+            f.Controls.AddRange(new Control[] { rbAll, rbUnknown, rbMigration, rbWhitelist, search, tree, chkByLayer, chkDelete, chkFallback, copy, ok, cancel });
             f.AcceptButton = ok; f.CancelButton = cancel;
             if (f.ShowDialog() != DialogResult.OK) { f.Dispose(); return; }
             setByLayer = chkByLayer.Checked;
@@ -385,13 +390,13 @@ namespace CadToolkit
             return false;
         }
 
-        static void BuildLayerPlanTreePreview(TreeView tree, List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0, LayerPlanTreeFilter filter)
+        static void BuildLayerPlanTreePreview(TreeView tree, List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0, LayerPlanTreeFilter filter, string searchText)
         {
             tree.BeginUpdate();
             try
             {
                 tree.Nodes.Clear();
-                tree.Nodes.AddRange(BuildFilteredLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0, filter));
+                tree.Nodes.AddRange(BuildSearchedLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0, filter, searchText));
             }
             finally
             {

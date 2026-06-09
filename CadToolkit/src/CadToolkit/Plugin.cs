@@ -555,6 +555,42 @@ namespace CadToolkit
             return nodes.ToArray();
         }
 
+        static TreeNode[] BuildSearchedLayerPlanTreeNodes(List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0, LayerPlanTreeFilter filter, string searchText)
+        {
+            var filtered = BuildFilteredLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0, filter);
+            string needle = SafeStr(searchText).Trim();
+            if (needle.Length == 0) return filtered;
+
+            var nodes = new List<TreeNode>();
+            if (filtered.Length > 0) nodes.Add((TreeNode)filtered[0].Clone());
+            for (int i = 1; i < filtered.Length; i++)
+            {
+                var matched = CloneLayerPlanNodeMatches(filtered[i], needle);
+                if (matched != null) nodes.Add(matched);
+            }
+            return nodes.ToArray();
+        }
+
+        static TreeNode CloneLayerPlanNodeMatches(TreeNode node, string needle)
+        {
+            bool selfMatches = NodeTextContains(node, needle);
+            var clone = new TreeNode(node.Text);
+            clone.ToolTipText = node.ToolTipText;
+            foreach (TreeNode child in node.Nodes)
+            {
+                var childClone = CloneLayerPlanNodeMatches(child, needle);
+                if (childClone != null) clone.Nodes.Add(childClone);
+            }
+            if (selfMatches || clone.Nodes.Count > 0) return clone;
+            return null;
+        }
+
+        static bool NodeTextContains(TreeNode node, string needle)
+        {
+            if (node == null) return false;
+            return SafeStr(node.Text).IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         static string FormatLayerPlan(List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0)
         {
             var sb = new StringBuilder();
