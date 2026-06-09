@@ -93,6 +93,8 @@ AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱。
 
 升级或重新部署时不要覆盖已有 `CadToolkit.ini`。发布包提供 `CadToolkit.default.ini` 作为默认模板；如果根目录没有 `CadToolkit.ini`，插件首次启动会自动生成一份。
 
+如果已有 `CadToolkit.ini` 缺少新版新增的基础配置项，插件启动时会自动补上默认值；已有配置值、自定义 `[Commands]`、`[LayerStandard]` 和 `[LayerMap]` 不会被覆盖或合并。
+
 > 配置值中如需使用 `#` 或 `;`，不要让它们出现在值开头或空格之后。当前 INI 解析器会把这种写法识别为行内注释。
 
 ```ini

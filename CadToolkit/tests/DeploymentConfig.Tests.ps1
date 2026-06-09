@@ -22,6 +22,7 @@ Assert-Contains 'local deploy only creates user config when missing' $buildAll '
 Assert-NotContains 'local deploy does not overwrite user config' $buildAll 'copy /Y "%BASE%CadToolkit\.ini" "%DEPLOY%\\?"'
 
 Assert-Contains 'release package includes default config template' $workflow 'CadToolkit\.default\.ini'
+Assert-Contains 'release package includes user manual' $workflow 'CadToolkit\u4F7F\u7528\u624B\u518C\.html'
 Assert-NotContains 'release package does not include user config name' $workflow 'Copy-Item "\$\{\{ github\.workspace \}\}\\CadToolkit\\CadToolkit\.ini" "\$pkg\\?"'
 
 Assert-NotContains 'project config omits version marker' $projectConfig '(?m)^Version='

@@ -21,11 +21,6 @@ CadToolkit 是当前主要维护的 CAD 工具箱项目：
 - 自动加载入口：`C:\CadToolkit\autoload.lsp`
 - 一键构建脚本：[CadToolkit/build-all.bat](CadToolkit/build-all.bat)
 
-相关文档：
-
-- [设计说明](docs/specs/2026-06-07-cadtoolkit-refactor-design.md)
-- [重构实施计划](docs/plans/2026-06-07-cadtoolkit-refactor.md)
-
 ## 目录结构
 
 ```text
@@ -36,9 +31,6 @@ minis/
 │   ├── CadToolkit.ini     共享配置文件模板
 │   ├── build-all.bat      一键构建部署脚本
 │   └── src/               插件源码
-├── docs/
-│   ├── plans/             实施计划
-│   └── specs/             设计说明
 ├── jbot/                  Telegram 机器人插件
 ├── nodeseek-checkin/      NodeSeek 签到脚本
 └── xmSport/               小米运动脚本
