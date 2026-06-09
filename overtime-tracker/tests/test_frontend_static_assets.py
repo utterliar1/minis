@@ -61,6 +61,21 @@ def test_export_dialog_uses_shared_form_classes():
         assert f".{class_name}" in css
 
 
+def test_email_page_exposes_schedule_and_report_option_controls():
+    index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+
+    for token in [
+        'id="email-frequency"',
+        'id="email-weekday"',
+        'id="email-month-day"',
+        'id="email-report-period"',
+        'id="email-report-content"',
+        'id="email-member-filter"',
+        'id="email-include-out-of-range"',
+    ]:
+        assert token in index
+
+
 def test_static_asset_cache_version_is_current_and_consistent():
     index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
     app = (ROOT / "frontend" / "js" / "app.js").read_text(encoding="utf-8")

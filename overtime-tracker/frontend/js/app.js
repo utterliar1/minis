@@ -93,6 +93,8 @@ Object.assign(window, {
   testEmail: OT.testEmail,
   timeToMin: OT.timeToMin,
   toggleEmailEnabled: OT.toggleEmailEnabled,
+  toggleEmailIncludeOutOfRange: OT.toggleEmailIncludeOutOfRange,
+  toggleEmailScheduleMode: OT.toggleEmailScheduleMode,
   toggleRole: OT.toggleRole,
   toggleSection: OT.toggleSection,
   toggleWeekday: OT.toggleWeekday,
