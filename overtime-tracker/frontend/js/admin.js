@@ -155,8 +155,9 @@ OT.exportCsv = async function exportCsv(uid, period, from='', to=''){
     const data=await api(url);
     const recs=data.records||[];
     if(!recs.length){showToast('暂无数据');return false}
-    const csv=OT.buildExportCsv(recs,{includePersonSubtotals:uid==='all'});
-    downloadBlob(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}),`工时报表_${uid||'me'}_${period}_${dateKey(bjNow())}.csv`);
+    const isAllScope=!uid||uid==='all';
+    const csv=OT.buildExportCsv(recs,{includePersonSubtotals:(currentUser&&currentUser.role==='admin'&&isAllScope)});
+    downloadBlob(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}),`工时报表_${isAllScope?'all':uid}_${period}_${dateKey(bjNow())}.csv`);
     showToast('📥 已导出');
     return true;
   }catch(e){showToast('❌ '+e.message);return false}

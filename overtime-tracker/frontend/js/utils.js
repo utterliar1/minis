@@ -73,10 +73,10 @@ OT.exportDetailLine = function exportDetailLine(r){
   ].join(',');
 };
 
-OT.exportSummaryLine = function exportSummaryLine(label, rows){
+OT.exportSummaryLine = function exportSummaryLine(label, rows, typeLabel){
   const totalMinutes=rows.reduce((sum,r)=>sum+r.minutes,0);
   const remoteDays=rows.filter(r=>r.remote).length;
-  return [OT.csvCell(label),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(`远程天数 ${remoteDays}`),totalMinutes,OT.csvCell(OT.csvHourText(totalMinutes))].join(',');
+  return [OT.csvCell(label),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(typeLabel||''),OT.csvCell(''),OT.csvCell(`远程 ${remoteDays} 天`),totalMinutes,OT.csvCell(OT.csvHourText(totalMinutes))].join(',');
 };
 
 OT.buildExportCsv = function buildExportCsv(records, options={}){
@@ -95,12 +95,12 @@ OT.buildExportCsv = function buildExportCsv(records, options={}){
         person.rows
           .sort((a,b)=>String(a.date).localeCompare(String(b.date)))
           .forEach(r=>lines.push(OT.exportDetailLine(r)));
-        lines.push(OT.exportSummaryLine(`${person.name} 小计`,person.rows));
+        lines.push(OT.exportSummaryLine(person.name,person.rows,'小计'));
       });
   }else{
     rows.forEach(r=>lines.push(OT.exportDetailLine(r)));
   }
-  lines.push(OT.exportSummaryLine('汇总',rows));
+  lines.push(OT.exportSummaryLine('汇总',rows,'总计'));
   return '姓名,日期,星期,上班,下班,类型,事由,远程,工时(分),工时(h)\n'+lines.join('\n');
 };
 

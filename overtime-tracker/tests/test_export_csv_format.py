@@ -50,7 +50,7 @@ const expected = [
   '姓名,日期,星期,上班,下班,类型,事由,远程,工时(分),工时(h)',
   '"Alice","2026-06-09","周二","07:30","18:30","工作日","早段; 远程说明","是",120,"2h"',
   '"Bob","2026-06-13","周六","09:00","12:00","休息日","周末支持","",180,"3h"',
-  '"汇总","","","","","","","远程天数 1",300,"5h"',
+  '"汇总","","","","","总计","","远程 1 天",300,"5h"',
 ].join('\n');
 
 if (csv !== expected) {
@@ -114,10 +114,10 @@ const lines = csv.split('\n');
 const expected = [
   '姓名,日期,星期,上班,下班,类型,事由,远程,工时(分),工时(h)',
   '"Alice","2026-06-09","周二","07:30","18:30","工作日","早段; 远程说明","是",120,"2h"',
-  '"Alice 小计","","","","","","","远程天数 1",120,"2h"',
+  '"Alice","","","","","小计","","远程 1 天",120,"2h"',
   '"Bob","2026-06-13","周六","09:00","12:00","休息日","周末支持","",180,"3h"',
-  '"Bob 小计","","","","","","","远程天数 0",180,"3h"',
-  '"汇总","","","","","","","远程天数 1",300,"5h"',
+  '"Bob","","","","","小计","","远程 0 天",180,"3h"',
+  '"汇总","","","","","总计","","远程 1 天",300,"5h"',
 ];
 
 if (JSON.stringify(lines) !== JSON.stringify(expected)) {
@@ -192,18 +192,20 @@ await sandbox.OT.exportMyRecords();
 sandbox.OT.currentUser = sandbox.currentUser = { username: 'admin', displayName: 'Admin', role: 'admin' };
 await sandbox.OT.exportCsv('all', 'month');
 await sandbox.OT.exportCsv('u1', 'month');
+await sandbox.OT.exportCsv('', 'month');
 await Promise.all(downloadPromises);
 
-if (downloads.length !== 3) throw new Error(`Expected 3 downloads, got ${downloads.length}`);
+if (downloads.length !== 4) throw new Error(`Expected 4 downloads, got ${downloads.length}`);
 for (const item of downloads) {
   const text = item.text.replace(/^\uFEFF/, '');
   if (!text.startsWith('姓名,日期,星期,上班,下班,类型,事由,远程,工时(分),工时(h)')) throw new Error(`Missing unified header in ${item.name}: ${text}`);
   if (!text.includes('"Alice","2026-06-09","周二","07:30","18:30","工作日","早段; 远程说明","是",120,"2h"')) throw new Error(`Missing detail row in ${item.name}: ${text}`);
-  if (!text.includes('"汇总","","","","","","","远程天数 1",120,"2h"')) throw new Error(`Missing summary row in ${item.name}: ${text}`);
+  if (!text.includes('"汇总","","","","","总计","","远程 1 天",120,"2h"')) throw new Error(`Missing summary row in ${item.name}: ${text}`);
 }
 if (downloads[0].text.includes('小计')) throw new Error(`Personal export should not contain subtotal: ${downloads[0].text}`);
-if (!downloads[1].text.includes('"Alice 小计","","","","","","","远程天数 1",120,"2h"')) throw new Error(`Manager all export missing subtotal: ${downloads[1].text}`);
+if (!downloads[1].text.includes('"Alice","","","","","小计","","远程 1 天",120,"2h"')) throw new Error(`Manager all export missing subtotal: ${downloads[1].text}`);
 if (downloads[2].text.includes('小计')) throw new Error(`Manager single-person export should not contain subtotal: ${downloads[2].text}`);
+if (!downloads[3].text.includes('"Alice","","","","","小计","","远程 1 天",120,"2h"')) throw new Error(`Manager default export missing subtotal: ${downloads[3].text}`);
 })().catch(err => {
   console.error(err);
   process.exit(1);
