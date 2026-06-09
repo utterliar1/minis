@@ -5,6 +5,8 @@ $project = Join-Path $repo 'BlockBrowser'
 $buildAll = Get-Content -Encoding UTF8 (Join-Path $project 'build-all.bat') -Raw
 $buildAllBytes = [System.IO.File]::ReadAllBytes((Join-Path $project 'build-all.bat'))
 $plugin = Get-Content -Encoding UTF8 (Join-Path $project 'BlockBrowserPlugin.cs') -Raw
+$defaultConfig = Get-Content -Encoding UTF8 (Join-Path $project 'BlockBrowser.default.ini') -Raw
+$defaultLibraryFolder = -join ([char[]](0x6211, 0x7684, 0x5E38, 0x7528, 0x5757))
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) { throw "$name did not find pattern: $pattern" }
@@ -46,6 +48,8 @@ Assert-Contains 'local deploy pauses only when requested' $buildAll 'if "%BLOCKB
 Assert-Contains 'local deploy only creates user config when missing' $buildAll 'if not exist "%OUTPUT%\\config\.ini"'
 Assert-NotContains 'local deploy does not overwrite user config' $buildAll 'copy /Y "%BASE%config\.ini" "%OUTPUT%\\?"'
 Assert-Contains 'plugin can create user config from default template' $plugin 'BlockBrowser\.default\.ini'
+Assert-Contains 'default local mirror uses plugin library folder' $defaultConfig ('LocalMirrorPath=' + [regex]::Escape($defaultLibraryFolder))
+Assert-Contains 'default library mode is local' $defaultConfig 'CurrentLibraryMode=Local'
 Assert-Contains 'local deploy builds AutoCAD 2020' $buildAll 'Building for AutoCAD 2020'
 Assert-Contains 'local deploy uses AutoCAD 2020 project' $buildAll 'BlockBrowser\.AutoCAD\.csproj'
 Assert-Contains 'local deploy uses installed AutoCAD 2020 SDK' $buildAll 'set "ACAD_DIR=C:\\Program Files\\Autodesk\\AutoCAD 2020"'

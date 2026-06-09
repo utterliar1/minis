@@ -7,6 +7,8 @@ if (-not (Test-Path $dialogPath)) {
     throw "Missing source file: $dialogPath"
 }
 $dialogSource = Get-Content -Encoding UTF8 $dialogPath -Raw
+$libraryGroupTitle = -join ([char[]](0x56FE, 0x5E93, 0x4F4D, 0x7F6E))
+$insertGroupTitle = -join ([char[]](0x63D2, 0x5165, 0x8BBE, 0x7F6E))
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) { throw "$name did not find pattern: $pattern" }
@@ -22,6 +24,11 @@ Assert-Contains 'settings dialog class exists' $dialogSource 'class\s+SettingsDi
 Assert-Contains 'settings dialog uses table layout for DPI scaling' $dialogSource 'new TableLayoutPanel'
 Assert-Contains 'settings dialog grows to content' $dialogSource 'AutoSizeMode = AutoSizeMode\.GrowAndShrink'
 Assert-Contains 'settings dialog sets AutoScaleMode' $dialogSource 'AutoScaleMode = AutoScaleMode\.Dpi'
+Assert-Contains 'settings dialog groups library paths' $dialogSource ('new GroupBox\s*\{[^}]*Text = "' + [regex]::Escape($libraryGroupTitle) + '"')
+Assert-Contains 'settings dialog groups insert options' $dialogSource ('new GroupBox\s*\{[^}]*Text = "' + [regex]::Escape($insertGroupTitle) + '"')
+Assert-Contains 'settings dialog uses wider path text boxes' $dialogSource 'textBox\.Width = 520'
+Assert-Contains 'settings dialog uses three-column path rows' $dialogSource 'ColumnCount = 3'
+Assert-Contains 'settings dialog aligns browse buttons with path inputs' $dialogSource 'pathPanel\.Controls\.Add\(btnBrowse,\s*2,\s*row\)'
 Assert-Contains 'settings dialog exposes NAS library path' $dialogSource 'NasLibraryPathValue'
 Assert-Contains 'settings dialog exposes local mirror path' $dialogSource 'LocalMirrorPathValue'
 Assert-Contains 'settings dialog exposes current library mode' $dialogSource 'CurrentLibraryModeValue'

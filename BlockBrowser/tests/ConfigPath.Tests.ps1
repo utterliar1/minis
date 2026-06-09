@@ -63,9 +63,9 @@ try {
         '# default template'
         'LibraryPath=我的常用块'
         'NasLibraryPath=我的常用块'
-        'LocalMirrorPath=%USERPROFILE%\Documents\BlockBrowserMirror'
+        'LocalMirrorPath=我的常用块'
         'PreferLocalWhenNasUnavailable=1'
-        'CurrentLibraryMode=Auto'
+        'CurrentLibraryMode=Local'
         'UserName='
         'ThumbSize=128'
         'InsertScale=1'
@@ -77,12 +77,16 @@ try {
 
     $store = New-Object BlockBrowser.BlockBrowserConfigStore $pluginRoot
     $defaultConfig = [BlockBrowser.BlockBrowserConfig]::CreateDefault($pluginRoot)
+    Assert-Equal 'code default local mirror uses plugin library' (Join-Path $pluginRoot '我的常用块') $defaultConfig.LocalMirrorPath
+    Assert-Equal 'code default mode is local' ([BlockBrowser.LibraryMode]::Local) $defaultConfig.CurrentLibraryMode
     $loaded = $store.Load($defaultConfig)
 
     Assert-True 'load creates user config from template' (Test-Path (Join-Path $pluginRoot 'config.ini'))
     Assert-Equal 'relative library path expands under plugin root' (Join-Path $pluginRoot '我的常用块') $loaded.LibraryPath
     Assert-Equal 'missing NAS override follows library path' $loaded.LibraryPath $loaded.NasLibraryPath
+    Assert-Equal 'default local mirror path follows plugin library' (Join-Path $pluginRoot '我的常用块') $loaded.LocalMirrorPath
     Assert-True 'auto fallback is enabled' $loaded.PreferLocalWhenNasUnavailable
+    Assert-Equal 'default library mode is local' ([BlockBrowser.LibraryMode]::Local) $loaded.CurrentLibraryMode
     Assert-Equal 'default thumb size' 128 $loaded.ThumbSize
 
     $missingNasRoot = Join-Path $tempRoot 'MissingNasPlugin'
@@ -94,6 +98,24 @@ try {
     $missingNasDefaults = [BlockBrowser.BlockBrowserConfig]::CreateDefault($missingNasRoot)
     $missingNasLoaded = $missingNasStore.Load($missingNasDefaults)
     Assert-Equal 'missing NAS path follows loaded library path' $missingNasLoaded.LibraryPath $missingNasLoaded.NasLibraryPath
+
+    $missingKeysRoot = Join-Path $tempRoot 'MissingKeysPlugin'
+    New-Item -ItemType Directory -Force -Path $missingKeysRoot | Out-Null
+    Set-Content -Encoding UTF8 -Path (Join-Path $missingKeysRoot 'config.ini') -Value @(
+        '# existing local config'
+        'LibraryPath=OnlyLibrary'
+        'ThumbSize=160'
+    )
+    $missingKeysStore = New-Object BlockBrowser.BlockBrowserConfigStore $missingKeysRoot
+    $missingKeysDefaults = [BlockBrowser.BlockBrowserConfig]::CreateDefault($missingKeysRoot)
+    $missingKeysLoaded = $missingKeysStore.Load($missingKeysDefaults)
+    $missingKeysSavedText = Get-Content -Encoding UTF8 -Path (Join-Path $missingKeysRoot 'config.ini') -Raw
+    Assert-Equal 'missing keys load keeps existing thumb size' 160 $missingKeysLoaded.ThumbSize
+    Assert-True 'missing keys append NAS path' ($missingKeysSavedText -match 'NasLibraryPath=OnlyLibrary')
+    Assert-True 'missing keys append local mirror path' ($missingKeysSavedText -match 'LocalMirrorPath=我的常用块')
+    Assert-True 'missing keys append current mode' ($missingKeysSavedText -match 'CurrentLibraryMode=Local')
+    Assert-True 'missing keys keep existing library path' ($missingKeysSavedText -match 'LibraryPath=OnlyLibrary')
+    Assert-True 'missing keys keep existing thumb size' ($missingKeysSavedText -match 'ThumbSize=160')
 
     $customIni = @(
         'LibraryPath=CustomBlocks'

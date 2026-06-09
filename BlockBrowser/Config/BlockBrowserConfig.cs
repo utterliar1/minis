@@ -31,11 +31,9 @@ namespace BlockBrowser
             {
                 LibraryPath = libraryPath,
                 NasLibraryPath = libraryPath,
-                LocalMirrorPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "BlockBrowserMirror"),
+                LocalMirrorPath = libraryPath,
                 PreferLocalWhenNasUnavailable = true,
-                CurrentLibraryMode = LibraryMode.Auto,
+                CurrentLibraryMode = LibraryMode.Local,
                 SyncUserName = Environment.UserName,
                 ThumbSize = 128,
                 InsertScale = 1.0,
