@@ -34,8 +34,8 @@ OT.csvHourText = function csvHourText(minutes){
 OT.groupExportRecords = function groupExportRecords(records){
   const groups={};
   (records||[]).forEach(r=>{
-    const key=(r.display_name||r.user_id||'')+'|'+r.date;
-    if(!groups[key])groups[key]={name:r.display_name||r.user_id||'',date:r.date,records:[]};
+    const key=(r.user_id||r.display_name||'')+'|'+r.date;
+    if(!groups[key])groups[key]={name:r.display_name||r.user_id||'',personKey:r.user_id||r.display_name||'',date:r.date,records:[]};
     groups[key].records.push(r);
   });
   return Object.values(groups).sort((a,b)=>a.date===b.date?String(a.name).localeCompare(String(b.name)):String(a.date).localeCompare(String(b.date)));
@@ -52,6 +52,7 @@ OT.exportRowFromGroup = function exportRowFromGroup(group){
   const minutes=OT.calcTodayOT(sorted,d);
   return {
     name: group.name,
+    personKey: group.personKey,
     date: group.date,
     weekday: wd,
     firstIn: fi?(fi.time_str||'').slice(0,5):'',
@@ -65,16 +66,42 @@ OT.exportRowFromGroup = function exportRowFromGroup(group){
   };
 };
 
-OT.buildExportCsv = function buildExportCsv(records){
-  const rows=OT.groupExportRecords(records).map(OT.exportRowFromGroup);
-  const detailLines=rows.map(r=>[
+OT.exportDetailLine = function exportDetailLine(r){
+  return [
     OT.csvCell(r.name),OT.csvCell(r.date),OT.csvCell(r.weekday),OT.csvCell(r.firstIn),OT.csvCell(r.lastOut),
     OT.csvCell(r.type),OT.csvCell(r.reasons),OT.csvCell(r.remoteText),r.minutes,OT.csvCell(r.hours)
-  ].join(','));
+  ].join(',');
+};
+
+OT.exportSummaryLine = function exportSummaryLine(label, rows){
   const totalMinutes=rows.reduce((sum,r)=>sum+r.minutes,0);
   const remoteDays=rows.filter(r=>r.remote).length;
-  const summary=[OT.csvCell('汇总'),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(`远程天数 ${remoteDays}`),totalMinutes,OT.csvCell(OT.csvHourText(totalMinutes))].join(',');
-  return '姓名,日期,星期,上班,下班,类型,事由,远程,工时(分),工时(h)\n'+detailLines.concat(summary).join('\n');
+  return [OT.csvCell(label),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(`远程天数 ${remoteDays}`),totalMinutes,OT.csvCell(OT.csvHourText(totalMinutes))].join(',');
+};
+
+OT.buildExportCsv = function buildExportCsv(records, options={}){
+  const rows=OT.groupExportRecords(records).map(OT.exportRowFromGroup);
+  const lines=[];
+  if(options&&options.includePersonSubtotals){
+    const people={};
+    rows.forEach(r=>{
+      const key=r.personKey||r.name||'';
+      if(!people[key])people[key]={name:r.name||key,rows:[]};
+      people[key].rows.push(r);
+    });
+    Object.values(people)
+      .sort((a,b)=>String(a.name).localeCompare(String(b.name)))
+      .forEach(person=>{
+        person.rows
+          .sort((a,b)=>String(a.date).localeCompare(String(b.date)))
+          .forEach(r=>lines.push(OT.exportDetailLine(r)));
+        lines.push(OT.exportSummaryLine(`${person.name} 小计`,person.rows));
+      });
+  }else{
+    rows.forEach(r=>lines.push(OT.exportDetailLine(r)));
+  }
+  lines.push(OT.exportSummaryLine('汇总',rows));
+  return '姓名,日期,星期,上班,下班,类型,事由,远程,工时(分),工时(h)\n'+lines.join('\n');
 };
 
 OT.geoErrorMessage = function geoErrorMessage(err){
