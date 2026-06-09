@@ -278,7 +278,14 @@ namespace BlockBrowser
                 throw new DirectoryNotFoundException("NAS library is unavailable: " + NasLibraryPath);
 
             var entries = ChangeJournal.Load(LocalJournalPath);
-            var plan = SyncPlanner.CreatePlan(entries, BuildSnapshots(entries));
+            var syncEntries = new List<ChangeJournalEntry>(entries);
+            syncEntries.AddRange(LocalOnlySyncDiscovery.Discover(
+                LocalMirrorPath,
+                NasLibraryPath,
+                entries,
+                SyncUserName,
+                DateTime.UtcNow));
+            var plan = SyncPlanner.CreatePlan(syncEntries, BuildSnapshots(syncEntries));
             var uploadedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var decision in plan.Decisions)
@@ -302,7 +309,8 @@ namespace BlockBrowser
                 var remaining = entries
                     .Where(e => !uploadedPaths.Contains(e.Path ?? ""))
                     .ToList();
-                ChangeJournal.Save(LocalJournalPath, remaining);
+                if (remaining.Count != entries.Count)
+                    ChangeJournal.Save(LocalJournalPath, remaining);
             }
 
             return plan;

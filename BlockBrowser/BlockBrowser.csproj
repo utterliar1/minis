@@ -83,6 +83,7 @@
     <Compile Include="Sync\LibrarySyncModels.cs" />
     <Compile Include="Sync\ActiveLibraryResolver.cs" />
     <Compile Include="Sync\ChangeJournal.cs" />
+    <Compile Include="Sync\LocalOnlySyncDiscovery.cs" />
     <Compile Include="Sync\VersionNameGenerator.cs" />
     <Compile Include="Sync\SyncSummaryMessageService.cs" />
     <Compile Include="Sync\SyncPlanner.cs" />
