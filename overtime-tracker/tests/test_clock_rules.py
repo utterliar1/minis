@@ -78,6 +78,17 @@ def clock_payload(clock_type, note):
     }
 
 
+def remote_clock_payload(clock_type, note, out_of_range=True):
+    return {
+        "type": clock_type,
+        "lat": 31.24,
+        "lng": 121.48,
+        "accuracy": 10,
+        "outOfRange": out_of_range,
+        "note": note,
+    }
+
+
 def test_clock_in_requires_note(monkeypatch, tmp_path):
     with load_app(monkeypatch, tmp_path) as app_module:
         client = app_module.app.test_client()
@@ -165,3 +176,67 @@ def test_clock_sequence_takes_precedence_over_empty_note(monkeypatch, tmp_path):
         assert response.status_code == 400
         assert "顺序" in error
         assert "事由" not in error
+
+
+def test_cross_day_clock_out_requires_explanation_and_keeps_out_sequence(monkeypatch, tmp_path):
+    with load_app(monkeypatch, tmp_path) as app_module:
+        client = app_module.app.test_client()
+        admin_token = login(client, "admin", "admin123")
+        configure_location(client, admin_token)
+        member_token = create_member(client, admin_token)
+        monkeypatch.setattr(app_module.time, "time", lambda: 1781019000.0)  # 2026-06-09 23:30 +08
+
+        response = client.post(
+            "/api/clock",
+            json=clock_payload("in", "设计：图纸调整"),
+            headers=auth_headers(member_token),
+        )
+        assert response.status_code == 200
+
+        monkeypatch.setattr(app_module.time, "time", lambda: 1781022600.0)  # 2026-06-10 00:30 +08
+        response = client.post(
+            "/api/clock",
+            json=clock_payload("out", ""),
+            headers=auth_headers(member_token),
+        )
+        assert response.status_code == 400
+        assert "下班说明" in response.get_json()["error"]
+
+        response = client.post(
+            "/api/clock",
+            json=clock_payload("out", "实际工作持续到次日"),
+            headers=auth_headers(member_token),
+        )
+        assert response.status_code == 200
+        assert response.get_json()["type"] == "out"
+
+
+def test_clock_out_location_mismatch_requires_explanation(monkeypatch, tmp_path):
+    with load_app(monkeypatch, tmp_path) as app_module:
+        client = app_module.app.test_client()
+        admin_token = login(client, "admin", "admin123")
+        configure_location(client, admin_token)
+        member_token = create_member(client, admin_token)
+
+        response = client.post(
+            "/api/clock",
+            json=clock_payload("in", "销售：客户沟通"),
+            headers=auth_headers(member_token),
+        )
+        assert response.status_code == 200
+
+        response = client.post(
+            "/api/clock",
+            json=remote_clock_payload("out", ""),
+            headers=auth_headers(member_token),
+        )
+        assert response.status_code == 400
+        assert "下班说明" in response.get_json()["error"]
+
+        response = client.post(
+            "/api/clock",
+            json=remote_clock_payload("out", "临时外出后结束记录"),
+            headers=auth_headers(member_token),
+        )
+        assert response.status_code == 200
+        assert response.get_json()["type"] == "out"

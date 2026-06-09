@@ -32,8 +32,7 @@ OT.loadDashboard = async function loadDashboard(){
     const todayObj=new Date(today+'T12:00:00');
     const todayRecs=records.filter(r=>r.date===today);
     const sumRecords=function(recs){
-      const dg={};
-      recs.forEach(r=>{if(!dg[r.date])dg[r.date]=[];dg[r.date].push(r)});
+      const dg=OT.groupRecordsByStartDate(recs);
       let total=0;Object.entries(dg).forEach(([d,dayRecs])=>{total+=calcTodayOT(dayRecs,new Date(d+'T12:00:00'))});
       return total;
     };
@@ -74,7 +73,7 @@ OT.loadDashboard = async function loadDashboard(){
       const dd=new Date(todayDate);dd.setDate(dd.getDate()-i);
       const dk=dateKey(dd);
       const dayRecs=records.filter(r=>r.date===dk);
-      const dg2={};dayRecs.forEach(r=>{if(!dg2[r.date])dg2[r.date]=[];dg2[r.date].push(r)});
+      const dg2=OT.groupRecordsByStartDate(dayRecs);
       let dayOT=0;Object.entries(dg2).forEach(([d,recs])=>{dayOT+=calcTodayOT(recs,new Date(d+'T12:00:00'))});
       trendData.push({date:dk,label:`${dd.getMonth()+1}/${dd.getDate()}`,ot:dayOT});
     }

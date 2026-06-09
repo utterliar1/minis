@@ -27,7 +27,7 @@ OT.updateGeoStatus = function updateGeoStatus(){
 };
 
 OT.updateClockButton = function updateClockButton(){
-  const btn=document.getElementById('clock-btn'),txt=document.getElementById('clock-btn-text'),last=getLastTodayRecord();
+  const btn=document.getElementById('clock-btn'),txt=document.getElementById('clock-btn-text'),last=OT.getLastClockRecord();
   if((settings.lat==null||settings.lng==null)&&!currentPos){btn.className='clock-btn disabled';txt.textContent='请等待管理员配置';return}
   if(!currentPos){btn.className='clock-btn disabled';txt.textContent=OT.lastGeoErrorMessage?'定位未开启':'获取位置中';return}
   if(currentPos&&currentPos.accuracy>(settings.gpsAccuracy||100)){btn.className='clock-btn disabled';txt.textContent='GPS精度不足';return}
@@ -37,6 +37,11 @@ OT.updateClockButton = function updateClockButton(){
 };
 
 OT.getLastTodayRecord = function getLastTodayRecord(){const t=dateKey(new Date());const r=allRecords.filter(x=>x.date===t).sort((a,b)=>a.ts-b.ts);return r.length?r[r.length-1]:null};
+
+OT.getLastClockRecord = function getLastClockRecord(){
+  const recs=(allRecords||[]).filter(r=>!currentUser||!r.user_id||r.user_id===currentUser.username).sort((a,b)=>a.ts-b.ts);
+  return recs.length?recs[recs.length-1]:null;
+};
 
 OT.showLastClockResult = function showLastClockResult(record,durationText){
   const el=document.getElementById('last-clock-result');
@@ -48,7 +53,7 @@ OT.showLastClockResult = function showLastClockResult(record,durationText){
 
 OT.getCurrentClockIn = function getCurrentClockIn(records,outRecord){
   let openIn=null,lastIn=null;
-  records.filter(r=>r.date===outRecord.date&&r.ts<=outRecord.ts).sort((a,b)=>a.ts-b.ts).forEach(r=>{
+  records.filter(r=>r.ts<=outRecord.ts).sort((a,b)=>a.ts-b.ts).forEach(r=>{
     if(r===outRecord)return;
     if(r.type==='in'){openIn=r;lastIn=r}
     else if(r.type==='out'&&openIn){openIn=null}
@@ -56,19 +61,77 @@ OT.getCurrentClockIn = function getCurrentClockIn(records,outRecord){
   return openIn||lastIn;
 };
 
+OT.WORK_CATEGORIES = ['设计','销售','采购','招投标','项目管理','现场支持','售后/客户沟通','内部事务','其他'];
+
+OT.clockOutReviewContext = function clockOutReviewContext(clockIn,outOfRange,dateStr){
+  const flags=[];
+  if(clockIn&&Number(clockIn.out_of_range||0)!==Number(outOfRange?1:0))flags.push('位置不一致');
+  if(clockIn&&clockIn.date&&dateStr&&clockIn.date!==dateStr)flags.push('跨天');
+  const crossDay=flags.includes('跨天');
+  const options=crossDay
+    ? ['实际工作持续到次日','忘记下班打卡，当前补记','定位或设备原因导致延后记录','跨天且结束位置变化','其他']
+    : ['临时外出后结束记录','返回办公地点后结束记录','定位精度异常','其他'];
+  return {required:flags.length>0,flags,options};
+};
+
+OT.showClockInNoteModal = function showClockInNoteModal(){
+  return new Promise(resolve=>{
+    const options=OT.WORK_CATEGORIES.map(v=>`<option value="${OT.escapeHtml(v)}">${OT.escapeHtml(v)}</option>`).join('');
+    showModal(`<div class="modal-title">填写上班信息</div>
+      <div class="export-modal-field"><label class="export-modal-label">工作类别</label><select id="clock-in-category" class="export-modal-select">${options}</select></div>
+      <div class="export-modal-field"><label class="export-modal-label">事由</label><textarea id="clock-in-reason" class="export-modal-select" rows="3" placeholder="请填写具体事由"></textarea></div>
+      <div class="btn-group"><button class="btn btn-outline" id="clock-in-cancel">取消</button><button class="btn btn-primary" id="clock-in-ok">确认</button></div>`);
+    document.getElementById('clock-in-cancel').onclick=()=>{closeModalDirect();resolve(null)};
+    document.getElementById('clock-in-ok').onclick=()=>{
+      const category=(document.getElementById('clock-in-category').value||'').trim();
+      const reason=(document.getElementById('clock-in-reason').value||'').trim();
+      if(!reason){showToast('请输入事由');return}
+      closeModalDirect();resolve(`${category}：${reason}`);
+    };
+  });
+};
+
+OT.showClockOutNoteModal = function showClockOutNoteModal(context){
+  return new Promise(resolve=>{
+    const options=(context.options||[]).map(v=>`<option value="${OT.escapeHtml(v)}">${OT.escapeHtml(v)}</option>`).join('');
+    const flagText=(context.flags||[]).join('；');
+    showModal(`<div class="modal-title">填写下班说明</div>
+      <p style="text-align:center;color:var(--text-sec);margin-bottom:12px">该记录需要复核：${OT.escapeHtml(flagText)}</p>
+      <div class="export-modal-field"><label class="export-modal-label">快捷说明</label><select id="clock-out-reason-option" class="export-modal-select">${options}</select></div>
+      <div class="export-modal-field"><label class="export-modal-label">补充说明</label><textarea id="clock-out-reason-extra" class="export-modal-select" rows="3" placeholder="选择其他时请填写；也可补充实际结束情况"></textarea></div>
+      <div class="btn-group"><button class="btn btn-outline" id="clock-out-cancel">取消</button><button class="btn btn-primary" id="clock-out-ok">确认</button></div>`);
+    document.getElementById('clock-out-cancel').onclick=()=>{closeModalDirect();resolve(null)};
+    document.getElementById('clock-out-ok').onclick=()=>{
+      const selected=(document.getElementById('clock-out-reason-option').value||'').trim();
+      const extra=(document.getElementById('clock-out-reason-extra').value||'').trim();
+      if(selected==='其他'&&!extra){showToast('请填写下班说明');return}
+      closeModalDirect();resolve(extra&&selected!=='其他'?`${selected}：${extra}`:(extra||selected));
+    };
+  });
+};
+
 OT.handleClock = async function handleClock(){
   const btn=document.getElementById('clock-btn');
   if(btn.classList.contains('disabled')){showToast('请先满足打卡条件');return}
   if(!currentPos){showToast(OT.lastGeoErrorMessage||'正在获取位置...');return}
   if(settings.lat==null||settings.lng==null){showToast('打卡地点未配置');return}
-  const last=getLastTodayRecord();let type='in';
+  const last=OT.getLastClockRecord();let type='in';
   if(last&&last.type==='in')type='out';
   let reason='';
   if(type==='in'){
-    reason=prompt('请输入事由：');
+    reason=await OT.showClockInNoteModal();
     if(reason===null)return;
     reason=reason.trim();
     if(!reason){showToast('请输入事由');return}
+  }else{
+    const outOfRangeNow=!isWithinRange(currentPos);
+    const context=OT.clockOutReviewContext(last,outOfRangeNow,dateKey(new Date()));
+    if(context.required){
+      reason=await OT.showClockOutNoteModal(context);
+      if(reason===null)return;
+      reason=reason.trim();
+      if(!reason){showToast('请填写下班说明');return}
+    }
   }
   if(!isWithinRange(currentPos)){showConfirmModal('⚠️ 范围外打卡','不在范围内，是否记录？',async()=>{await doClock(type,true,reason)},()=>{});return}
   await doClock(type,false,reason);

@@ -377,13 +377,18 @@ def api_clock():
     out_of_range = dist > float(settings.get('radius') or 500)
     if out_of_range and not d.get('outOfRange'):
         conn.close(); return jsonify(error=f"不在打卡范围内（{round(dist)}m）"), 400
-    last = conn.execute("SELECT type FROM records WHERE user_id=? AND date=? ORDER BY ts DESC LIMIT 1", (uid, date_str)).fetchone()
+    last = conn.execute("SELECT * FROM records WHERE user_id=? ORDER BY ts DESC LIMIT 1", (uid,)).fetchone()
     expected = 'out' if last and last['type'] == 'in' else 'in'
     if clock_type != expected:
         conn.close(); return jsonify(error="打卡顺序无效，请刷新后重试"), 400
     note = (d.get('note') or '').strip()
     if clock_type == 'in' and not note:
         conn.close(); return jsonify(error="请填写事由"), 400
+    if clock_type == 'out' and last:
+        location_mismatch = int(last['out_of_range'] or 0) != int(1 if out_of_range else 0)
+        cross_day = (last['date'] or '') != date_str
+        if (location_mismatch or cross_day) and not note:
+            conn.close(); return jsonify(error="请填写下班说明"), 400
     note = note[:500]
     conn.execute("INSERT INTO records (user_id,date,time_str,ts,type,lat,lng,accuracy,out_of_range,note) VALUES (?,?,?,?,?,?,?,?,?,?)",
                  (uid, date_str, time_str, int(now*1000), clock_type,
@@ -687,6 +692,20 @@ def record_minute(r):
     dt = bj_from_ts(r['ts'] / 1000)
     return dt.hour * 60 + dt.minute
 
+def group_paired_records_by_start_date(records):
+    groups = {}
+    open_in = None
+    for r in sorted([dict(x) for x in (records or [])], key=lambda x: x['ts']):
+        if r['type'] == 'in':
+            open_in = r
+            groups.setdefault(r['date'], []).append(r)
+        elif r['type'] == 'out' and open_in:
+            groups.setdefault(open_in['date'], []).append(r)
+            open_in = None
+        else:
+            groups.setdefault(r['date'], []).append(r)
+    return groups
+
 def calc_user_ot(user_id, settings, month=None):
     conn = get_db()
     if month:
@@ -695,11 +714,7 @@ def calc_user_ot(user_id, settings, month=None):
         rows = conn.execute("SELECT * FROM records WHERE user_id=? ORDER BY ts", (user_id,)).fetchall()
     conn.close()
     if not rows: return 0
-    date_groups = {}
-    for r in rows:
-        d = r['date']
-        if d not in date_groups: date_groups[d] = []
-        date_groups[d].append(dict(r))
+    date_groups = group_paired_records_by_start_date(rows)
     total = 0
     for date, recs in date_groups.items():
         dt = datetime.strptime(date, '%Y-%m-%d')
@@ -709,6 +724,9 @@ def calc_user_ot(user_id, settings, month=None):
             work_end = time_to_min(settings.get('workEnd','17:30'))
             day_min = 0
             for r, next_out in paired_records(recs):
+                if r.get('date') and next_out.get('date') and r['date'] != next_out['date']:
+                    day_min += round(max(0, next_out['ts'] - r['ts']) / 60000)
+                    continue
                 in_min = record_minute(r)
                 out_min = record_minute(next_out)
                 day_min += overlap_minutes(in_min, out_min, 0, work_start)
@@ -862,6 +880,9 @@ def calc_records_minutes(records, settings):
             work_start = time_to_min(settings.get('workStart','08:30'))
             work_end = time_to_min(settings.get('workEnd','17:30'))
             for r, next_out in paired_records(recs):
+                if r.get('date') and next_out.get('date') and r['date'] != next_out['date']:
+                    total += round(max(0, next_out['ts'] - r['ts']) / 60000)
+                    continue
                 in_min = record_minute(r)
                 out_min = record_minute(next_out)
                 total += overlap_minutes(in_min, out_min, 0, work_start)
@@ -870,6 +891,25 @@ def calc_records_minutes(records, settings):
             for r, next_out in paired_records(recs):
                 total += round(max(0, next_out['ts'] - r['ts']) / 60000)
     return total
+
+
+def calc_export_group_minutes(recs, settings, date):
+    if not recs: return 0
+    dt = datetime.strptime(date, '%Y-%m-%d')
+    if is_working_day(dt, settings):
+        work_start = time_to_min(settings.get('workStart','08:30'))
+        work_end = time_to_min(settings.get('workEnd','17:30'))
+        total = 0
+        for clock_in, clock_out in paired_records(recs):
+            if clock_in.get('date') and clock_out.get('date') and clock_in['date'] != clock_out['date']:
+                total += round(max(0, clock_out['ts'] - clock_in['ts']) / 60000)
+                continue
+            in_min = record_minute(clock_in)
+            out_min = record_minute(clock_out)
+            total += overlap_minutes(in_min, out_min, 0, work_start)
+            total += overlap_minutes(in_min, out_min, work_end, 24 * 60)
+        return total
+    return round(sum(max(0, clock_out['ts'] - clock_in['ts']) for clock_in, clock_out in paired_records(recs)) / 60000)
 
 
 def get_report_records(from_date, to_date):
@@ -904,7 +944,7 @@ def actual_location_text(record, settings):
     if record.get('accuracy') is not None:
         parts.append(f"精度 {round(float(record['accuracy']))}m")
     if settings.get('lat') is not None and settings.get('lng') is not None:
-        parts.append(f"距离 {round(haversine(settings['lat'], settings['lng'], lat, lng))}m")
+        parts.append(f"距离 {round(distance_m(settings['lat'], settings['lng'], lat, lng))}m")
     return '; '.join(parts)
 
 
@@ -918,21 +958,63 @@ def csv_hour_text(minutes):
     return f"{h}h{m}m" if m else f"{h}h"
 
 
+def split_work_note(note):
+    text = str(note or '').strip()
+    indexes = [i for i in [text.find('：'), text.find(':')] if i > 0]
+    if not indexes:
+        return '', text
+    idx = min(indexes)
+    return text[:idx].strip(), text[idx + 1:].strip()
+
+
+def export_review_flags(recs):
+    flags = []
+    for clock_in, clock_out in paired_records(recs):
+        if int(clock_in.get('out_of_range') or 0) != int(clock_out.get('out_of_range') or 0):
+            if '位置不一致' not in flags:
+                flags.append('位置不一致')
+        if clock_in.get('date') and clock_out.get('date') and clock_in['date'] != clock_out['date']:
+            if '跨天' not in flags:
+                flags.append('跨天')
+    return '；'.join(flags)
+
+
+def group_export_records(records):
+    grouped = {}
+    open_by_user = {}
+    for r in sorted(records or [], key=lambda x: x['ts']):
+        user_id = r['user_id']
+        if r['type'] == 'in':
+            open_by_user[user_id] = r
+            key = (user_id, r['date'])
+            grouped.setdefault(key, []).append(r)
+        elif r['type'] == 'out' and open_by_user.get(user_id):
+            start = open_by_user[user_id]
+            key = (user_id, start['date'])
+            grouped.setdefault(key, []).append(r)
+            open_by_user[user_id] = None
+        else:
+            key = (user_id, r['date'])
+            grouped.setdefault(key, []).append(r)
+    return grouped
+
+
 def build_email_export_csv(records, settings, include_person_subtotals=True):
     rows = []
-    grouped = {}
-    for r in records:
-        grouped.setdefault((r['user_id'], r['date']), []).append(r)
+    grouped = group_export_records(records)
     for (user_id, date), recs in grouped.items():
         recs = sorted(recs, key=lambda r: r['ts'])
         dt = datetime.strptime(date, '%Y-%m-%d')
         weekday = ['周一','周二','周三','周四','周五','周六','周日'][dt.weekday()]
         first_in = next((r for r in recs if r['type'] == 'in'), None)
         last_out = next((r for r in reversed(recs) if r['type'] == 'out'), None)
-        reasons = '; '.join([r.get('note') or '' for r in recs if r.get('note')])
+        in_notes = [split_work_note(r.get('note')) for r in recs if r['type'] == 'in' and r.get('note')]
+        categories = '; '.join(dict.fromkeys([category for category, _ in in_notes if category]))
+        reasons = '; '.join([reason for _, reason in in_notes if reason])
+        clock_out_notes = '; '.join([r.get('note') or '' for r in recs if r['type'] == 'out' and r.get('note')])
         remote = any(int(r.get('out_of_range') or 0) == 1 for r in recs)
         actual = next((actual_location_text(r, settings) for r in recs if actual_location_text(r, settings)), '')
-        minutes = calc_records_minutes(recs, settings)
+        minutes = calc_export_group_minutes(recs, settings, date)
         rows.append({
             'name': recs[0].get('display_name') or user_id,
             'user_id': user_id,
@@ -941,20 +1023,23 @@ def build_email_export_csv(records, settings, include_person_subtotals=True):
             'first_in': (first_in.get('time_str') or '')[:5] if first_in else '',
             'last_out': (last_out.get('time_str') or '')[:5] if last_out else '',
             'type': '工作日' if is_working_day(dt, settings) else '休息日',
+            'categories': categories,
             'reasons': reasons,
+            'clock_out_notes': clock_out_notes,
             'remote_text': '是' if remote else '',
             'actual': actual,
+            'review_flags': export_review_flags(recs),
             'remote': remote,
             'minutes': minutes,
             'hours': csv_hour_text(minutes),
         })
     rows.sort(key=lambda r: (r['name'], r['date']))
     def detail_line(r):
-        return ','.join([csv_cell(r['name']),csv_cell(r['date']),csv_cell(r['weekday']),csv_cell(r['first_in']),csv_cell(r['last_out']),csv_cell(r['type']),csv_cell(r['reasons']),csv_cell(r['remote_text']),csv_cell(r['actual']),str(r['minutes']),csv_cell(r['hours'])])
+        return ','.join([csv_cell(r['name']),csv_cell(r['date']),csv_cell(r['weekday']),csv_cell(r['first_in']),csv_cell(r['last_out']),csv_cell(r['type']),csv_cell(r['categories']),csv_cell(r['reasons']),csv_cell(r['clock_out_notes']),csv_cell(r['remote_text']),csv_cell(r['actual']),csv_cell(r['review_flags']),str(r['minutes']),csv_cell(r['hours'])])
     def summary_line(label, summary_rows, type_label):
         total = sum(r['minutes'] for r in summary_rows)
         remote_days = sum(1 for r in summary_rows if r['remote'])
-        return ','.join([csv_cell(label),'""','""','""','""',csv_cell(type_label),'""',csv_cell(f"远程 {remote_days} 天"),'""',str(total),csv_cell(csv_hour_text(total))])
+        return ','.join([csv_cell(label),'""','""','""','""',csv_cell(type_label),'""','""','""',csv_cell(f"远程 {remote_days} 天"),'""','""',str(total),csv_cell(csv_hour_text(total))])
     lines = []
     if include_person_subtotals:
         people = {}
@@ -967,7 +1052,7 @@ def build_email_export_csv(records, settings, include_person_subtotals=True):
     else:
         lines.extend(detail_line(r) for r in rows)
     lines.append(summary_line('汇总', rows, '总计'))
-    return '姓名,日期,星期,上班,下班,类型,事由,远程,实际位置,工时(分),工时(h)\n' + '\n'.join(lines)
+    return '姓名,日期,星期,上班,下班,类型,工作类别,事由,下班说明,远程,实际位置,复核标记,工时(分),工时(h)\n' + '\n'.join(lines)
 
 
 def build_email_summary_html(users, records, settings, cfg, from_date, to_date, now):

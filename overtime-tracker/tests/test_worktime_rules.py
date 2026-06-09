@@ -105,3 +105,35 @@ def test_backend_rest_day_counts_entire_recorded_duration(monkeypatch, tmp_path)
         }
 
         assert app_module.calc_user_ot("u1", settings) == 180
+
+
+def test_backend_cross_day_pair_counts_recorded_duration(monkeypatch, tmp_path):
+    with load_app(monkeypatch, tmp_path) as app_module:
+        conn = app_module.get_db()
+        conn.execute(
+            "INSERT INTO users VALUES (?,?,?,?,?,?)",
+            ("u1", "Alice", app_module.hash_pw("pass123"), "", "user", 1),
+        )
+        rows = [
+            ("u1", "2026-06-09", "23:30:00", 1781019000000, "in", 31, 121, 10, 0, "设计：图纸调整"),
+            ("u1", "2026-06-10", "00:30:00", 1781022600000, "out", 31, 121, 10, 0, "实际工作持续到次日"),
+        ]
+        conn.executemany(
+            """
+            INSERT INTO records (
+                user_id, date, time_str, ts, type, lat, lng, accuracy, out_of_range, note
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+        conn.commit()
+        conn.close()
+        settings = {
+            "workStart": "08:30",
+            "workEnd": "17:30",
+            "weekdays": [1, 2, 3, 4, 5],
+            "holidays": [],
+            "workdays": [],
+        }
+
+        assert app_module.calc_user_ot("u1", settings) == 60
