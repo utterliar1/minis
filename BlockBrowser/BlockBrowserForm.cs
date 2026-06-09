@@ -757,32 +757,40 @@ namespace BlockBrowser
         private void ShowSettingsDialog()
         {
             using (var form = new SettingsDialog(
-                BlockLibrary.LibraryPath,
+                BlockLibrary.NasLibraryPath,
+                BlockLibrary.LocalMirrorPath,
+                BlockLibrary.CurrentLibraryMode,
                 BlockLibrary.InsertScale,
                 BlockLibrary.InsertRotation * 180.0 / Math.PI))
             {
                 if (form.ShowDialog(this) == DialogResult.OK)
                 {
                     var plan = SettingsUpdateService.CreatePlan(
-                        BlockLibrary.LibraryPath,
-                        form.LibraryPathValue,
+                        BlockLibrary.NasLibraryPath,
+                        form.NasLibraryPathValue,
+                        BlockLibrary.LocalMirrorPath,
+                        form.LocalMirrorPathValue,
+                        BlockLibrary.CurrentLibraryMode,
+                        form.CurrentLibraryModeValue,
                         form.InsertScaleValue,
                         form.InsertRotationDegreesValue,
                         Directory.Exists);
 
-                    if (!plan.IsValid) { MessageBox.Show("路径不能为空。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                    if (plan.RequiresDirectoryCreation)
+                    if (!plan.IsValid) { MessageBox.Show("NAS 主图库路径和本地副本路径不能为空。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                    if (plan.RequiresLocalMirrorDirectoryCreation)
                     {
-                        var dr = MessageBox.Show("目录不存在，是否创建？\n" + plan.LibraryPath, "提示", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                        if (dr == DialogResult.Yes) { try { Directory.CreateDirectory(plan.LibraryPath); } catch (Exception ex) { MessageBox.Show("创建失败: " + ex.Message); return; } }
+                        var dr = MessageBox.Show("本地副本目录不存在，是否创建？\n" + plan.LocalMirrorPath, "提示", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                        if (dr == DialogResult.Yes) { try { Directory.CreateDirectory(plan.LocalMirrorPath); } catch (Exception ex) { MessageBox.Show("创建失败: " + ex.Message); return; } }
                         else return;
                     }
                     BlockLibrary.InsertScale = plan.InsertScale;
                     BlockLibrary.InsertRotation = plan.InsertRotationRadians;
-                    if (plan.LibraryPathChanged)
+                    if (plan.NasLibraryPathChanged || plan.LocalMirrorPathChanged || plan.CurrentLibraryModeChanged)
                     {
-                        BlockLibrary.LibraryPath = plan.LibraryPath;
-                        BlockLibrary.NasLibraryPath = plan.LibraryPath;
+                        BlockLibrary.NasLibraryPath = plan.NasLibraryPath;
+                        BlockLibrary.LocalMirrorPath = plan.LocalMirrorPath;
+                        BlockLibrary.CurrentLibraryMode = plan.CurrentLibraryMode;
+                        BlockLibrary.RefreshActiveLibrary();
                         ResourceDisposalService.DisposeDictionaryValuesAndClear(_categoryCards);
                         LoadData();
                     }

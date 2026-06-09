@@ -6,11 +6,18 @@ namespace BlockBrowser
 {
     public class SettingsDialog : Form
     {
-        private readonly TextBox _txtLibraryPath;
+        private readonly TextBox _txtNasLibraryPath;
+        private readonly TextBox _txtLocalMirrorPath;
+        private readonly ComboBox _cmbLibraryMode;
         private readonly NumericUpDown _numScale;
         private readonly NumericUpDown _numRotation;
 
-        public SettingsDialog(string libraryPath, double insertScale, double insertRotationDegrees)
+        public SettingsDialog(
+            string nasLibraryPath,
+            string localMirrorPath,
+            LibraryMode currentLibraryMode,
+            double insertScale,
+            double insertRotationDegrees)
         {
             Text = "块浏览器设置";
             StartPosition = FormStartPosition.CenterParent;
@@ -28,71 +35,54 @@ namespace BlockBrowser
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 1,
-                RowCount = 3,
+                RowCount = 4,
                 Dock = DockStyle.Fill
             };
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-            var pathPanel = new TableLayoutPanel
-            {
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                ColumnCount = 2,
-                Dock = DockStyle.Fill,
-                Margin = new Padding(0, 0, 0, 12)
-            };
-            pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 360));
-            pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            _txtNasLibraryPath = new TextBox();
+            var nasPathPanel = CreatePathPanel("NAS 主图库路径:", nasLibraryPath, _txtNasLibraryPath);
 
-            var lblPath = new Label
-            {
-                Text = "块库路径:",
-                AutoSize = true,
-                Dock = DockStyle.Fill,
-                Margin = new Padding(0, 0, 0, 4)
-            };
-            _txtLibraryPath = new TextBox
-            {
-                Text = libraryPath ?? "",
-                Width = 360,
-                Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                Margin = new Padding(0, 0, 8, 0)
-            };
-            var btnBrowse = new Button
-            {
-                Text = "...",
-                FlatStyle = FlatStyle.System,
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Margin = new Padding(0)
-            };
-            btnBrowse.Click += (s, e) =>
-            {
-                using (var dlg = new FolderBrowserDialog())
-                {
-                    dlg.SelectedPath = _txtLibraryPath.Text;
-                    if (dlg.ShowDialog() == DialogResult.OK) _txtLibraryPath.Text = dlg.SelectedPath;
-                }
-            };
-            pathPanel.Controls.Add(lblPath, 0, 0);
-            pathPanel.SetColumnSpan(lblPath, 2);
-            pathPanel.Controls.Add(_txtLibraryPath, 0, 1);
-            pathPanel.Controls.Add(btnBrowse, 1, 1);
+            _txtLocalMirrorPath = new TextBox();
+            var localPathPanel = CreatePathPanel("本地副本路径:", localMirrorPath, _txtLocalMirrorPath);
 
             var valuePanel = new TableLayoutPanel
             {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                ColumnCount = 4,
+                ColumnCount = 6,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0, 0, 0, 18)
             };
             valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+            valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
             valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+
+            var lblMode = new Label
+            {
+                Text = "当前模式:",
+                AutoSize = true,
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 4, 6, 0)
+            };
+            _cmbLibraryMode = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = 100,
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 0, 18, 0)
+            };
+            _cmbLibraryMode.Items.Add(LibraryMode.Auto.ToString());
+            _cmbLibraryMode.Items.Add(LibraryMode.Nas.ToString());
+            _cmbLibraryMode.Items.Add(LibraryMode.Local.ToString());
+            _cmbLibraryMode.SelectedItem = currentLibraryMode.ToString();
+            if (_cmbLibraryMode.SelectedIndex < 0) _cmbLibraryMode.SelectedItem = LibraryMode.Auto.ToString();
 
             var lblScale = new Label
             {
@@ -131,10 +121,12 @@ namespace BlockBrowser
                 Anchor = AnchorStyles.Left,
                 Margin = new Padding(0)
             };
-            valuePanel.Controls.Add(lblScale, 0, 0);
-            valuePanel.Controls.Add(_numScale, 1, 0);
-            valuePanel.Controls.Add(lblRot, 2, 0);
-            valuePanel.Controls.Add(_numRotation, 3, 0);
+            valuePanel.Controls.Add(lblMode, 0, 0);
+            valuePanel.Controls.Add(_cmbLibraryMode, 1, 0);
+            valuePanel.Controls.Add(lblScale, 2, 0);
+            valuePanel.Controls.Add(_numScale, 3, 0);
+            valuePanel.Controls.Add(lblRot, 4, 0);
+            valuePanel.Controls.Add(_numRotation, 5, 0);
 
             var buttonPanel = new FlowLayoutPanel
             {
@@ -165,17 +157,34 @@ namespace BlockBrowser
             buttonPanel.Controls.Add(btnCancel);
             buttonPanel.Controls.Add(btnOk);
 
-            layout.Controls.Add(pathPanel, 0, 0);
-            layout.Controls.Add(valuePanel, 0, 1);
-            layout.Controls.Add(buttonPanel, 0, 2);
+            layout.Controls.Add(nasPathPanel, 0, 0);
+            layout.Controls.Add(localPathPanel, 0, 1);
+            layout.Controls.Add(valuePanel, 0, 2);
+            layout.Controls.Add(buttonPanel, 0, 3);
             Controls.Add(layout);
             AcceptButton = btnOk;
             CancelButton = btnCancel;
         }
 
-        public string LibraryPathValue
+        public string NasLibraryPathValue
         {
-            get { return _txtLibraryPath.Text; }
+            get { return _txtNasLibraryPath.Text; }
+        }
+
+        public string LocalMirrorPathValue
+        {
+            get { return _txtLocalMirrorPath.Text; }
+        }
+
+        public LibraryMode CurrentLibraryModeValue
+        {
+            get
+            {
+                LibraryMode mode;
+                return Enum.TryParse(_cmbLibraryMode.SelectedItem as string, true, out mode)
+                    ? mode
+                    : LibraryMode.Auto;
+            }
         }
 
         public double InsertScaleValue
@@ -186,6 +195,55 @@ namespace BlockBrowser
         public double InsertRotationDegreesValue
         {
             get { return (double)_numRotation.Value; }
+        }
+
+        private static TableLayoutPanel CreatePathPanel(string labelText, string pathValue, TextBox textBox)
+        {
+            var pathPanel = new TableLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 2,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 0, 0, 12)
+            };
+            pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 360));
+            pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+            var label = new Label
+            {
+                Text = labelText,
+                AutoSize = true,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 0, 0, 4)
+            };
+            textBox.Text = pathValue ?? "";
+            textBox.Width = 360;
+            textBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            textBox.Margin = new Padding(0, 0, 8, 0);
+
+            var btnBrowse = new Button
+            {
+                Text = "...",
+                FlatStyle = FlatStyle.System,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(0)
+            };
+            btnBrowse.Click += (s, e) =>
+            {
+                using (var dlg = new FolderBrowserDialog())
+                {
+                    dlg.SelectedPath = textBox.Text;
+                    if (dlg.ShowDialog() == DialogResult.OK) textBox.Text = dlg.SelectedPath;
+                }
+            };
+
+            pathPanel.Controls.Add(label, 0, 0);
+            pathPanel.SetColumnSpan(label, 2);
+            pathPanel.Controls.Add(textBox, 0, 1);
+            pathPanel.Controls.Add(btnBrowse, 1, 1);
+            return pathPanel;
         }
 
         private static decimal ClampDecimal(decimal value, decimal min, decimal max, decimal fallback)
