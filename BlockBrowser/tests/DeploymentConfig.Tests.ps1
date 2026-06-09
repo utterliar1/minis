@@ -7,6 +7,7 @@ $buildAllBytes = [System.IO.File]::ReadAllBytes((Join-Path $project 'build-all.b
 $plugin = Get-Content -Encoding UTF8 (Join-Path $project 'BlockBrowserPlugin.cs') -Raw
 $defaultConfig = Get-Content -Encoding UTF8 (Join-Path $project 'BlockBrowser.default.ini') -Raw
 $defaultLibraryFolder = -join ([char[]](0x6211, 0x7684, 0x5E38, 0x7528, 0x5757))
+$manualFileName = -join ([char[]](0x4F7F, 0x7528, 0x624B, 0x518C)) + '.html'
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) { throw "$name did not find pattern: $pattern" }
@@ -36,6 +37,7 @@ if (Test-Path (Join-Path $project 'BlockBrowser.AutoCAD8.csproj')) {
 }
 
 Assert-Contains 'local deploy publishes default config template' $buildAll 'BlockBrowser\.default\.ini'
+Assert-Contains 'local deploy publishes user manual' $buildAll ([regex]::Escape($manualFileName))
 Assert-NoBareLf 'local deploy batch uses CRLF line endings' $buildAllBytes
 Assert-Contains 'local deploy target is C BlockBrowser' $buildAll 'set "OUTPUT=C:\\BlockBrowser"'
 Assert-Contains 'local deploy uses installed ZWCAD 2020' $buildAll 'set "ZWCAD_DIR=C:\\Program Files\\ZWSOFT\\ZWCAD 2020"'

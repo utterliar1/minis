@@ -51,6 +51,7 @@ if %ERRORLEVEL% equ 0 (
 echo.
 copy /Y "%BASE%autoload.lsp" "%OUTPUT%\autoload.lsp" >nul
 copy /Y "%BASE%BlockBrowser.default.ini" "%OUTPUT%\BlockBrowser.default.ini" >nul
+copy /Y "%BASE%使用手册.html" "%OUTPUT%\使用手册.html" >nul
 if not exist "%OUTPUT%\config.ini" (
     copy /Y "%BASE%BlockBrowser.default.ini" "%OUTPUT%\config.ini" >nul
     echo   Config: created config.ini from default template
@@ -69,6 +70,7 @@ echo   - acad\BlockBrowser.dll  (AutoCAD)
 echo   - zwcad\BlockBrowser.dll (ZWCAD)
 echo   - autoload.lsp           (auto load)
 echo   - BlockBrowser.default.ini (default config template)
+echo   - 使用手册.html        (user manual)
 echo ========================================
 if "%BUILD_FAILED%"=="1" exit /b 1
 if "%BLOCKBROWSER_PAUSE%"=="1" pause
