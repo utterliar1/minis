@@ -31,6 +31,30 @@ OT.csvHourText = function csvHourText(minutes){
   return mm?`${h}h${mm}m`:`${h}h`;
 };
 
+OT.haversineDistance = OT.haversineDistance || function haversineDistance(a,b,c,d){const R=6371000,e=(c-a)*Math.PI/180,f=(d-b)*Math.PI/180,g=Math.sin(e/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(f/2)**2;return R*2*Math.atan2(Math.sqrt(g),Math.sqrt(1-g))};
+
+OT.actualLocationText = function actualLocationText(record){
+  if(!record||Number(record.out_of_range)!==1)return '';
+  const hasLat=record.lat!==null&&record.lat!==undefined&&record.lat!=='',hasLng=record.lng!==null&&record.lng!==undefined&&record.lng!=='';
+  const lat=Number(record.lat),lng=Number(record.lng),acc=Number(record.accuracy);
+  const address=record.actual_address||record.location_address||record.address||'';
+  const parts=[];
+  if(hasLat&&hasLng&&Number.isFinite(lat)&&Number.isFinite(lng)){
+    parts.push(`${lat.toFixed(6)},${lng.toFixed(6)}`);
+    if(Number.isFinite(acc))parts.push(`精度 ${Math.round(acc)}m`);
+    const hasBase=settings&&settings.lat!==null&&settings.lat!==undefined&&settings.lat!==''&&settings.lng!==null&&settings.lng!==undefined&&settings.lng!=='';
+    const baseLat=Number(settings&&settings.lat),baseLng=Number(settings&&settings.lng);
+    if(hasBase&&Number.isFinite(baseLat)&&Number.isFinite(baseLng))parts.push(`距离 ${Math.round(OT.haversineDistance(baseLat,baseLng,lat,lng))}m`);
+  }
+  if(address)parts.push(`地址 ${address}`);
+  return parts.join('; ');
+};
+
+OT.actualLocationHtml = function actualLocationHtml(record){
+  const text=OT.actualLocationText(record);
+  return text?`<div class="note-text">实际位置：${OT.escapeHtml(text)}</div>`:'';
+};
+
 OT.groupExportRecords = function groupExportRecords(records){
   const groups={};
   (records||[]).forEach(r=>{
@@ -49,6 +73,7 @@ OT.exportRowFromGroup = function exportRowFromGroup(group){
   const lo=[...sorted].reverse().find(r=>r.type==='out');
   const reasons=sorted.filter(r=>r.note).map(r=>r.note).filter(Boolean).join('; ');
   const remote=sorted.some(r=>Number(r.out_of_range)===1);
+  const actualLocation=sorted.map(OT.actualLocationText).find(Boolean)||'';
   const minutes=OT.calcTodayOT(sorted,d);
   return {
     name: group.name,
@@ -60,6 +85,7 @@ OT.exportRowFromGroup = function exportRowFromGroup(group){
     type: OT.isWorkingDay(d)?'工作日':'休息日',
     reasons,
     remoteText: remote?'是':'',
+    actualLocation,
     remote,
     minutes,
     hours: OT.csvHourText(minutes)
@@ -69,14 +95,14 @@ OT.exportRowFromGroup = function exportRowFromGroup(group){
 OT.exportDetailLine = function exportDetailLine(r){
   return [
     OT.csvCell(r.name),OT.csvCell(r.date),OT.csvCell(r.weekday),OT.csvCell(r.firstIn),OT.csvCell(r.lastOut),
-    OT.csvCell(r.type),OT.csvCell(r.reasons),OT.csvCell(r.remoteText),r.minutes,OT.csvCell(r.hours)
+    OT.csvCell(r.type),OT.csvCell(r.reasons),OT.csvCell(r.remoteText),OT.csvCell(r.actualLocation),r.minutes,OT.csvCell(r.hours)
   ].join(',');
 };
 
 OT.exportSummaryLine = function exportSummaryLine(label, rows, typeLabel){
   const totalMinutes=rows.reduce((sum,r)=>sum+r.minutes,0);
   const remoteDays=rows.filter(r=>r.remote).length;
-  return [OT.csvCell(label),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(typeLabel||''),OT.csvCell(''),OT.csvCell(`远程 ${remoteDays} 天`),totalMinutes,OT.csvCell(OT.csvHourText(totalMinutes))].join(',');
+  return [OT.csvCell(label),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(typeLabel||''),OT.csvCell(''),OT.csvCell(`远程 ${remoteDays} 天`),OT.csvCell(''),totalMinutes,OT.csvCell(OT.csvHourText(totalMinutes))].join(',');
 };
 
 OT.buildExportCsv = function buildExportCsv(records, options={}){
@@ -101,7 +127,7 @@ OT.buildExportCsv = function buildExportCsv(records, options={}){
     rows.forEach(r=>lines.push(OT.exportDetailLine(r)));
   }
   lines.push(OT.exportSummaryLine('汇总',rows,'总计'));
-  return '姓名,日期,星期,上班,下班,类型,事由,远程,工时(分),工时(h)\n'+lines.join('\n');
+  return '姓名,日期,星期,上班,下班,类型,事由,远程,实际位置,工时(分),工时(h)\n'+lines.join('\n');
 };
 
 OT.geoErrorMessage = function geoErrorMessage(err){

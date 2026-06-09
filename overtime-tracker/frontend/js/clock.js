@@ -10,7 +10,7 @@ OT.updateClock = function updateClock(){
 
 OT.isWithinRange = function isWithinRange(pos){if(settings.lat==null||settings.lng==null||!pos)return false;return haversineDistance(settings.lat,settings.lng,pos.lat,pos.lng)<=settings.radius};
 
-OT.haversineDistance = function haversineDistance(a,b,c,d){const R=6371000,e=(c-a)*Math.PI/180,f=(d-b)*Math.PI/180,g=Math.sin(e/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(f/2)**2;return R*2*Math.atan2(Math.sqrt(g),Math.sqrt(1-g))};
+OT.haversineDistance = OT.haversineDistance || function haversineDistance(a,b,c,d){const R=6371000,e=(c-a)*Math.PI/180,f=(d-b)*Math.PI/180,g=Math.sin(e/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(f/2)**2;return R*2*Math.atan2(Math.sqrt(g),Math.sqrt(1-g))};
 
 OT.startGeoWatch = function startGeoWatch(){
   if(!navigator.geolocation){document.getElementById('clock-status').innerHTML='⚠️ 不支持定位';return}
@@ -43,7 +43,7 @@ OT.showLastClockResult = function showLastClockResult(record,durationText){
   if(!el)return;
   const label=record.type==='in'?'上班记录':'下班记录';
   el.style.display='block';
-  el.innerHTML=`<div class="result-main">${label} ${OT.escapeHtml(record.time_str||'')}</div><div class="result-sub">${durationText?`本次工时 ${OT.escapeHtml(durationText)}<br>`:''}${record.out_of_range?'范围外已标记<br>':''}${OT.escapeHtml(record.note||'')}</div>`;
+  el.innerHTML=`<div class="result-main">${label} ${OT.escapeHtml(record.time_str||'')}</div><div class="result-sub">${durationText?`本次工时 ${OT.escapeHtml(durationText)}<br>`:''}${record.out_of_range?'范围外已标记<br>':''}${OT.actualLocationHtml(record)}${OT.escapeHtml(record.note||'')}</div>`;
 };
 
 OT.getCurrentClockIn = function getCurrentClockIn(records,outRecord){
@@ -77,7 +77,7 @@ OT.handleClock = async function handleClock(){
 OT.doClock = async function doClock(type,outOfRange,note){
   try{
     const d=await api('/clock',{method:'POST',body:JSON.stringify({type,lat:currentPos?.lat,lng:currentPos?.lng,accuracy:currentPos?.accuracy,outOfRange,note})});
-    const record={user_id:currentUser.username,date:d.date,time_str:d.time,ts:Date.now(),type,out_of_range:d.outOfRange?1:0,note};
+    const record={user_id:currentUser.username,date:d.date,time_str:d.time,ts:Date.now(),type,lat:currentPos?.lat,lng:currentPos?.lng,accuracy:currentPos?.accuracy,out_of_range:d.outOfRange?1:0,note};
     allRecords.push(record);
     let durationText='';
     if(type==='out'){
@@ -96,6 +96,6 @@ OT.updateTodayTimeline = function updateTodayTimeline(){
   card.style.display='block';
   const last=recs[recs.length-1];
   const statusHtml=last.type==='in'?`<div class="timeline-status">进行中：${OT.formatMinutes(Math.max(0,Math.floor((Date.now()-last.ts)/60000)))}</div>`:'';
-  tl.innerHTML=statusHtml+recs.map(r=>`<div class="timeline-item ${r.type==='out'?'out':''}"><div class="timeline-label">${r.type==='in'?'上班打卡':'下班打卡'}</div><div class="timeline-time">${OT.escapeHtml(r.time_str||'')}</div>${r.note?`<div class="note-text">${OT.escapeHtml(r.note)}</div>`:''}</div>`).join('');
+  tl.innerHTML=statusHtml+recs.map(r=>`<div class="timeline-item ${r.type==='out'?'out':''}"><div class="timeline-label">${r.type==='in'?'上班打卡':'下班打卡'}</div><div class="timeline-time">${OT.escapeHtml(r.time_str||'')}</div>${OT.actualLocationHtml(r)}${r.note?`<div class="note-text">${OT.escapeHtml(r.note)}</div>`:''}</div>`).join('');
   document.getElementById('today-overtime').textContent=OT.formatMinutes(OT.calcTodayOT(recs,new Date(t+'T12:00:00')));
 };
