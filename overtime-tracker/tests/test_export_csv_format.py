@@ -316,3 +316,82 @@ if (!downloads[3].text.includes('"Alice","","","","","小计","","远程 1 天",
     )
 
     assert result.returncode == 0, result.stderr
+
+
+def test_exports_refresh_settings_before_building_actual_location():
+    script = r"""
+(async () => {
+const fs = require('fs');
+const vm = require('vm');
+
+const records = [
+  { user_id: 'u1', display_name: 'Alice', date: '2026-06-09', time_str: '07:30:00', ts: 1, type: 'in', lat: 31.24, lng: 121.48, accuracy: 42, out_of_range: 1, actual_address: '上海市黄浦区测试路', note: '远程说明' },
+  { user_id: 'u1', display_name: 'Alice', date: '2026-06-09', time_str: '18:30:00', ts: 2, type: 'out', lat: 31.24, lng: 121.48, accuracy: 42, out_of_range: 1, actual_address: '上海市黄浦区测试路', note: '' },
+];
+const downloads = [];
+const downloadPromises = [];
+const sandbox = {
+  Blob,
+  console,
+  location: { origin: 'http://127.0.0.1' },
+  localStorage: { getItem() { return null; } },
+  setTimeout() {},
+  document: {
+    getElementById() { return { textContent: '', innerHTML: '', classList: { add() {}, remove() {} }, value: 'month' }; },
+    createElement() { return { click() {} }; },
+  },
+  URL: { createObjectURL() { return 'blob:'; }, revokeObjectURL() {} },
+};
+sandbox.window = sandbox;
+vm.createContext(sandbox);
+for (const file of ['frontend/js/utils.js', 'frontend/js/stats.js', 'frontend/js/records.js', 'frontend/js/admin.js']) {
+  vm.runInContext(fs.readFileSync(file, 'utf8'), sandbox, { filename: file });
+}
+for (const key of Object.keys(sandbox.OT)) sandbox[key] = sandbox.OT[key];
+
+const staleSettings = {
+  workStart: '08:30',
+  workEnd: '17:30',
+  lat: 31.23,
+  lng: 121.47,
+  weekdays: [1, 2, 3, 4, 5],
+  holidays: [],
+  workdays: [],
+};
+sandbox.OT.settings = sandbox.settings = staleSettings;
+sandbox.OT.currentUser = sandbox.currentUser = { username: 'admin', displayName: 'Admin', role: 'admin' };
+sandbox.OT.showToast = sandbox.showToast = function(){};
+sandbox.OT.closeModalDirect = sandbox.closeModalDirect = function(){};
+sandbox.OT.api = sandbox.api = async function(path) {
+  if (path === '/settings') return { settings: { ...staleSettings, mapKey: 'test-map-key' } };
+  if (path === '/records') return { records };
+  if (path.startsWith('/export?')) return { records };
+  throw new Error(`Unexpected API path ${path}`);
+};
+sandbox.OT.downloadBlob = sandbox.downloadBlob = function(blob, name) {
+  downloadPromises.push(blob.text().then(text => downloads.push({ name, text })));
+};
+
+await sandbox.OT.exportCsv('all', 'month');
+await Promise.all(downloadPromises);
+
+if (downloads.length !== 1) throw new Error(`Expected 1 download, got ${downloads.length}`);
+const text = downloads[0].text.replace(/^\uFEFF/, '');
+if (!text.includes('地址 上海市黄浦区测试路')) {
+  throw new Error(`Expected refreshed settings to include address in export: ${text}`);
+}
+})().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+
+    assert result.returncode == 0, result.stderr

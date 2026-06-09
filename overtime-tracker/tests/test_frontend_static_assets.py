@@ -28,8 +28,10 @@ def test_static_asset_cache_version_is_current_and_consistent():
     sw = (ROOT / "frontend" / "sw.js").read_text(encoding="utf-8")
 
     assert "v=11" not in index + app + sw
+    assert "v=12" not in index + app + sw
     assert "ot-tracker-v11" not in sw
-    assert 'ot-tracker-v12' in sw
+    assert "ot-tracker-v12" not in sw
+    assert 'ot-tracker-v13' in sw
     for asset in [
         "/css/style.css",
         "/js/utils.js",
@@ -42,5 +44,5 @@ def test_static_asset_cache_version_is_current_and_consistent():
         "/使用指南.html",
         "/管理员使用指南.html",
     ]:
-        assert f"{asset}?v=12" in index + app + sw
+        assert f"{asset}?v=13" in index + app + sw
 
