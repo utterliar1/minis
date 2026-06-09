@@ -20,6 +20,13 @@ function Assert-Contains($name, $text, $pattern) {
     Write-Host "PASS $name"
 }
 
+function Assert-NotContains($name, $text, $pattern) {
+    if ($text -match $pattern) {
+        throw "$name found forbidden pattern: $pattern"
+    }
+    Write-Host "PASS $name"
+}
+
 function Assert-NotNull($name, $value) {
     if ($null -eq $value) {
         throw "$name expected a value but got null"
@@ -144,3 +151,20 @@ Assert-Contains 'preview without fallback explains preserve' $previewWithoutFall
 $layerCommands = Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit\LayerCommands.cs') -Raw
 Assert-Contains 'layer standard gathers block/layout scopes' $layerCommands 'GetLayerStandardScopeIds'
 Assert-Contains 'layer standard migrates all gathered scopes' $layerCommands 'MoveLayerStandardEntities'
+
+$projectConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.ini') -Raw
+$defaultConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.default.ini') -Raw
+$configSource = Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit.Core\Config.cs') -Raw
+$localConfigPath = 'C:\CadToolkit\CadToolkit.ini'
+$localConfig = if (Test-Path -LiteralPath $localConfigPath) { Get-Content -Encoding UTF8 -LiteralPath $localConfigPath -Raw } else { '' }
+
+$equipmentLinePattern = '0-\u8BBE\u5907\u5C42=\*\u8BBE\u5907\*,0-4,VIS35'
+$oldEquipmentLinePattern = '(?m)^0-\u8BBE\u5907\u5C42=\u8BBE\u5907,0-4,VIS35$'
+$embeddedEquipmentLinePattern = '0-\\u8BBE\\u5907\\u5C42=\*\\u8BBE\\u5907\*,0-4,VIS35'
+
+Assert-Contains 'project config uses explicit wildcard layer map' $projectConfig $equipmentLinePattern
+Assert-Contains 'default config uses explicit wildcard layer map' $defaultConfig $equipmentLinePattern
+Assert-Contains 'embedded default uses explicit wildcard layer map' $configSource $embeddedEquipmentLinePattern
+Assert-Contains 'local config uses explicit wildcard layer map' $localConfig $equipmentLinePattern
+Assert-NotContains 'project config removes old contains-style layer map' $projectConfig $oldEquipmentLinePattern
+Assert-NotContains 'default config removes old contains-style layer map' $defaultConfig $oldEquipmentLinePattern
