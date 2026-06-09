@@ -62,7 +62,7 @@ namespace BlockBrowser
                 RowCount = 2,
                 Dock = DockStyle.Fill
             };
-            pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
             pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 520));
             pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             pathPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -88,7 +88,7 @@ namespace BlockBrowser
                 Dock = DockStyle.Fill
             };
             valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+            valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 128));
             valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
             valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -97,7 +97,7 @@ namespace BlockBrowser
             _cmbLibraryMode = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Width = 100,
+                Width = 128,
                 Anchor = AnchorStyles.Left,
                 Margin = new Padding(0, 0, 22, 0)
             };

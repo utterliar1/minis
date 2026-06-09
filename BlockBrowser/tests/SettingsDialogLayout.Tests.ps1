@@ -28,7 +28,10 @@ Assert-Contains 'settings dialog groups library paths' $dialogSource ('new Group
 Assert-Contains 'settings dialog groups insert options' $dialogSource ('new GroupBox\s*\{[^}]*Text = "' + [regex]::Escape($insertGroupTitle) + '"')
 Assert-Contains 'settings dialog uses wider path text boxes' $dialogSource 'textBox\.Width = 520'
 Assert-Contains 'settings dialog uses three-column path rows' $dialogSource 'ColumnCount = 3'
+Assert-Contains 'settings dialog keeps path labels unwrapped at high DPI' $dialogSource 'ColumnStyle\(SizeType\.Absolute,\s*150\)'
 Assert-Contains 'settings dialog aligns browse buttons with path inputs' $dialogSource 'pathPanel\.Controls\.Add\(btnBrowse,\s*2,\s*row\)'
+Assert-Contains 'settings dialog keeps mode dropdown readable at high DPI' $dialogSource '_cmbLibraryMode[\s\S]*?Width = 128'
+Assert-Contains 'settings dialog reserves mode dropdown column width' $dialogSource 'ColumnStyle\(SizeType\.Absolute,\s*128\)'
 Assert-Contains 'settings dialog exposes NAS library path' $dialogSource 'NasLibraryPathValue'
 Assert-Contains 'settings dialog exposes local mirror path' $dialogSource 'LocalMirrorPathValue'
 Assert-Contains 'settings dialog exposes current library mode' $dialogSource 'CurrentLibraryModeValue'
