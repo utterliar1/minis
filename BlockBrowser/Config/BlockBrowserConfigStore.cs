@@ -28,6 +28,7 @@ namespace BlockBrowser
             if (!File.Exists(ConfigPath)) return config;
 
             bool loadedNasLibraryPath = false;
+            var loadedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (string line in File.ReadAllLines(ConfigPath, Encoding.UTF8))
             {
                 string trimmed = line.Trim();
@@ -38,6 +39,7 @@ namespace BlockBrowser
 
                 string key = trimmed.Substring(0, eq).Trim();
                 string val = trimmed.Substring(eq + 1).Trim();
+                loadedKeys.Add(key);
                 if (string.IsNullOrEmpty(val) && !key.Equals("UserName", StringComparison.OrdinalIgnoreCase)) continue;
 
                 if (key.Equals("ThumbSize", StringComparison.OrdinalIgnoreCase))
@@ -105,6 +107,8 @@ namespace BlockBrowser
 
             if (!loadedNasLibraryPath || string.IsNullOrEmpty(config.NasLibraryPath))
                 config.NasLibraryPath = config.LibraryPath;
+
+            AppendMissingConfigKeys(config, loadedKeys);
             }
             catch { }
 
@@ -139,6 +143,40 @@ namespace BlockBrowser
             File.WriteAllLines(ConfigPath, lines, Encoding.UTF8);
             }
             catch { }
+        }
+
+        private void AppendMissingConfigKeys(BlockBrowserConfig config, HashSet<string> loadedKeys)
+        {
+            if (config == null || loadedKeys == null || !File.Exists(ConfigPath)) return;
+
+            var missingLines = new List<string>();
+            AddMissingConfigLine(missingLines, loadedKeys, "LibraryPath", ToConfigPath(config.LibraryPath));
+            AddMissingConfigLine(missingLines, loadedKeys, "NasLibraryPath", ToConfigPath(config.NasLibraryPath));
+            AddMissingConfigLine(missingLines, loadedKeys, "LocalMirrorPath", ToConfigPath(config.LocalMirrorPath));
+            AddMissingConfigLine(missingLines, loadedKeys, "PreferLocalWhenNasUnavailable", config.PreferLocalWhenNasUnavailable ? "1" : "0");
+            AddMissingConfigLine(missingLines, loadedKeys, "CurrentLibraryMode", config.CurrentLibraryMode.ToString());
+            AddMissingConfigLine(missingLines, loadedKeys, "UserName", config.SyncUserName ?? "");
+            AddMissingConfigLine(missingLines, loadedKeys, "ThumbSize", config.ThumbSize.ToString());
+            AddMissingConfigLine(missingLines, loadedKeys, "InsertScale", config.InsertScale.ToString("G"));
+            AddMissingConfigLine(missingLines, loadedKeys, "InsertRotation", (config.InsertRotation * 180.0 / Math.PI).ToString("G"));
+            AddMissingConfigLine(missingLines, loadedKeys, "FormWidth", config.FormWidth.ToString());
+            AddMissingConfigLine(missingLines, loadedKeys, "FormHeight", config.FormHeight.ToString());
+
+            if (missingLines.Count > 0)
+            {
+                string existingText = File.ReadAllText(ConfigPath, Encoding.UTF8);
+                string prefix = existingText.Length == 0 || existingText.EndsWith(Environment.NewLine) ? "" : Environment.NewLine;
+                File.AppendAllText(
+                    ConfigPath,
+                    prefix + string.Join(Environment.NewLine, missingLines.ToArray()) + Environment.NewLine,
+                    Encoding.UTF8);
+            }
+        }
+
+        private static void AddMissingConfigLine(List<string> lines, HashSet<string> loadedKeys, string key, string value)
+        {
+            if (loadedKeys.Contains(key)) return;
+            lines.Add(key + "=" + (value ?? ""));
         }
 
         public void EnsureUserConfigExists()
