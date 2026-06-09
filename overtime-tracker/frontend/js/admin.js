@@ -148,6 +148,7 @@ OT.doExport = async function doExport(){
 
 OT.exportCsv = async function exportCsv(uid, period, from='', to=''){
   try{
+    await OT.refreshSettings();
     let url='/export?';
     if(uid&&uid!=='all')url+=`uid=${encodeURIComponent(uid)}&`;
     if(period==='range')url+=`from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;

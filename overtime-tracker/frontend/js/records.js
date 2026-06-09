@@ -33,7 +33,7 @@ OT.renderRecordsList = function renderRecordsList(dg){
 };
 
 OT.exportMyRecords = async function exportMyRecords(){
-  try{const d=await api('/records');const recs=d.records||[];if(!recs.length){showToast('暂无数据');return}
+  try{await OT.refreshSettings();const d=await api('/records');const recs=d.records||[];if(!recs.length){showToast('暂无数据');return}
     const dn=(currentUser&&currentUser.displayName)||'';
     const csv=OT.buildExportCsv(recs.map(r=>({...r,display_name:r.display_name||dn||r.user_id})));
     downloadBlob(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}),`我的工时记录_${dateKey(new Date())}.csv`);showToast('📤 已导出');

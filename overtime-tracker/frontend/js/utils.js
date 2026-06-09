@@ -151,6 +151,14 @@ OT.api = async function api(path, opts={}) {
   return data;
 };
 
+OT.refreshSettings = async function refreshSettings(){
+  try{
+    const d=await api('/settings');
+    if(d&&d.settings)settings=d.settings;
+  }catch(e){}
+  return settings;
+};
+
 OT.bjNow = function bjNow(){return new Date(Date.now()+8*3600000)};
 
 OT.bjTimeStr = function bjTimeStr(d){return d.toISOString().slice(11,19)};
