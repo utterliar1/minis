@@ -24,12 +24,24 @@ function Assert-ContainsLiteral($name, $text, $literal) {
 
 Assert-Contains 'change basepoint command is registered' $blockCommands '\[CommandMethod\("CT_CHANGEBASEPOINT"\)\]'
 Assert-Contains 'change basepoint method exists' $blockCommands 'public\s+void\s+ChangeBlockBasepoint\s*\('
-Assert-Contains 'change basepoint asks for block reference' $blockCommands 'AddAllowedClass\(typeof\(BlockReference\),\s*true\)'
-Assert-Contains 'change basepoint asks for new base point' $blockCommands '指定新的块基点'
-Assert-Contains 'change basepoint converts world point to definition coordinates' $blockCommands 'BlockTransform\.Inverse\(\)'
-Assert-Contains 'change basepoint updates block definition origin' $blockCommands '\.Origin\s*='
-Assert-Contains 'change basepoint compensates references by position' $blockCommands '(\.Position\s*=[\s\S]*(GetVectorTo|Vector3d|TransformBy))|((GetVectorTo|Vector3d|TransformBy)[\s\S]*\.Position\s*=)'
-Assert-Contains 'change basepoint counts affected references' $blockCommands 'affectedReferences'
+
+$changeBlockBasepointMatch = [regex]::Match(
+    $blockCommands,
+    'public\s+void\s+ChangeBlockBasepoint\s*\([^)]*\)\s*\{[\s\S]*?(?=\r?\n\s*static\s+bool\s+CanChangeBlockBasepoint\s*\()'
+)
+
+if (-not $changeBlockBasepointMatch.Success) {
+    throw 'change basepoint method body could not be extracted before CanChangeBlockBasepoint'
+}
+
+$changeBody = $changeBlockBasepointMatch.Value
+
+Assert-Contains 'change basepoint asks for block reference' $changeBody 'AddAllowedClass\(typeof\(BlockReference\),\s*true\)'
+Assert-Contains 'change basepoint asks for new base point' $changeBody '指定新的块基点'
+Assert-Contains 'change basepoint converts world point to definition coordinates' $changeBody 'BlockTransform\.Inverse\(\)'
+Assert-Contains 'change basepoint updates block definition origin' $changeBody '\.Origin\s*='
+Assert-Contains 'change basepoint compensates references by position' $changeBody '(\.Position\s*=[\s\S]*(GetVectorTo|Vector3d|TransformBy))|((GetVectorTo|Vector3d|TransformBy)[\s\S]*\.Position\s*=)'
+Assert-Contains 'change basepoint counts affected references' $changeBody 'affectedReferences'
 Assert-Contains 'change basepoint rejects unsupported block records' $blockCommands 'CanChangeBlockBasepoint'
 Assert-Contains 'change basepoint scans all block references' $blockCommands 'GetBlockReferencesForDefinition'
 
