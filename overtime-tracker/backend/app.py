@@ -30,6 +30,20 @@ REMOVED_SETTING_KEYS = ("lunch" + "Start", "lunch" + "End")
 OLD_DEFAULT_START = "09" + ":00"
 OLD_DEFAULT_END = "18" + ":00"
 
+EMAIL_CONFIG_DEFAULTS = {
+    "schedule_frequency": "daily",
+    "schedule_weekday": 1,
+    "schedule_month_day": "last",
+    "report_period": "this_month",
+    "report_content": "summary",
+    "member_filter": "all",
+    "include_out_of_range": 1,
+}
+VALID_EMAIL_FREQUENCIES = {"daily", "weekly", "monthly"}
+VALID_REPORT_PERIODS = {"yesterday", "this_week", "last_week", "this_month", "last_month"}
+VALID_REPORT_CONTENTS = {"summary", "csv", "summary_csv"}
+VALID_MEMBER_FILTERS = {"all", "with_records"}
+
 def normalized_settings(data=None):
     raw = data or {}
     settings = {**DEFAULT_SETTINGS, **raw}
@@ -39,6 +53,38 @@ def normalized_settings(data=None):
     for key in REMOVED_SETTING_KEYS:
         settings.pop(key, None)
     return settings
+
+
+def normalize_email_config(data=None):
+    raw = dict(data or {})
+    cfg = {**EMAIL_CONFIG_DEFAULTS, **raw}
+    if cfg.get('schedule_frequency') not in VALID_EMAIL_FREQUENCIES:
+        cfg['schedule_frequency'] = EMAIL_CONFIG_DEFAULTS['schedule_frequency']
+    try:
+        cfg['schedule_weekday'] = int(cfg.get('schedule_weekday') or EMAIL_CONFIG_DEFAULTS['schedule_weekday'])
+    except (TypeError, ValueError):
+        cfg['schedule_weekday'] = EMAIL_CONFIG_DEFAULTS['schedule_weekday']
+    if cfg['schedule_weekday'] not in range(1, 8):
+        cfg['schedule_weekday'] = EMAIL_CONFIG_DEFAULTS['schedule_weekday']
+    schedule_month_day = str(cfg.get('schedule_month_day') or EMAIL_CONFIG_DEFAULTS['schedule_month_day'])
+    if schedule_month_day == 'last':
+        cfg['schedule_month_day'] = 'last'
+    else:
+        try:
+            cfg['schedule_month_day'] = str(min(28, max(1, int(schedule_month_day))))
+        except (TypeError, ValueError):
+            cfg['schedule_month_day'] = EMAIL_CONFIG_DEFAULTS['schedule_month_day']
+    if cfg.get('report_period') not in VALID_REPORT_PERIODS:
+        cfg['report_period'] = EMAIL_CONFIG_DEFAULTS['report_period']
+    if cfg.get('report_content') not in VALID_REPORT_CONTENTS:
+        cfg['report_content'] = EMAIL_CONFIG_DEFAULTS['report_content']
+    if cfg.get('member_filter') not in VALID_MEMBER_FILTERS:
+        cfg['member_filter'] = EMAIL_CONFIG_DEFAULTS['member_filter']
+    try:
+        cfg['include_out_of_range'] = 1 if int(cfg.get('include_out_of_range', EMAIL_CONFIG_DEFAULTS['include_out_of_range']) or 0) else 0
+    except (TypeError, ValueError):
+        cfg['include_out_of_range'] = EMAIL_CONFIG_DEFAULTS['include_out_of_range']
+    return cfg
 
 def load_jwt_secret():
     env_secret = os.environ.get('JWT_SECRET')
@@ -123,7 +169,10 @@ def init_db():
             sender_name TEXT DEFAULT '考勤助手',
             recipients TEXT DEFAULT '[]',
             schedule_hour INTEGER DEFAULT 9, schedule_minute INTEGER DEFAULT 0,
-            enabled INTEGER DEFAULT 0
+            enabled INTEGER DEFAULT 0,
+            schedule_frequency TEXT DEFAULT 'daily', schedule_weekday INTEGER DEFAULT 1,
+            schedule_month_day TEXT DEFAULT 'last', report_period TEXT DEFAULT 'this_month',
+            report_content TEXT DEFAULT 'summary', member_filter TEXT DEFAULT 'all', include_out_of_range INTEGER DEFAULT 1
         );
     ''')
     # Migrate whitelist table: drop old (code-based) if exists, recreate (name-based)
@@ -152,6 +201,19 @@ def init_db():
         if normalized != json.loads(settings_row['data'] or '{}'):
             conn.execute("UPDATE settings SET data=? WHERE id=1", (json.dumps(normalized),))
             conn.commit()
+    for sql in [
+        "ALTER TABLE email_config ADD COLUMN schedule_frequency TEXT DEFAULT 'daily'",
+        "ALTER TABLE email_config ADD COLUMN schedule_weekday INTEGER DEFAULT 1",
+        "ALTER TABLE email_config ADD COLUMN schedule_month_day TEXT DEFAULT 'last'",
+        "ALTER TABLE email_config ADD COLUMN report_period TEXT DEFAULT 'this_month'",
+        "ALTER TABLE email_config ADD COLUMN report_content TEXT DEFAULT 'summary'",
+        "ALTER TABLE email_config ADD COLUMN member_filter TEXT DEFAULT 'all'",
+        "ALTER TABLE email_config ADD COLUMN include_out_of_range INTEGER DEFAULT 1",
+    ]:
+        try:
+            conn.execute(sql)
+        except Exception:
+            pass
     # Default email config
     if not conn.execute("SELECT 1 FROM email_config WHERE id=1").fetchone():
         conn.execute("INSERT INTO email_config (id) VALUES (1)")
@@ -478,8 +540,9 @@ def api_get_email_config():
     row = conn.execute("SELECT * FROM email_config WHERE id=1").fetchone()
     conn.close()
     if not row: return jsonify(config={})
-    d = dict(row)
+    d = normalize_email_config(dict(row))
     d['recipients'] = json.loads(d.get('recipients','[]'))
+    d['schedule_month_day'] = str(d.get('schedule_month_day', 'last'))
     if d.get('smtp_pass'): d['smtp_pass'] = '••••••'  # Mask password
     return jsonify(config=d)
 
@@ -496,13 +559,20 @@ def api_update_email_config():
     for k in ['smtp_host','smtp_port','smtp_user','sender_name','schedule_hour','schedule_minute','enabled']:
         if k in d: cur[k] = d[k]
     if 'recipients' in d: cur['recipients'] = json.dumps(d['recipients'])
+    for k in ['schedule_frequency','schedule_weekday','schedule_month_day','report_period','report_content','member_filter','include_out_of_range']:
+        if k in d: cur[k] = d[k]
+    cur = normalize_email_config(cur)
     conn.execute("""UPDATE email_config SET smtp_host=?,smtp_port=?,smtp_user=?,smtp_pass=?,
-                    smtp_ssl=?,sender_name=?,recipients=?,schedule_hour=?,schedule_minute=?,enabled=?
+                    smtp_ssl=?,sender_name=?,recipients=?,schedule_hour=?,schedule_minute=?,enabled=?,
+                    schedule_frequency=?,schedule_weekday=?,schedule_month_day=?,report_period=?,
+                    report_content=?,member_filter=?,include_out_of_range=?
                     WHERE id=1""",
                  (cur.get('smtp_host',''), cur.get('smtp_port',465), cur.get('smtp_user',''),
                   cur.get('smtp_pass',''), cur.get('smtp_ssl',1), cur.get('sender_name','考勤助手'),
                   cur.get('recipients','[]'), cur.get('schedule_hour',9), cur.get('schedule_minute',0),
-                  cur.get('enabled',0)))
+                  cur.get('enabled',0), cur.get('schedule_frequency','daily'), cur.get('schedule_weekday',1),
+                  cur.get('schedule_month_day','last'), cur.get('report_period','this_month'),
+                  cur.get('report_content','summary'), cur.get('member_filter','all'), cur.get('include_out_of_range',1)))
     conn.commit(); conn.close()
     schedule_email_task()
     return jsonify(ok=True)
