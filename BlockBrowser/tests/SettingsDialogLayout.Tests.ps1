@@ -7,6 +7,11 @@ if (-not (Test-Path $dialogPath)) {
     throw "Missing source file: $dialogPath"
 }
 $dialogSource = Get-Content -Encoding UTF8 $dialogPath -Raw
+$insertDialogPath = Join-Path $repo 'BlockBrowser\InsertSettingsDialog.cs'
+if (-not (Test-Path $insertDialogPath)) {
+    throw "Missing source file: $insertDialogPath"
+}
+$insertDialogSource = Get-Content -Encoding UTF8 $insertDialogPath -Raw
 $libraryGroupTitle = -join ([char[]](0x56FE, 0x5E93, 0x4F4D, 0x7F6E))
 $insertGroupTitle = -join ([char[]](0x63D2, 0x5165, 0x8BBE, 0x7F6E))
 
@@ -42,3 +47,9 @@ Assert-Contains 'form refreshes active library after settings change' $formSourc
 Assert-NotContains 'form does not overwrite NAS path with local path' $formSource 'BlockLibrary\.NasLibraryPath\s*=\s*plan\.LibraryPath'
 Assert-NotContains 'form no inline settings form' $formSource 'using\s*\(var\s+form\s*=\s*new\s+Form\s*\(\s*\)\)'
 Assert-NotContains 'settings dialog no fixed 450x260 form size' $dialogSource 'Size = new Size\(450,\s*260\)'
+Assert-Contains 'insert settings dialog class exists' $insertDialogSource 'class\s+InsertSettingsDialog\s*:\s*Form'
+Assert-Contains 'insert settings dialog uses dpi scaling' $insertDialogSource 'AutoScaleMode = AutoScaleMode\.Dpi'
+Assert-Contains 'insert settings dialog exposes insert scale' $insertDialogSource 'InsertScaleValue'
+Assert-Contains 'insert settings dialog exposes rotation degrees' $insertDialogSource 'InsertRotationDegreesValue'
+Assert-Contains 'form opens insert settings dialog' $formSource 'new InsertSettingsDialog'
+Assert-Contains 'form saves insert settings config' $formSource 'ShowInsertSettingsDialog[\s\S]*?BlockLibrary\.SaveConfig\(\)'

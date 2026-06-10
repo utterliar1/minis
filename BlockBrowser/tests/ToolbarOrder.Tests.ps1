@@ -27,14 +27,15 @@ $expectedOrder = @(
     'lblSize',
     'cmbHost',
     'btnInsert',
+    'btnInsertSettings',
     'btnAddToLib',
+    'btnExportBlock',
     'btnRefresh',
     'btnManage',
     'btnLibrary'
 )
 
 Assert-False 'toolbar excludes create category button' ($items.Contains('btnCreateCategory'))
-Assert-False 'toolbar excludes direct export button' ($items.Contains('btnExportBlock'))
 Assert-False 'toolbar excludes direct rename button' ($items.Contains('btnRename'))
 Assert-False 'toolbar excludes direct delete button' ($items.Contains('btnDelete'))
 Assert-False 'toolbar excludes direct open folder button' ($items.Contains('btnOpenFolder'))
@@ -53,7 +54,8 @@ foreach ($item in $expectedOrder) {
 $manageMatch = [regex]::Match($formSource, 'btnManage\.DropDownItems\.AddRange\(new\s+ToolStripItem\[\]\s*\{(?<items>[\s\S]*?)\}\);')
 Assert-True 'manage menu add range block found' $manageMatch.Success
 $manageItems = $manageMatch.Groups['items'].Value
-$expectedManageOrder = @('btnExportBlock', 'btnRename', 'btnDelete', 'btnOpenFolder')
+Assert-False 'manage menu excludes export block' ($manageItems.Contains('btnExportBlock'))
+$expectedManageOrder = @('btnRename', 'btnDelete', 'btnOpenFolder')
 $lastIndex = -1
 foreach ($item in $expectedManageOrder) {
     $index = $manageItems.IndexOf($item)
