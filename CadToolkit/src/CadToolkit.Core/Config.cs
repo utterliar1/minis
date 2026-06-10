@@ -27,7 +27,15 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("AlignLineSpacing", "0"),
             new KeyValuePair<string, string>("IsoLayerKeepLayer0", "false"),
             new KeyValuePair<string, string>("LayerStandardFallbackTo0", "false"),
-            new KeyValuePair<string, string>("LayerStandardWhitelist", "0,Defpoints,*\u56FE\u6846*,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*")
+            new KeyValuePair<string, string>("LayerStandardWhitelist", "0,Defpoints,*\u56FE\u6846*,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*"),
+            new KeyValuePair<string, string>("TextStyleFallbackToStandard", "false"),
+            new KeyValuePair<string, string>("TextStyleFallbackStyle", "STANDARD-TEXT"),
+            new KeyValuePair<string, string>("TextStyleWhitelist", "Standard,Annotative,*DIM*"),
+            new KeyValuePair<string, string>("TextStyleNormalizeHeight", "false"),
+            new KeyValuePair<string, string>("TextStyleNormalizeWidthFactor", "false"),
+            new KeyValuePair<string, string>("TextStyleNormalizeOblique", "false"),
+            new KeyValuePair<string, string>("TextStyleNormalizeColorByLayer", "false"),
+            new KeyValuePair<string, string>("TextStyleDeleteUnusedOldStyles", "false")
         };
         static string _dir;
         public static void Init(string assemblyPath)
@@ -85,8 +93,16 @@ namespace CadToolkit.Core
         static void EnsureOfficialCommands()
         {
             var lines = new List<string>(File.ReadAllLines(IniPath, Encoding.UTF8));
-            if (HasConfigKey(lines, "改块基点")) return;
+            bool changed = false;
+            changed |= EnsureOfficialCommand(lines, "改块基点", "CT_CHANGEBASEPOINT", "快捷建块");
+            changed |= EnsureOfficialCommand(lines, "文字样式规范", "CT_TEXTSTYLESTANDARD", "文字编号");
+            if (changed)
+                lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
+        }
 
+        static bool EnsureOfficialCommand(List<string> lines, string label, string command, string afterLabel)
+        {
+            if (HasConfigKey(lines, label)) return false;
             int commandsHeader = -1;
             int insertAt = -1;
             for (int i = 0; i < lines.Count; i++)
@@ -102,7 +118,7 @@ namespace CadToolkit.Core
                 {
                     if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
                         break;
-                    if (trimmed.Equals("快捷建块=CT_QUICKBLOCK", StringComparison.OrdinalIgnoreCase))
+                    if (trimmed.StartsWith(afterLabel + "=", StringComparison.OrdinalIgnoreCase))
                     {
                         insertAt = i + 1;
                         break;
@@ -112,11 +128,11 @@ namespace CadToolkit.Core
                 }
             }
 
-            if (commandsHeader < 0) return;
+            if (commandsHeader < 0) return false;
             if (insertAt < 0) insertAt = lines.Count;
 
-            lines.Insert(insertAt, "改块基点=CT_CHANGEBASEPOINT");
-            lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
+            lines.Insert(insertAt, label + "=" + command);
+            return true;
         }
 
         static bool HasConfigKey(List<string> lines, string key)
@@ -164,6 +180,16 @@ namespace CadToolkit.Core
             sb.AppendLine("LayerStandardFallbackTo0=false");
             sb.AppendLine("LayerStandardWhitelist=0,Defpoints,*\u56FE\u6846*,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*");
             sb.AppendLine();
+            sb.AppendLine("# \u6587\u5B57\u6837\u5F0F\u89C4\u8303");
+            sb.AppendLine("TextStyleFallbackToStandard=false");
+            sb.AppendLine("TextStyleFallbackStyle=STANDARD-TEXT");
+            sb.AppendLine("TextStyleWhitelist=Standard,Annotative,*DIM*");
+            sb.AppendLine("TextStyleNormalizeHeight=false");
+            sb.AppendLine("TextStyleNormalizeWidthFactor=false");
+            sb.AppendLine("TextStyleNormalizeOblique=false");
+            sb.AppendLine("TextStyleNormalizeColorByLayer=false");
+            sb.AppendLine("TextStyleDeleteUnusedOldStyles=false");
+            sb.AppendLine();
             sb.AppendLine("[Commands]");
             sb.AppendLine("# \u6587\u5B57\u7F16\u8F91");
             sb.AppendLine("\u67E5\u627E\u66FF\u6362=CT_FINDREPLACE");
@@ -172,6 +198,7 @@ namespace CadToolkit.Core
             sb.AppendLine("\u683C\u5F0F\u590D\u5236=CT_TEXTBRUSH");
             sb.AppendLine("\u6587\u5B57\u5408\u5E76=CT_TEXTMERGE");
             sb.AppendLine("\u6587\u5B57\u7F16\u53F7=CT_TEXTNUMBER");
+            sb.AppendLine("\u6587\u5B57\u6837\u5F0F\u89C4\u8303=CT_TEXTSTYLESTANDARD");
             sb.AppendLine("# \u56FE\u5C42\u7BA1\u7406");
             sb.AppendLine("\u56FE\u5C42\u5F52\u96F6=CT_SETLAYER0");
             sb.AppendLine("\u56FE\u5C42\u89C4\u8303=CT_LAYERSTANDARD");
@@ -205,17 +232,25 @@ namespace CadToolkit.Core
             sb.AppendLine();
             sb.AppendLine("[LayerMap]");
             sb.AppendLine("0-\u8BBE\u5907\u5C42=*\u8BBE\u5907*,0-4,*VIS*");
-            sb.AppendLine("1-\u4E2D\u5FC3\u7EBF\u5C42=*\u4E2D\u5FC3*,*\u4E2D\u5FC3\u7EBF*,CENTER,0-1,1,AXIS,CLEARANCE");
-            sb.AppendLine("2-\u865A\u7EBF\u5C42=*\u865A\u7EBF*,HIDDEN,DASH,HID");
-            sb.AppendLine("3-\u6587\u5B57\u5C42=*\u6587\u5B57*,*\u8BF4\u660E*,*\u7F16\u53F7*,TEXT,txt");
-            sb.AppendLine("4-\u6807\u6CE8\u5C42=*\u6807\u6CE8*,*\u5C3A\u5BF8*,DIM,dim");
-            sb.AppendLine("5-\u98CE\u7F51=*\u98CE\u7F51*,*\u98CE\u7BA1*,*\u98CE\u9053*,0-5");
-            sb.AppendLine("6-\u6E9C\u7BA1=*\u6E9C\u7BA1*,*\u538B\u8FD0*,VIS5");
+            sb.AppendLine("1-\u4E2D\u5FC3\u7EBF\u5C42=*\u4E2D\u5FC3*,*\u4E2D\u5FC3\u7EBF*,*CENTER*,0-1,1,*AXIS*,*CLEARANCE*,ZX,ZXX");
+            sb.AppendLine("2-\u865A\u7EBF\u5C42=*\u865A\u7EBF*,*HIDDEN,*DASH,*HID");
+            sb.AppendLine("3-\u6587\u5B57\u5C42=*\u6587\u5B57*,*\u8BF4\u660E*,*\u7F16\u53F7*,*TEXT,*txt");
+            sb.AppendLine("4-\u6807\u6CE8\u5C42=*\u6807\u6CE8*,*\u5C3A\u5BF8*,*DIM*,*dim*");
+            sb.AppendLine("5-\u98CE\u7F51=*\u98CE\u7F51*,*\u98CE\u7BA1*,*\u98CE\u9053*,0-5,FW");
+            sb.AppendLine("6-\u6E9C\u7BA1=*\u6E9C\u7BA1*,*\u538B\u8FD0*,*VIS5");
             sb.AppendLine("7-\u6D1E\u5B54=*\u6D1E\u53E3*,*\u6D1E\u5B54*,*\u5F00\u6D1E*");
             sb.AppendLine("8-\u53D7\u529B\u70B9=*\u53D7\u529B*,*\u53D7\u529B\u70B9*,*\u540A\u70B9*");
-            sb.AppendLine("9-\u5EFA\u7B51=*\u5EFA\u7B51*,ARCH");
+            sb.AppendLine("9-\u5EFA\u7B51=*\u5EFA\u7B51*,*ARCH,*WALL");
             sb.AppendLine("10-\u975E\u6807=*\u975E\u6807*,*\u975E\u6807\u51C6*");
-            sb.AppendLine("11-\u586B\u5145=*\u586B\u5145*,HATCH,PAT");
+            sb.AppendLine("11-\u586B\u5145=*\u586B\u5145*,*HATCH,*PAT");
+            sb.AppendLine();
+            sb.AppendLine("[TextStyleStandard]");
+            sb.AppendLine("STANDARD-TEXT=gbenor.shx|gbcbig.shx|0|1.0|0");
+            sb.AppendLine("TITLE-TEXT=\u9ED1\u4F53||0|1.0|0");
+            sb.AppendLine();
+            sb.AppendLine("[TextStyleMap]");
+            sb.AppendLine("STANDARD-TEXT=Standard,txt,*\u5B8B\u4F53*,HZTXT");
+            sb.AppendLine("TITLE-TEXT=*\u6807\u9898*,TITLE");
             return sb.ToString();
         }
 
@@ -286,6 +321,14 @@ namespace CadToolkit.Core
         public static bool IsoLayerKeepLayer0 { get { return GetBool("IsoLayerKeepLayer0", false); } }
         public static bool LayerStandardFallbackTo0 { get { return GetBool("LayerStandardFallbackTo0", false); } }
         public static string LayerStandardWhitelist { get { return GetString("LayerStandardWhitelist", GetString("LayerStandardFallbackWhitelist", "0,Defpoints,*\u56FE\u6846*,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*")); } }
+        public static bool TextStyleFallbackToStandard { get { return GetBool("TextStyleFallbackToStandard", false); } }
+        public static string TextStyleFallbackStyle { get { return GetString("TextStyleFallbackStyle", "STANDARD-TEXT"); } }
+        public static string TextStyleWhitelist { get { return GetString("TextStyleWhitelist", "Standard,Annotative,*DIM*"); } }
+        public static bool TextStyleNormalizeHeight { get { return GetBool("TextStyleNormalizeHeight", false); } }
+        public static bool TextStyleNormalizeWidthFactor { get { return GetBool("TextStyleNormalizeWidthFactor", false); } }
+        public static bool TextStyleNormalizeOblique { get { return GetBool("TextStyleNormalizeOblique", false); } }
+        public static bool TextStyleNormalizeColorByLayer { get { return GetBool("TextStyleNormalizeColorByLayer", false); } }
+        public static bool TextStyleDeleteUnusedOldStyles { get { return GetBool("TextStyleDeleteUnusedOldStyles", false); } }
 
         static void SaveString(string key, string val)
         {
@@ -393,6 +436,48 @@ namespace CadToolkit.Core
                     string a = alias.Trim();
                     if (a.Length > 0) rule.Aliases.Add(a);
                 }
+            }
+            return rules;
+        }
+
+        public static List<TextStyleStandardRule> GetTextStyleStandards()
+        {
+            var rules = new List<TextStyleStandardRule>();
+            foreach (var item in GetSectionValues("TextStyleStandard"))
+            {
+                var rule = new TextStyleStandardRule();
+                rule.Name = item.Key;
+                rule.FontFile = "";
+                rule.BigFontFile = "";
+                rule.FixedHeight = 0;
+                rule.WidthFactor = 1.0;
+                rule.ObliqueAngle = 0;
+                string[] parts = item.Value.Split('|');
+                if (parts.Length > 0) rule.FontFile = parts[0].Trim();
+                if (parts.Length > 1) rule.BigFontFile = parts[1].Trim();
+                double d;
+                if (parts.Length > 2 && double.TryParse(parts[2].Trim(), out d)) rule.FixedHeight = d;
+                if (parts.Length > 3 && double.TryParse(parts[3].Trim(), out d)) rule.WidthFactor = d;
+                if (parts.Length > 4 && double.TryParse(parts[4].Trim(), out d)) rule.ObliqueAngle = d;
+                rules.Add(rule);
+            }
+            return rules;
+        }
+
+        public static List<TextStyleMapRule> GetTextStyleMapRules()
+        {
+            var rules = new List<TextStyleMapRule>();
+            foreach (var item in GetSectionValues("TextStyleMap"))
+            {
+                var rule = new TextStyleMapRule();
+                rule.TargetStyle = item.Key;
+                string[] aliases = item.Value.Split(',');
+                foreach (string alias in aliases)
+                {
+                    string a = alias.Trim();
+                    if (a.Length > 0) rule.Aliases.Add(a);
+                }
+                rules.Add(rule);
             }
             return rules;
         }
@@ -538,6 +623,22 @@ namespace CadToolkit.Core
         public string Linetype;
         public string LineWeight;
         public bool Plot;
+        public List<string> Aliases = new List<string>();
+    }
+
+    public class TextStyleStandardRule
+    {
+        public string Name;
+        public string FontFile;
+        public string BigFontFile;
+        public double FixedHeight;
+        public double WidthFactor;
+        public double ObliqueAngle;
+    }
+
+    public class TextStyleMapRule
+    {
+        public string TargetStyle;
         public List<string> Aliases = new List<string>();
     }
     }

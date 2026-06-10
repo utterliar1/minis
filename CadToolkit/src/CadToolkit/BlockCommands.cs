@@ -149,7 +149,7 @@ namespace CadToolkit
             Ed.WriteMessage(string.Format("\n\u5df2\u521b\u5efa\u5757 \"{0}\" \uff0c\u5305\u542b {1} \u4e2a\u5bf9\u8c61\u3002", createdName, objectCount));
         }
 
-[CommandMethod("CT_CHANGEBASEPOINT")]
+[CommandMethod("CT_CHANGEBASEPOINT", CommandFlags.UsePickSet)]
         public void ChangeBlockBasepoint()
         {
             EnsureInit();
@@ -158,8 +158,8 @@ namespace CadToolkit
             var peo = new PromptEntityOptions("\n选择要改基点的块：");
             peo.SetRejectMessage("\n只能选择块参照。");
             peo.AddAllowedClass(typeof(BlockReference), true);
-            var per = Ed.GetEntity(peo);
-            if (per.Status != PromptStatus.OK) return;
+            ObjectId pickedId = GetImpliedBlockReferenceOrPrompt(peo);
+            if (!pickedId.IsValid) return;
 
             string blockName = "";
             string rejectReason = "";
@@ -168,7 +168,7 @@ namespace CadToolkit
 
             using (var tr = Db.TransactionManager.StartTransaction())
             {
-                var br = (BlockReference)tr.GetObject(per.ObjectId, OpenMode.ForRead);
+                var br = (BlockReference)tr.GetObject(pickedId, OpenMode.ForRead);
                 var btr = (BlockTableRecord)tr.GetObject(br.BlockTableRecord, OpenMode.ForRead);
                 blockName = btr.Name;
                 blockDefId = br.BlockTableRecord;
@@ -189,7 +189,7 @@ namespace CadToolkit
             {
                 using (var tr = Db.TransactionManager.StartTransaction())
                 {
-                    var selectedBr = (BlockReference)tr.GetObject(per.ObjectId, OpenMode.ForRead);
+                    var selectedBr = (BlockReference)tr.GetObject(pickedId, OpenMode.ForRead);
                     var selectedBtr = (BlockTableRecord)tr.GetObject(blockDefId, OpenMode.ForWrite);
                     if (!CanChangeBlockBasepoint(selectedBr, selectedBtr, out rejectReason))
                     {
@@ -229,6 +229,51 @@ namespace CadToolkit
             if (!changed) return;
             int affectedReferences = referenceIds == null ? 0 : referenceIds.Length;
             Ed.WriteMessage(string.Format("\n已修改块 \"{0}\" 的基点，影响 {1} 个同定义参照。", blockName, affectedReferences));
+        }
+
+        static ObjectId GetImpliedBlockReferenceOrPrompt(PromptEntityOptions peo)
+        {
+            if (_pendingSelection != null && _pendingSelection.Length > 0)
+            {
+                var ids = _pendingSelection;
+                _pendingSelection = null;
+                ObjectId pendingId = FindFirstBlockReference(ids);
+                if (pendingId.IsValid) return pendingId;
+            }
+
+            var psr = Ed.SelectImplied();
+            if (psr.Status == PromptStatus.OK && psr.Value != null && psr.Value.Count > 0)
+            {
+                ObjectId impliedId = FindFirstBlockReference(psr.Value.GetObjectIds());
+                if (impliedId.IsValid) return impliedId;
+            }
+
+            var per = Ed.GetEntity(peo);
+            if (per.Status != PromptStatus.OK) return default(ObjectId);
+            return per.ObjectId;
+        }
+
+        static ObjectId FindFirstBlockReference(ObjectId[] ids)
+        {
+            if (ids == null || ids.Length == 0) return default(ObjectId);
+            using (var tr = Db.TransactionManager.StartTransaction())
+            {
+                foreach (ObjectId id in ids)
+                {
+                    try
+                    {
+                        var ent = tr.GetObject(id, OpenMode.ForRead);
+                        if (ent is BlockReference)
+                        {
+                            tr.Commit();
+                            return id;
+                        }
+                    }
+                    catch (System.Exception ex) { Log("Skip invalid block selection: " + ex.Message); }
+                }
+                tr.Commit();
+            }
+            return default(ObjectId);
         }
 
         static bool CanChangeBlockBasepoint(BlockReference br, BlockTableRecord btr, out string reason)

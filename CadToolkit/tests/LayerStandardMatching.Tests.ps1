@@ -279,6 +279,9 @@ $localConfig = if (Test-Path -LiteralPath $localConfigPath) { Get-Content -Encod
 
 $equipmentLinePattern = '0-\u8BBE\u5907\u5C42=\*\u8BBE\u5907\*,0-4,\*VIS\*'
 $localEquipmentLinePattern = '0-\u8BBE\u5907\u5C42=\*\u8BBE\u5907\*,0-4,\*VIS\*'
+$centerLinePattern = '1-\u4E2D\u5FC3\u7EBF\u5C42=\*\u4E2D\u5FC3\*,\*\u4E2D\u5FC3\u7EBF\*,\*CENTER\*,0-1,1,\*AXIS\*,\*CLEARANCE\*,ZX,ZXX'
+$textLinePattern = '3-\u6587\u5B57\u5C42=\*\u6587\u5B57\*,\*\u8BF4\u660E\*,\*\u7F16\u53F7\*,\*TEXT,\*txt'
+$embeddedCenterLinePattern = '1-\\u4E2D\\u5FC3\\u7EBF\\u5C42=\*\\u4E2D\\u5FC3\*,\*\\u4E2D\\u5FC3\\u7EBF\*,\*CENTER\*,0-1,1,\*AXIS\*,\*CLEARANCE\*,ZX,ZXX'
 $oldEquipmentLinePattern = '(?m)^0-\u8BBE\u5907\u5C42=\u8BBE\u5907,0-4,VIS35$'
 $embeddedEquipmentLinePattern = '0-\\u8BBE\\u5907\\u5C42=\*\\u8BBE\\u5907\*,0-4,\*VIS\*'
 
@@ -287,8 +290,17 @@ Assert-Contains 'default config uses explicit wildcard layer map' $defaultConfig
 Assert-Contains 'embedded default uses explicit wildcard layer map' $configSource $embeddedEquipmentLinePattern
 Assert-Contains 'readme uses explicit wildcard layer map' $readme $equipmentLinePattern
 Assert-Contains 'manual uses explicit wildcard layer map' $manual $equipmentLinePattern
+Assert-Contains 'project config uses local center layer aliases' $projectConfig $centerLinePattern
+Assert-Contains 'default config uses local center layer aliases' $defaultConfig $centerLinePattern
+Assert-Contains 'embedded default uses local center layer aliases' $configSource $embeddedCenterLinePattern
+Assert-Contains 'readme uses local center layer aliases' $readme $centerLinePattern
+Assert-Contains 'manual uses local center layer aliases' $manual $centerLinePattern
+Assert-Contains 'project config uses local text suffix aliases' $projectConfig $textLinePattern
+Assert-Contains 'default config uses local text suffix aliases' $defaultConfig $textLinePattern
 if ($localConfig.Length -gt 0) {
     Assert-Contains 'local config uses explicit layer map' $localConfig $localEquipmentLinePattern
+    Assert-Contains 'local config uses local center layer aliases' $localConfig $centerLinePattern
+    Assert-Contains 'local config uses local text suffix aliases' $localConfig $textLinePattern
 }
 Assert-NotContains 'project config removes old contains-style layer map' $projectConfig $oldEquipmentLinePattern
 Assert-NotContains 'default config removes old contains-style layer map' $defaultConfig $oldEquipmentLinePattern
