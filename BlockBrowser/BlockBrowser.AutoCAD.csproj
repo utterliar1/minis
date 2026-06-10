@@ -63,6 +63,7 @@
     <Compile Include="ExportBlocksDialog.cs" />
     <Compile Include="InsertSettingsDialog.cs" />
     <Compile Include="SettingsDialog.cs" />
+    <Compile Include="SyncCenterDialog.cs" />
     <Compile Include="TextPromptDialog.cs" />
     <Compile Include="BlockThumbnailCard.cs" />
     <Compile Include="UI\AddToLibraryRequestService.cs" />

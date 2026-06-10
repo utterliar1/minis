@@ -61,6 +61,7 @@ namespace BlockBrowser
         }
 
         public static string ThumbnailCachePath { get { return Path.Combine(LibraryPath, ".thumbs"); } }
+        public static string SyncLogPath { get { return Path.Combine(LocalMirrorPath ?? "", ".blockbrowser", "sync-log.txt"); } }
 
         private static List<string> _recentBlocks = new List<string>();
         private const int MAX_RECENT = 20;
@@ -1026,6 +1027,7 @@ namespace BlockBrowser
                 }
 
                 var plan = BlockLibrary.SyncSafeUploadsToNas();
+                SyncSummaryMessageService.AppendLog(BlockLibrary.SyncLogPath, plan);
                 ed.WriteMessage("\n" + SyncSummaryMessageService.FormatCommand(plan));
             }
             catch (System.Exception ex)

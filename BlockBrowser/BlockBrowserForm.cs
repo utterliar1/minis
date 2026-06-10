@@ -155,6 +155,7 @@ namespace BlockBrowser
                     if (confirm != DialogResult.Yes) return;
 
                     var plan = BlockLibrary.SyncSafeUploadsToNas();
+                    SyncSummaryMessageService.AppendLog(BlockLibrary.SyncLogPath, plan);
                     MessageBox.Show(
                         SyncSummaryMessageService.FormatDialog(plan),
                         "块浏览器",
@@ -168,6 +169,9 @@ namespace BlockBrowser
                 }
             };
 
+            var btnSyncCenter = new ToolStripButton("同步中心");
+            btnSyncCenter.Click += (s, e) => ShowSyncCenterDialog();
+
             var btnManage = new ToolStripDropDownButton("管理");
             btnManage.DropDownItems.AddRange(new ToolStripItem[]
             {
@@ -180,6 +184,7 @@ namespace BlockBrowser
             btnLibrary.DropDownItems.AddRange(new ToolStripItem[]
             {
                 btnUpdateMirror,
+                btnSyncCenter,
                 btnSync,
                 new ToolStripSeparator(),
                 btnPrebuildThumbnails,
@@ -567,15 +572,7 @@ namespace BlockBrowser
             _lblCount.Text = BlockFilterService.FormatCount(_cards.Count);
             _lblStatus.Text = GetActiveLibraryStatus();
 
-            // 只加载还没有缩略图的卡片
-            var needLoad = _cards.Where(c => !HasThumbnail(c)).ToList();
-            if (needLoad.Count > 0)
-            {
-                _failCount = 0;
-                _pendingThumbCards = needLoad;
-                _thumbIndex = 0;
-                _thumbTimer.Start();
-            }
+            QueueVisibleMissingThumbnails();
         }
 
         private List<BlockThumbnailCard> _pendingThumbCards = new List<BlockThumbnailCard>();
@@ -584,6 +581,16 @@ namespace BlockBrowser
         private bool HasThumbnail(BlockThumbnailCard card)
         {
             return ThumbnailMemoryCacheService.HasValue(_thumbCache, card.Block.FilePath, _thumbSize);
+        }
+
+        private void QueueVisibleMissingThumbnails()
+        {
+            _thumbTimer.Stop();
+            var needLoad = _cards.Where(c => c.Visible && !HasThumbnail(c)).ToList();
+            _failCount = 0;
+            _pendingThumbCards = needLoad;
+            _thumbIndex = 0;
+            if (needLoad.Count > 0) _thumbTimer.Start();
         }
 
         // Load thumbnails one by one on UI thread (safe for GstarCAD API)
@@ -691,6 +698,19 @@ namespace BlockBrowser
             _flowBlocks.ResumeLayout();
             try { if (sy > 0 && _flowBlocks.VerticalScroll.Visible) _flowBlocks.VerticalScroll.Value = Math.Min(sy, _flowBlocks.VerticalScroll.Maximum); } catch { }
             _lblCount.Text = BlockFilterService.FormatCount(visible);
+            QueueVisibleMissingThumbnails();
+        }
+
+        private void ShowSyncCenterDialog()
+        {
+            using (var dlg = new SyncCenterDialog(
+                () => BlockLibrary.PreviewLocalSync(),
+                () => BlockLibrary.SyncSafeUploadsToNas(),
+                BlockLibrary.SyncLogPath))
+            {
+                dlg.ShowDialog(this);
+                _lblStatus.Text = GetActiveLibraryStatus();
+            }
         }
 
         private void DoInsert()

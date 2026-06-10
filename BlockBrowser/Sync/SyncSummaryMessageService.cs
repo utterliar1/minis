@@ -1,3 +1,7 @@
+using System;
+using System.IO;
+using System.Text;
+
 namespace BlockBrowser
 {
     public static class SyncSummaryMessageService
@@ -52,6 +56,49 @@ namespace BlockBrowser
                 counts.ConflictCount,
                 counts.DeleteReviewCount,
                 counts.FailedCount);
+        }
+
+        public static string FormatDetailedReport(SyncPlan plan)
+        {
+            var counts = SyncSummaryCounts.FromPlan(plan);
+            var sb = new StringBuilder();
+            sb.AppendLine("\u540C\u6B65\u660E\u7EC6");
+            sb.AppendLine(string.Format("\u4E0A\u4F20: {0}", counts.UploadCount));
+            sb.AppendLine(string.Format("\u91CD\u590D\u8DF3\u8FC7: {0}", counts.SkippedDuplicateCount));
+            sb.AppendLine(string.Format("\u51B2\u7A81: {0}", counts.ConflictCount));
+            sb.AppendLine(string.Format("\u5220\u9664\u5F85\u786E\u8BA4: {0}", counts.DeleteReviewCount));
+            sb.AppendLine(string.Format("\u5931\u8D25: {0}", counts.FailedCount));
+            sb.AppendLine();
+
+            if (plan == null || plan.Decisions == null || plan.Decisions.Count == 0)
+            {
+                sb.AppendLine("\u6682\u65E0\u540C\u6B65\u9879\u3002");
+                return sb.ToString();
+            }
+
+            foreach (var decision in plan.Decisions)
+            {
+                if (decision == null) continue;
+                string path = string.IsNullOrEmpty(decision.Path) ? decision.TargetPath : decision.Path;
+                sb.AppendLine(string.Format("- {0}: {1}", FormatKind(decision.Kind), path));
+                if (!string.IsNullOrEmpty(decision.Message))
+                    sb.AppendLine(string.Format("  {0}", decision.Message));
+            }
+
+            return sb.ToString();
+        }
+
+        public static void AppendLog(string logPath, SyncPlan plan)
+        {
+            if (string.IsNullOrEmpty(logPath)) return;
+
+            string dir = Path.GetDirectoryName(logPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("==== " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " ====");
+            sb.AppendLine(FormatDetailedReport(plan));
+            File.AppendAllText(logPath, sb.ToString(), Encoding.UTF8);
         }
 
         private static void AppendDecisionSamples(System.Text.StringBuilder sb, SyncPlan plan)
