@@ -93,7 +93,7 @@ namespace BlockBrowser
             var btnRename = new ToolStripButton("重命名");
             btnRename.Click += (s, e) => DoRename();
 
-            var btnRefresh = new ToolStripButton("刷新");
+            var btnRefresh = new ToolStripButton("刷新列表");
             btnRefresh.Click += (s, e) => LoadData();
 
             var btnAddToLib = new ToolStripButton("添加到库");
@@ -111,6 +111,12 @@ namespace BlockBrowser
 
             var btnSettings = new ToolStripButton("设置");
             btnSettings.Click += (s, e) => ShowSettingsDialog();
+
+            var btnPrebuildThumbnails = new ToolStripButton("预生成缩略图");
+            btnPrebuildThumbnails.Click += (s, e) => PrebuildVisibleThumbnails();
+
+            var btnRebuildThumbnails = new ToolStripButton("重建缩略图");
+            btnRebuildThumbnails.Click += (s, e) => RebuildThumbnails();
 
             var btnUpdateMirror = new ToolStripButton("更新本地副本");
             btnUpdateMirror.Click += (s, e) =>
@@ -146,6 +152,27 @@ namespace BlockBrowser
                 }
             };
 
+            var btnManage = new ToolStripDropDownButton("管理");
+            btnManage.DropDownItems.AddRange(new ToolStripItem[]
+            {
+                btnExportBlock,
+                btnRename,
+                btnDelete,
+                btnOpenFolder
+            });
+
+            var btnLibrary = new ToolStripDropDownButton("图库");
+            btnLibrary.DropDownItems.AddRange(new ToolStripItem[]
+            {
+                btnUpdateMirror,
+                btnSync,
+                new ToolStripSeparator(),
+                btnPrebuildThumbnails,
+                btnRebuildThumbnails,
+                new ToolStripSeparator(),
+                btnSettings
+            });
+
             // Search box - wide, with explicit MinimumSize
             _txtSearch = new TextBox { Width = 140, BorderStyle = BorderStyle.FixedSingle };
             _txtSearch.TextChanged += (s, e) => { _searchTimer.Stop(); _searchTimer.Start(); };
@@ -175,11 +202,9 @@ namespace BlockBrowser
                 lblSearch, txtSearchHost, new ToolStripSeparator(),
                 lblSize, cmbHost, new ToolStripSeparator(),
                 btnInsert, new ToolStripSeparator(),
-                btnAddToLib, btnExportBlock, new ToolStripSeparator(),
-                btnRename, btnDelete, new ToolStripSeparator(),
-                btnRefresh, btnOpenFolder, new ToolStripSeparator(),
-                btnUpdateMirror, btnSync, new ToolStripSeparator(),
-                btnSettings
+                btnAddToLib, new ToolStripSeparator(),
+                btnRefresh, new ToolStripSeparator(),
+                btnManage, btnLibrary
             });
 
             // Category bar - compact top panel
@@ -344,32 +369,7 @@ namespace BlockBrowser
                 _lblStatus.Text = "加载中...";
                 this.Refresh();
 
-                // Load categories
-                var categories = BlockLibrary.GetBrowsableCategories();
-                _catBar.SuspendLayout();
-                _catBar.Controls.Clear();
-                foreach (var cat in categories)
-                {
-                    var btn = new Button
-                    {
-                        Text = cat, FlatStyle = FlatStyle.System, AutoSize = true,
-                        MinimumSize = new Size(0, 24), Padding = new Padding(8, 1, 8, 1),
-                        Margin = new Padding(2, 0, 2, 0), Font = new Font("Microsoft YaHei", 9f),
-                        Tag = cat, Cursor = Cursors.Hand
-                    };
-                    btn.FlatAppearance.BorderSize = 1;
-                    SetCatBtnStyle(btn, cat == _currentCategory);
-                    btn.Click += (s, e) =>
-                    {
-                        _currentCategory = (string)((Button)s).Tag;
-                        _lastCategory = _currentCategory;
-                        LoadBlocks();
-                        UpdateCatHighlight();
-                    };
-                    _catBar.Controls.Add(btn);
-                }
-                _catBar.ResumeLayout();
-                UpdateCategoryScroll();
+                RefreshCategories();
 
                 LoadBlocks();
             }
@@ -377,6 +377,35 @@ namespace BlockBrowser
             {
                 _lblStatus.Text = "错误: " + ex.Message;
             }
+        }
+
+        private void RefreshCategories()
+        {
+            var categories = BlockLibrary.GetBrowsableCategories();
+            _catBar.SuspendLayout();
+            _catBar.Controls.Clear();
+            foreach (var cat in categories)
+            {
+                var btn = new Button
+                {
+                    Text = cat, FlatStyle = FlatStyle.System, AutoSize = true,
+                    MinimumSize = new Size(0, 24), Padding = new Padding(8, 1, 8, 1),
+                    Margin = new Padding(2, 0, 2, 0), Font = new Font("Microsoft YaHei", 9f),
+                    Tag = cat, Cursor = Cursors.Hand
+                };
+                btn.FlatAppearance.BorderSize = 1;
+                SetCatBtnStyle(btn, cat == _currentCategory);
+                btn.Click += (s, e) =>
+                {
+                    _currentCategory = (string)((Button)s).Tag;
+                    _lastCategory = _currentCategory;
+                    LoadBlocks();
+                    UpdateCatHighlight();
+                };
+                _catBar.Controls.Add(btn);
+            }
+            _catBar.ResumeLayout();
+            UpdateCategoryScroll();
         }
 
         private void SetCatBtnStyle(Button btn, bool active)
@@ -557,6 +586,46 @@ namespace BlockBrowser
             ShowBlocks(BlockLibrary.GetBlocks(_currentCategory));
         }
 
+        private void PrebuildVisibleThumbnails()
+        {
+            var needLoad = _cards.Where(c => c.Visible && !HasThumbnail(c)).ToList();
+            if (needLoad.Count == 0)
+            {
+                _lblStatus.Text = "当前列表缩略图已就绪。";
+                return;
+            }
+
+            _failCount = 0;
+            _pendingThumbCards = needLoad;
+            _thumbIndex = 0;
+            _thumbTimer.Start();
+            _lblStatus.Text = ThumbnailLoadProgressService.FormatLoadingStatus(0, needLoad.Count);
+        }
+
+        private void RebuildThumbnails()
+        {
+            var dr = MessageBox.Show(
+                "这会清空缩略图缓存，并重新生成当前列表的缩略图。是否继续？",
+                "重建缩略图",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+            if (dr != DialogResult.Yes) return;
+
+            try
+            {
+                _thumbTimer.Stop();
+                ResourceDisposalService.DisposeDictionaryValuesAndClear(_thumbCache);
+                string cachePath = BlockLibrary.ThumbnailCachePath;
+                if (Directory.Exists(cachePath)) Directory.Delete(cachePath, true);
+                RefreshCards();
+                _lblStatus.Text = "缩略图缓存已重建。";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("重建缩略图失败: " + ex.Message, "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private void DoFilter()
         {
             string kw = _txtSearch.Text;
@@ -690,7 +759,7 @@ namespace BlockBrowser
                     return;
                 }
 
-                LoadData();
+                RefreshCategories();
                 _lblStatus.Text = result.Created
                     ? "已创建分类: " + result.Category
                     : "分类已存在: " + result.Category;

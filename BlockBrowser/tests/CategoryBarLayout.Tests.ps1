@@ -58,4 +58,10 @@ Assert-Contains 'category layout leaves bottom right blank' $formSource '_catLay
 Assert-Contains 'category host contains category layout' $formSource '_catHost\.Controls\.Add\(_catLayout\)'
 Assert-NotContains 'main form no direct category bar add' $formSource '(?m)^\s*Controls\.Add\(_catBar\);'
 
+$createCategoryMatch = [regex]::Match($formSource, 'private\s+void\s+BtnCreateCategory_Click\(object\s+sender,\s+EventArgs\s+e\)(?<body>[\s\S]*?)private\s+void\s+BtnAddToLib_Click')
+Assert-True 'create category handler found' $createCategoryMatch.Success
+$createCategoryBody = $createCategoryMatch.Groups['body'].Value
+Assert-NotContains 'create category does not trigger full data reload' $createCategoryBody 'LoadData\s*\('
+Assert-Contains 'create category refreshes only category strip' $createCategoryBody 'RefreshCategories\s*\('
+
 Write-Host 'CategoryBarLayout.Tests.ps1 passed'
