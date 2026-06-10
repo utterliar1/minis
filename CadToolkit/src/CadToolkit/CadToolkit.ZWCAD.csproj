@@ -24,6 +24,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Plugin.cs" />
+    <Compile Include="StandardPreviewUi.cs" />
     <Compile Include="TextCommands.cs" />
     <Compile Include="TextStyleCommands.cs" />
     <Compile Include="LayerCommands.cs" />

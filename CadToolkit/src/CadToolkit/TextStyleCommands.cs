@@ -51,44 +51,16 @@ namespace CadToolkit
             var fallbackPlans = preview.FallbackPlans;
             var whitelistPlans = preview.WhitelistPlans;
 
-            var f = new Form();
-            f.Text = "文字规范";
-            f.StartPosition = FormStartPosition.CenterScreen;
-            f.FormBorderStyle = FormBorderStyle.FixedDialog;
-            f.MaximizeBox = false; f.MinimizeBox = false; f.ShowInTaskbar = false;
-            f.AutoScaleMode = AutoScaleMode.None; f.AutoScroll = true; f.ClientSize = new Size(UiScale(620), UiScale(540));
+            var f = CreateStandardPreviewForm("文字规范");
             TextStylePlanTreeFilter previewFilter = TextStylePlanTreeFilter.All;
 
-            var rbAll = new RadioButton();
-            rbAll.Text = "全部"; rbAll.Left = UiScale(12); rbAll.Top = UiScale(12); rbAll.Width = UiScale(70); rbAll.Height = UiScale(24); rbAll.Checked = true;
-            rbAll.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-
-            var rbUnknown = new RadioButton();
-            rbUnknown.Text = "未识别"; rbUnknown.Left = UiScale(88); rbUnknown.Top = UiScale(12); rbUnknown.Width = UiScale(86); rbUnknown.Height = UiScale(24);
-            rbUnknown.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-
-            var rbMigration = new RadioButton();
-            rbMigration.Text = "将归并"; rbMigration.Left = UiScale(180); rbMigration.Top = UiScale(12); rbMigration.Width = UiScale(86); rbMigration.Height = UiScale(24);
-            rbMigration.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-
-            var rbWhitelist = new RadioButton();
-            rbWhitelist.Text = "白名单"; rbWhitelist.Left = UiScale(272); rbWhitelist.Top = UiScale(12); rbWhitelist.Width = UiScale(86); rbWhitelist.Height = UiScale(24);
-            rbWhitelist.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-
-            var lblSearch = new Label();
-            lblSearch.Text = "搜索"; lblSearch.Left = UiScale(382); lblSearch.Top = UiScale(15); lblSearch.Width = UiScale(40); lblSearch.Height = UiScale(20);
-            lblSearch.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-
-            var search = new TextBox();
-            search.Left = UiScale(428); search.Top = UiScale(12); search.Width = UiScale(180); search.Height = UiScale(24);
-            search.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-
-            var tree = new TreeView();
-            tree.HideSelection = false;
-            tree.FullRowSelect = true;
-            tree.ShowNodeToolTips = true;
-            tree.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            tree.Left = UiScale(12); tree.Top = UiScale(42); tree.Width = UiScale(596); tree.Height = UiScale(318);
+            var filters = CreateStandardPreviewFilterControls("全部", "未识别", "将归并", "白名单", "搜索");
+            var rbAll = filters.All;
+            var rbUnknown = filters.Unknown;
+            var rbMigration = filters.Migration;
+            var rbWhitelist = filters.Whitelist;
+            var search = filters.Search;
+            var tree = CreateStandardPreviewTree(318);
             BuildTextStylePlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, standards, fallbackToStandard, fallbackStyle, previewFilter, search.Text);
 
             var lblScope = new Label();
@@ -173,9 +145,7 @@ namespace CadToolkit
             chkAttributes.CheckedChanged += refreshPreview;
             chkBlockDefinitions.CheckedChanged += refreshPreview;
 
-            var copy = new Button();
-            copy.Text = "复制当前";
-            copy.Left = UiScale(336); copy.Top = UiScale(500); copy.Width = UiScale(88); copy.Height = UiScale(28); copy.FlatStyle = FlatStyle.System;
+            var copy = CreateStandardPreviewButton("复制当前", 336, 88, DialogResult.None);
             copy.Click += delegate
             {
                 try
@@ -189,15 +159,10 @@ namespace CadToolkit
                 }
             };
 
-            var ok = new Button();
-            ok.Text = "执行"; ok.DialogResult = DialogResult.OK;
-            ok.Left = UiScale(432); ok.Top = UiScale(500); ok.Width = UiScale(80); ok.Height = UiScale(28); ok.FlatStyle = FlatStyle.System;
+            var ok = CreateStandardPreviewButton("执行", 432, 80, DialogResult.OK);
+            var cancel = CreateStandardPreviewButton("取消", 528, 80, DialogResult.Cancel);
 
-            var cancel = new Button();
-            cancel.Text = "取消"; cancel.DialogResult = DialogResult.Cancel;
-            cancel.Left = UiScale(528); cancel.Top = UiScale(500); cancel.Width = UiScale(80); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
-
-            f.Controls.AddRange(new Control[] { rbAll, rbUnknown, rbMigration, rbWhitelist, lblSearch, search, tree, lblScope, chkCurrentSpace, chkAttributes, chkBlockDefinitions, lblMerge, chkFallback, lblAppearance, chkHeight, chkWidthFactor, chkOblique, chkColorByLayer, chkDeleteUnused, copy, ok, cancel });
+            f.Controls.AddRange(new Control[] { rbAll, rbUnknown, rbMigration, rbWhitelist, filters.SearchLabel, search, tree, lblScope, chkCurrentSpace, chkAttributes, chkBlockDefinitions, lblMerge, chkFallback, lblAppearance, chkHeight, chkWidthFactor, chkOblique, chkColorByLayer, chkDeleteUnused, copy, ok, cancel });
             f.AcceptButton = ok; f.CancelButton = cancel;
             if (f.ShowDialog() != DialogResult.OK) { f.Dispose(); return; }
             processCurrentSpace = chkCurrentSpace.Checked;
@@ -571,27 +536,12 @@ namespace CadToolkit
         static TreeNode[] BuildSearchedTextStylePlanTreeNodes(List<TextStyleStandardPlan> plans, List<TextStyleStandardPlan> fallbackPlans, List<TextStyleStandardPlan> whitelistPlans, List<TextStyleStandardRule> rules, bool fallbackToStandard, string fallbackStyle, TextStylePlanTreeFilter filter, string searchText)
         {
             var filtered = BuildFilteredTextStylePlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackToStandard, fallbackStyle, filter);
-            string needle = SafeStr(searchText).Trim();
-            if (needle.Length == 0) return filtered;
-
-            var nodes = new List<TreeNode>();
-            if (filtered.Length > 0) nodes.Add((TreeNode)filtered[0].Clone());
-            for (int i = 1; i < filtered.Length; i++)
-            {
-                var matched = CloneTextStylePlanNodeMatches(filtered[i], needle);
-                if (matched != null) nodes.Add(matched);
-            }
-            if (nodes.Count == 1) nodes.Add(new TreeNode("无匹配结果"));
-            return nodes.ToArray();
+            return FilterStandardPreviewNodes(filtered, searchText);
         }
 
         static string FormatTextStylePlanTreeReport(TreeNode[] nodes)
         {
-            var sb = new StringBuilder();
-            if (nodes == null) return "";
-            foreach (TreeNode node in nodes)
-                AppendTextStylePlanTreeReportNode(sb, node, 0);
-            return sb.ToString();
+            return FormatStandardPreviewTreeReport(nodes);
         }
 
         static string BuildTextStyleRiskWarning(bool fallbackToStandard, int fallbackStyleCount, string fallbackStyle, bool blockDefinitions, bool normalizeHeight, bool normalizeWidthFactor, bool normalizeOblique, bool colorByLayer, bool deleteUnused)
@@ -623,41 +573,7 @@ namespace CadToolkit
 
         static void BuildTextStylePlanTreePreview(TreeView tree, List<TextStyleStandardPlan> plans, List<TextStyleStandardPlan> fallbackPlans, List<TextStyleStandardPlan> whitelistPlans, List<TextStyleStandardRule> rules, bool fallbackToStandard, string fallbackStyle, TextStylePlanTreeFilter filter, string searchText)
         {
-            tree.BeginUpdate();
-            try
-            {
-                tree.Nodes.Clear();
-                tree.Nodes.AddRange(BuildSearchedTextStylePlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackToStandard, fallbackStyle, filter, searchText));
-                if (filter != TextStylePlanTreeFilter.All || SafeStr(searchText).Trim().Length > 0)
-                    tree.ExpandAll();
-            }
-            finally
-            {
-                tree.EndUpdate();
-            }
-        }
-
-        static void AppendTextStylePlanTreeReportNode(StringBuilder sb, TreeNode node, int depth)
-        {
-            if (sb == null || node == null) return;
-            if (depth > 0) sb.Append(new string(' ', depth * 2));
-            sb.AppendLine(SafeStr(node.Text));
-            foreach (TreeNode child in node.Nodes)
-                AppendTextStylePlanTreeReportNode(sb, child, depth + 1);
-        }
-
-        static TreeNode CloneTextStylePlanNodeMatches(TreeNode node, string needle)
-        {
-            bool selfMatches = NodeTextContains(node, needle);
-            var clone = new TreeNode(node.Text);
-            clone.ToolTipText = node.ToolTipText;
-            foreach (TreeNode child in node.Nodes)
-            {
-                var childClone = CloneTextStylePlanNodeMatches(child, needle);
-                if (childClone != null) clone.Nodes.Add(childClone);
-            }
-            if (selfMatches || clone.Nodes.Count > 0) return clone;
-            return null;
+            UpdateStandardPreviewTree(tree, BuildSearchedTextStylePlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackToStandard, fallbackStyle, filter, searchText), filter != TextStylePlanTreeFilter.All || SafeStr(searchText).Trim().Length > 0);
         }
 
         static int ApplyTextStyleStandard(Transaction tr, Dictionary<string, TextStyleStandardRule> targetBySource, bool currentSpace, bool attributes, bool blockDefinitions, bool normalizeHeight, bool normalizeWidthFactor, bool normalizeOblique, bool colorByLayer, ref int failed)
