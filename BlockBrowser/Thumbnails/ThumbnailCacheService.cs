@@ -9,6 +9,8 @@ namespace BlockBrowser
 {
     public static class ThumbnailCacheService
     {
+        private const string CacheKeyVersion = "thumb-v2";
+
         public static string GetCachePath(string thumbnailCachePath, BlockInfo block)
         {
             return Path.Combine(thumbnailCachePath ?? "", GetCacheKey(block) + ".png");
@@ -30,7 +32,7 @@ namespace BlockBrowser
             }
             catch { }
 
-            string raw = path + "|" + size + "|" + ticks;
+            string raw = CacheKeyVersion + "|" + path + "|" + size + "|" + ticks;
             using (var md5 = System.Security.Cryptography.MD5.Create())
             {
                 byte[] hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(raw.ToLowerInvariant()));
@@ -82,12 +84,53 @@ namespace BlockBrowser
             if (bmp == null || bmp.Width < 4 || bmp.Height < 4) return false;
             try
             {
-                Color c0 = bmp.GetPixel(0, 0);
-                Color cm = bmp.GetPixel(bmp.Width / 2, bmp.Height / 2);
-                Color ce = bmp.GetPixel(bmp.Width - 1, bmp.Height - 1);
-                return !(c0.ToArgb() == cm.ToArgb() && cm.ToArgb() == ce.ToArgb());
+                int? first = null;
+                int stepX = Math.Max(1, bmp.Width / 16);
+                int stepY = Math.Max(1, bmp.Height / 16);
+                for (int y = 0; y < bmp.Height; y += stepY)
+                {
+                    for (int x = 0; x < bmp.Width; x += stepX)
+                    {
+                        int argb = bmp.GetPixel(x, y).ToArgb();
+                        if (!first.HasValue)
+                            first = argb;
+                        else if (first.Value != argb)
+                            return true;
+                    }
+                }
+
+                return false;
             }
             catch { return true; }
+        }
+
+        public static bool IsPreviewIconSuitable(Bitmap bmp)
+        {
+            if (!IsBitmapUseful(bmp)) return false;
+            try
+            {
+                int samples = 0;
+                int darkSamples = 0;
+                int stepX = Math.Max(1, bmp.Width / 16);
+                int stepY = Math.Max(1, bmp.Height / 16);
+
+                for (int y = 0; y < bmp.Height; y += stepY)
+                {
+                    for (int x = 0; x < bmp.Width; x += stepX)
+                    {
+                        Color c = bmp.GetPixel(x, y);
+                        samples++;
+                        if (c.R < 35 && c.G < 35 && c.B < 35)
+                            darkSamples++;
+                    }
+                }
+
+                return samples == 0 || darkSamples < samples * 0.55;
+            }
+            catch
+            {
+                return true;
+            }
         }
 
         public static Bitmap ScaleToSquare(Image src, int size)

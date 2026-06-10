@@ -77,6 +77,26 @@ try {
     Assert-True 'varied bitmap is useful' ([BlockBrowser.ThumbnailCacheService]::IsBitmapUseful($solid))
     $solid.Dispose()
 
+    $darkPreview = New-Object System.Drawing.Bitmap 32, 32
+    $darkPaint = [System.Drawing.Graphics]::FromImage($darkPreview)
+    $darkPaint.Clear([System.Drawing.Color]::Black)
+    $darkPaint.Dispose()
+    for ($y = 6; $y -lt 26; $y++) {
+        $darkPreview.SetPixel(16, $y, [System.Drawing.Color]::Lime)
+    }
+    Assert-False 'dark background preview icon is rejected' ([BlockBrowser.ThumbnailCacheService]::IsPreviewIconSuitable($darkPreview))
+    $darkPreview.Dispose()
+
+    $whitePreview = New-Object System.Drawing.Bitmap 32, 32
+    $whitePaint = [System.Drawing.Graphics]::FromImage($whitePreview)
+    $whitePaint.Clear([System.Drawing.Color]::White)
+    $pen = New-Object System.Drawing.Pen ([System.Drawing.Color]::SteelBlue), 1
+    $whitePaint.DrawRectangle($pen, 4, 4, 24, 18)
+    $pen.Dispose()
+    $whitePaint.Dispose()
+    Assert-True 'white background preview icon is accepted' ([BlockBrowser.ThumbnailCacheService]::IsPreviewIconSuitable($whitePreview))
+    $whitePreview.Dispose()
+
     $placeholder = [BlockBrowser.PlaceholderImageFactory]::Generate('VeryLongBlockNameForLabel', 96)
     Assert-Equal 'placeholder width' 96 $placeholder.Width
     Assert-Equal 'placeholder height' 96 $placeholder.Height
