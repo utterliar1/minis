@@ -98,6 +98,13 @@ Assert-ContainsLiteral 'default config has text style standard section' $default
 Assert-ContainsLiteral 'default config has text style map section' $defaultConfig '[TextStyleMap]'
 Assert-ContainsLiteral 'project config has standard text style' $projectConfig 'STANDARD-TEXT='
 Assert-ContainsLiteral 'project config has title text style' $projectConfig 'TITLE-TEXT='
+$standardTextStyleLine = 'STANDARD-TEXT=gbenor.shx|gbcbig.shx|0|1.0|0'
+$embeddedStandardTextStyleLine = 'STANDARD-TEXT=gbenor.shx|gbcbig.shx|0|1.0|0'
+Assert-ContainsLiteral 'project config uses gb shx standard text style' $projectConfig $standardTextStyleLine
+Assert-ContainsLiteral 'default config uses gb shx standard text style' $defaultConfig $standardTextStyleLine
+Assert-ContainsLiteral 'embedded default uses gb shx standard text style' $configSource $embeddedStandardTextStyleLine
+Assert-ContainsLiteral 'readme documents gb shx standard text style' $readme $standardTextStyleLine
+Assert-ContainsLiteral 'manual documents gb shx standard text style' $manual $standardTextStyleLine
 
 Assert-Contains 'text style standard command is registered' (Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit\TextStyleCommands.cs') -Raw) '\[CommandMethod\("CT_TEXTSTYLESTANDARD"\)\]'
 Assert-NotNull 'text style standard method exists' ($commandsType.GetMethod('TextStyleStandard', [Reflection.BindingFlags]'Public, Instance'))

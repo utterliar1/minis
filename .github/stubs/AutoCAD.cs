@@ -8,7 +8,7 @@ namespace Autodesk.AutoCAD.Runtime
     [AttributeUsage(AttributeTargets.Method)] public class CommandMethodAttribute : Attribute { public CommandMethodAttribute(string name) {} public CommandMethodAttribute(string name, CommandFlags flags) {} }
     [AttributeUsage(AttributeTargets.Assembly)] public class CommandClassAttribute : Attribute { public CommandClassAttribute(Type t) {} }
     [AttributeUsage(AttributeTargets.Assembly)] public class ExtensionApplicationAttribute : Attribute { public ExtensionApplicationAttribute(Type t) {} }
-    [Flags] public enum CommandFlags { Session = 1 }
+    [Flags] public enum CommandFlags { Session = 1, UsePickSet = 2 }
     public interface IExtensionApplication { void Initialize(); void Terminate(); }
 }
 namespace Autodesk.AutoCAD.ApplicationServices
