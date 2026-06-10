@@ -158,4 +158,9 @@ $merged = [BlockBrowser.MetadataMerger]::Merge($nasTags, 'NAS note', $localTags,
 Assert-Equal 'metadata tag merge count' 2 $merged.Tags.Count
 Assert-True 'metadata note conflict' $merged.HasNoteConflict
 
+$formSource = Get-Content -Encoding UTF8 (Join-Path $root 'BlockBrowserForm.cs') -Raw
+$pluginSource = Get-Content -Encoding UTF8 (Join-Path $root 'BlockBrowserPlugin.cs') -Raw
+Assert-True 'panel sync previews before executing' ($formSource -match 'PreviewLocalSync\(\)[\s\S]*?FormatPreviewDialog[\s\S]*?MessageBoxButtons\.YesNo[\s\S]*?SyncSafeUploadsToNas\(\)')
+Assert-True 'command sync previews before executing' ($pluginSource -match 'PreviewLocalSync\(\)[\s\S]*?FormatPreviewCommand[\s\S]*?GetString[\s\S]*?SyncSafeUploadsToNas\(\)')
+
 Write-Host 'SyncLogic.Tests.ps1 passed'

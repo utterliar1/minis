@@ -164,12 +164,20 @@ namespace BlockBrowser
 
             if (missingLines.Count > 0)
             {
-                string existingText = File.ReadAllText(ConfigPath, Encoding.UTF8);
-                string prefix = existingText.Length == 0 || existingText.EndsWith(Environment.NewLine) ? "" : Environment.NewLine;
-                File.AppendAllText(
-                    ConfigPath,
-                    prefix + string.Join(Environment.NewLine, missingLines.ToArray()) + Environment.NewLine,
-                    Encoding.UTF8);
+                var lines = new List<string>(File.ReadAllLines(ConfigPath, Encoding.UTF8));
+                int insertAt = lines.Count;
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    string trimmed = (lines[i] ?? "").Trim();
+                    if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                    {
+                        insertAt = i;
+                        break;
+                    }
+                }
+
+                lines.InsertRange(insertAt, missingLines);
+                File.WriteAllLines(ConfigPath, lines.ToArray(), Encoding.UTF8);
             }
         }
 

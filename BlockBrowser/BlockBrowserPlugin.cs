@@ -38,7 +38,7 @@ namespace BlockBrowser
     public static class BlockLibrary
     {
         public static string LibraryPath { get; set; }
-        public const string AppVersion = "1.3";
+        public const string AppVersion = "1.3.1";
         public static string PlatformName { get; set; }
         public static int ThumbSize { get; set; }
         public static double InsertScale { get; set; }
@@ -268,8 +268,14 @@ namespace BlockBrowser
         public static SyncPlan PreviewLocalSync()
         {
             var entries = ChangeJournal.Load(LocalJournalPath);
-            var snapshots = BuildSnapshots(entries);
-            return SyncPlanner.CreatePlan(entries, snapshots);
+            var syncEntries = new List<ChangeJournalEntry>(entries);
+            syncEntries.AddRange(LocalOnlySyncDiscovery.Discover(
+                LocalMirrorPath,
+                NasLibraryPath,
+                entries,
+                SyncUserName,
+                DateTime.UtcNow));
+            return SyncPlanner.CreatePlan(syncEntries, BuildSnapshots(syncEntries));
         }
 
         public static SyncPlan SyncSafeUploadsToNas()
@@ -1010,6 +1016,15 @@ namespace BlockBrowser
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
             try
             {
+                var preview = BlockLibrary.PreviewLocalSync();
+                ed.WriteMessage("\n" + SyncSummaryMessageService.FormatPreviewCommand(preview));
+                var confirm = ed.GetString("\n继续同步到 NAS? [Y/N] <N>: ");
+                if (confirm.Status != PromptStatus.OK || !string.Equals((confirm.StringResult ?? "").Trim(), "Y", StringComparison.OrdinalIgnoreCase))
+                {
+                    ed.WriteMessage("\n已取消同步。");
+                    return;
+                }
+
                 var plan = BlockLibrary.SyncSafeUploadsToNas();
                 ed.WriteMessage("\n" + SyncSummaryMessageService.FormatCommand(plan));
             }

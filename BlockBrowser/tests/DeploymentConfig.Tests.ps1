@@ -49,6 +49,9 @@ Assert-Contains 'local deploy exits nonzero when any build fails' $buildAll 'exi
 Assert-Contains 'local deploy pauses only when requested' $buildAll 'if "%BLOCKBROWSER_PAUSE%"=="1" pause'
 Assert-Contains 'local deploy only creates user config when missing' $buildAll 'if not exist "%OUTPUT%\\config\.ini"'
 Assert-NotContains 'local deploy does not overwrite user config' $buildAll 'copy /Y "%BASE%config\.ini" "%OUTPUT%\\?"'
+Assert-Contains 'local deploy hashes existing user config before publish' $buildAll 'Get-FileHash.*%OUTPUT%\\config\.ini'
+Assert-Contains 'local deploy uses delayed expansion for config hash' $buildAll 'setlocal EnableDelayedExpansion'
+Assert-Contains 'local deploy aborts if user config changes during publish' $buildAll 'config\.ini changed during deployment'
 Assert-Contains 'plugin can create user config from default template' $plugin 'BlockBrowser\.default\.ini'
 Assert-Contains 'default local mirror uses plugin library folder' $defaultConfig ('LocalMirrorPath=' + [regex]::Escape($defaultLibraryFolder))
 Assert-Contains 'default library mode is local' $defaultConfig 'CurrentLibraryMode=Local'
