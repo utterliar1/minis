@@ -6,13 +6,17 @@ namespace BlockBrowser
     {
         public static bool Matches(BlockInfo block, string keyword)
         {
-            string normalized = NormalizeKeyword(keyword);
-            if (string.IsNullOrEmpty(normalized)) return true;
+            string[] tokens = GetSearchTokens(keyword);
+            if (tokens.Length == 0) return true;
             if (block == null) return false;
 
             string name = (block.Name ?? "").ToLowerInvariant();
-            string category = (block.Category ?? "").ToLowerInvariant();
-            return name.Contains(normalized) || category.Contains(normalized);
+            foreach (string token in tokens)
+            {
+                if (!name.Contains(token)) return false;
+            }
+
+            return true;
         }
 
         public static int CountMatches(IEnumerable<BlockInfo> blocks, string keyword)
@@ -30,9 +34,11 @@ namespace BlockBrowser
             return count + " 个";
         }
 
-        private static string NormalizeKeyword(string keyword)
+        private static string[] GetSearchTokens(string keyword)
         {
-            return (keyword ?? "").Trim().ToLowerInvariant();
+            return (keyword ?? "")
+                .ToLowerInvariant()
+                .Split(new[] { ' ', '\t', '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
         }
     }
 }
