@@ -287,7 +287,8 @@ Assert-Equal 'text style searched tree whitelist keeps one child' 1 ($searchedWh
 Assert-Contains 'text style searched tree whitelist child matches keyword' (Node-Text ($searchedWhitelist[1].Nodes[0])) 'A-DIM-TEXT'
 
 $searchedNoMatch = $buildSearchTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $standardRules, $false, 'STANDARD-TEXT', $filterAll, 'NO-SUCH-STYLE'))
-Assert-Equal 'text style searched tree without matches keeps summary only' 1 $searchedNoMatch.Length
+Assert-Equal 'text style searched tree without matches shows explicit empty state' 2 $searchedNoMatch.Length
+Assert-Contains 'text style searched tree no-match node explains empty result' (Node-Text $searchedNoMatch[1]) '无匹配结果'
 
 $searchedMigrationReportArgs = New-Object 'object[]' 1
 $searchedMigrationReportArgs[0] = [System.Windows.Forms.TreeNode[]]$searchedMigration
@@ -301,6 +302,7 @@ Assert-ContainsLiteral 'text style dialog title is short' $textStyleCommandsSour
 Assert-Contains 'text style dialog matches layer dialog size' $textStyleCommandsSource 'ClientSize\s*=\s*new Size\(UiScale\(620\),\s*UiScale\(540\)\)'
 Assert-Contains 'text style preview uses tree view' $textStyleCommandsSource 'new\s+TreeView\s*\('
 Assert-Contains 'text style preview has keyword filter box' $textStyleCommandsSource 'new\s+TextBox\s*\('
+Assert-ContainsLiteral 'text style preview has visible search label' $textStyleCommandsSource '搜索'
 Assert-Contains 'text style preview has compact search box' $textStyleCommandsSource 'search\.Width\s*=\s*UiScale\(180\)'
 Assert-Contains 'text style preview disambiguates drawing font type' $textStyleCommandsSource 'new\s+System\.Drawing\.Font\s*\('
 Assert-NotContains 'text style preview avoids ambiguous Font type' $textStyleCommandsSource 'new\s+Font\s*\('

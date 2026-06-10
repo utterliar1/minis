@@ -75,6 +75,10 @@ namespace CadToolkit
             rbWhitelist.Text = "白名单"; rbWhitelist.Left = UiScale(272); rbWhitelist.Top = UiScale(12); rbWhitelist.Width = UiScale(86); rbWhitelist.Height = UiScale(24);
             rbWhitelist.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
+            var lblSearch = new Label();
+            lblSearch.Text = "搜索"; lblSearch.Left = UiScale(382); lblSearch.Top = UiScale(15); lblSearch.Width = UiScale(40); lblSearch.Height = UiScale(20);
+            lblSearch.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
             var search = new TextBox();
             search.Left = UiScale(428); search.Top = UiScale(12); search.Width = UiScale(180); search.Height = UiScale(24);
             search.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
@@ -193,7 +197,7 @@ namespace CadToolkit
             cancel.Text = "取消"; cancel.DialogResult = DialogResult.Cancel;
             cancel.Left = UiScale(528); cancel.Top = UiScale(500); cancel.Width = UiScale(80); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
 
-            f.Controls.AddRange(new Control[] { rbAll, rbUnknown, rbMigration, rbWhitelist, search, tree, lblScope, chkCurrentSpace, chkAttributes, chkBlockDefinitions, lblMerge, chkFallback, lblAppearance, chkHeight, chkWidthFactor, chkOblique, chkColorByLayer, chkDeleteUnused, copy, ok, cancel });
+            f.Controls.AddRange(new Control[] { rbAll, rbUnknown, rbMigration, rbWhitelist, lblSearch, search, tree, lblScope, chkCurrentSpace, chkAttributes, chkBlockDefinitions, lblMerge, chkFallback, lblAppearance, chkHeight, chkWidthFactor, chkOblique, chkColorByLayer, chkDeleteUnused, copy, ok, cancel });
             f.AcceptButton = ok; f.CancelButton = cancel;
             if (f.ShowDialog() != DialogResult.OK) { f.Dispose(); return; }
             processCurrentSpace = chkCurrentSpace.Checked;
@@ -577,6 +581,7 @@ namespace CadToolkit
                 var matched = CloneTextStylePlanNodeMatches(filtered[i], needle);
                 if (matched != null) nodes.Add(matched);
             }
+            if (nodes.Count == 1) nodes.Add(new TreeNode("无匹配结果"));
             return nodes.ToArray();
         }
 

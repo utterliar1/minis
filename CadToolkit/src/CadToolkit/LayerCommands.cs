@@ -114,6 +114,10 @@ namespace CadToolkit
             rbWhitelist.Text = "\u767d\u540d\u5355"; rbWhitelist.Left = UiScale(272); rbWhitelist.Top = UiScale(12); rbWhitelist.Width = UiScale(86); rbWhitelist.Height = UiScale(24);
             rbWhitelist.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
+            var lblSearch = new Label();
+            lblSearch.Text = "\u641c\u7d22"; lblSearch.Left = UiScale(382); lblSearch.Top = UiScale(15); lblSearch.Width = UiScale(40); lblSearch.Height = UiScale(20);
+            lblSearch.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
             var search = new TextBox();
             search.Left = UiScale(428); search.Top = UiScale(12); search.Width = UiScale(180); search.Height = UiScale(24);
             search.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
@@ -180,7 +184,7 @@ namespace CadToolkit
             cancel.Text = "\u53d6\u6d88"; cancel.DialogResult = DialogResult.Cancel;
             cancel.Left = UiScale(528); cancel.Top = UiScale(500); cancel.Width = UiScale(80); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
 
-            f.Controls.AddRange(new Control[] { rbAll, rbUnknown, rbMigration, rbWhitelist, search, tree, chkByLayer, chkDelete, chkFallback, copy, ok, cancel });
+            f.Controls.AddRange(new Control[] { rbAll, rbUnknown, rbMigration, rbWhitelist, lblSearch, search, tree, chkByLayer, chkDelete, chkFallback, copy, ok, cancel });
             f.AcceptButton = ok; f.CancelButton = cancel;
             if (f.ShowDialog() != DialogResult.OK) { f.Dispose(); return; }
             setByLayer = chkByLayer.Checked;

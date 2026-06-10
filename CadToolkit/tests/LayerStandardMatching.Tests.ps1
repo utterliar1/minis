@@ -233,7 +233,8 @@ Assert-Equal 'searched tree whitelist keeps one matching child' 1 $searchedWhite
 Assert-Contains 'searched tree whitelist child text matches keyword' (Node-Text $searchedWhitelist[1].Nodes[0]) 'FRAME-BIG'
 
 $searchedNoMatch = $buildSearchTree.Invoke($null, @($plansForPreview, $fallbackForPreview, $whitelistForPreview, $rules, $false, $filterAll, 'NO-SUCH-LAYER'))
-Assert-Equal 'searched tree without matches keeps summary only' 1 $searchedNoMatch.Length
+Assert-Equal 'searched tree without matches shows explicit empty state' 2 $searchedNoMatch.Length
+Assert-Contains 'searched tree no-match node explains empty result' (Node-Text $searchedNoMatch[1]) '\u65E0\u5339\u914D\u7ED3\u679C'
 
 $searchedMigrationReportArgs = New-Object 'object[]' 1
 $searchedMigrationReportArgs[0] = [System.Windows.Forms.TreeNode[]]$searchedMigration
@@ -254,6 +255,7 @@ Assert-Contains 'layer standard migrates all gathered scopes' $layerCommands 'Mo
 Assert-Contains 'layer standard preview uses tree view' $layerCommands 'new\s+TreeView\s*\('
 Assert-Contains 'layer standard fallback rebuilds tree preview' $layerCommands 'BuildLayerPlanTreePreview'
 Assert-Contains 'layer standard preview has keyword filter box' $layerCommands 'new\s+TextBox\s*\('
+Assert-Contains 'layer standard preview has visible search label' $layerCommands '\\u641c\\u7d22'
 Assert-Contains 'layer standard preview has compact search box' $layerCommands 'search\.Width\s*=\s*UiScale\(180\)'
 Assert-Contains 'layer standard preview rebuilds tree on keyword change' $layerCommands 'TextChanged\s*\+='
 Assert-Contains 'layer standard focused preview expands tree' $layerCommands 'tree\.ExpandAll\s*\('

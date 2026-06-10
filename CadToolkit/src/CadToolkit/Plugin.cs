@@ -568,6 +568,7 @@ namespace CadToolkit
                 var matched = CloneLayerPlanNodeMatches(filtered[i], needle);
                 if (matched != null) nodes.Add(matched);
             }
+            if (nodes.Count == 1) nodes.Add(new TreeNode("无匹配结果"));
             return nodes.ToArray();
         }
 
