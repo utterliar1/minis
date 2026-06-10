@@ -95,9 +95,38 @@ namespace CadToolkit.Core
             var lines = new List<string>(File.ReadAllLines(IniPath, Encoding.UTF8));
             bool changed = false;
             changed |= EnsureOfficialCommand(lines, "改块基点", "CT_CHANGEBASEPOINT", "快捷建块");
-            changed |= EnsureOfficialCommand(lines, "文字样式规范", "CT_TEXTSTYLESTANDARD", "文字编号");
+            changed |= RenameOfficialCommandLabel(lines, "文字样式规范", "文字规范", "CT_TEXTSTYLESTANDARD");
+            changed |= EnsureOfficialCommand(lines, "文字规范", "CT_TEXTSTYLESTANDARD", "文字编号");
             if (changed)
                 lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
+        }
+
+        static bool RenameOfficialCommandLabel(List<string> lines, string oldLabel, string newLabel, string command)
+        {
+            bool changed = false;
+            bool hasNew = HasConfigKey(lines, newLabel);
+            for (int i = lines.Count - 1; i >= 0; i--)
+            {
+                string line = lines[i];
+                string trimmed = line.Trim();
+                if (trimmed.Length == 0 || trimmed.StartsWith("#") || trimmed.StartsWith(";") || trimmed.StartsWith("[")) continue;
+                int eq = trimmed.IndexOf('=');
+                if (eq <= 0) continue;
+                string key = trimmed.Substring(0, eq).Trim();
+                string value = trimmed.Substring(eq + 1).Trim();
+                if (!key.Equals(oldLabel, StringComparison.OrdinalIgnoreCase) || !value.Equals(command, StringComparison.OrdinalIgnoreCase)) continue;
+                if (hasNew)
+                {
+                    lines.RemoveAt(i);
+                }
+                else
+                {
+                    lines[i] = newLabel + "=" + command;
+                    hasNew = true;
+                }
+                changed = true;
+            }
+            return changed;
         }
 
         static bool EnsureOfficialCommand(List<string> lines, string label, string command, string afterLabel)
@@ -180,7 +209,7 @@ namespace CadToolkit.Core
             sb.AppendLine("LayerStandardFallbackTo0=false");
             sb.AppendLine("LayerStandardWhitelist=0,Defpoints,*\u56FE\u6846*,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*");
             sb.AppendLine();
-            sb.AppendLine("# \u6587\u5B57\u6837\u5F0F\u89C4\u8303");
+            sb.AppendLine("# \u6587\u5B57\u89C4\u8303");
             sb.AppendLine("TextStyleFallbackToStandard=false");
             sb.AppendLine("TextStyleFallbackStyle=STANDARD-TEXT");
             sb.AppendLine("TextStyleWhitelist=Standard,Annotative,*DIM*");
@@ -198,7 +227,7 @@ namespace CadToolkit.Core
             sb.AppendLine("\u683C\u5F0F\u590D\u5236=CT_TEXTBRUSH");
             sb.AppendLine("\u6587\u5B57\u5408\u5E76=CT_TEXTMERGE");
             sb.AppendLine("\u6587\u5B57\u7F16\u53F7=CT_TEXTNUMBER");
-            sb.AppendLine("\u6587\u5B57\u6837\u5F0F\u89C4\u8303=CT_TEXTSTYLESTANDARD");
+            sb.AppendLine("\u6587\u5B57\u89C4\u8303=CT_TEXTSTYLESTANDARD");
             sb.AppendLine("# \u56FE\u5C42\u7BA1\u7406");
             sb.AppendLine("\u56FE\u5C42\u5F52\u96F6=CT_SETLAYER0");
             sb.AppendLine("\u56FE\u5C42\u89C4\u8303=CT_LAYERSTANDARD");

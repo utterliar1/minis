@@ -34,7 +34,8 @@ $configType = $assembly.GetType('CadToolkit.Core.Config', $true)
 $init = $configType.GetMethod('Init', [Reflection.BindingFlags]'Public, Static')
 $changeBasepointCommand = (-join ([char[]](0x6539, 0x5757, 0x57FA, 0x70B9))) + '=CT_CHANGEBASEPOINT'
 $changeBasepointPattern = '(?m)^' + [regex]::Escape($changeBasepointCommand) + '$'
-$textStyleCommand = (-join ([char[]](0x6587, 0x5B57, 0x6837, 0x5F0F, 0x89C4, 0x8303))) + '=CT_TEXTSTYLESTANDARD'
+$oldTextStyleCommand = (-join ([char[]](0x6587, 0x5B57, 0x6837, 0x5F0F, 0x89C4, 0x8303))) + '=CT_TEXTSTYLESTANDARD'
+$textStyleCommand = (-join ([char[]](0x6587, 0x5B57, 0x89C4, 0x8303))) + '=CT_TEXTSTYLESTANDARD'
 $textStyleCommandPattern = '(?m)^' + [regex]::Escape($textStyleCommand) + '$'
 
 $tmpRoot = Join-Path ([IO.Path]::GetTempPath()) ('CadToolkitConfigUpgrade-' + [Guid]::NewGuid().ToString('N'))
@@ -49,6 +50,7 @@ try {
         '',
         '[Commands]',
         'Custom=MY_CUSTOM_CMD',
+        $oldTextStyleCommand,
         '',
         '[LayerStandard]',
         'CUSTOM-LAYER=2|CONTINUOUS|Default|true',
@@ -79,7 +81,8 @@ try {
     Assert-Before 'upgrade keeps scalar defaults before sections' $upgraded 'DeleteOriginal=true' '[Commands]'
     Assert-Contains 'upgrade preserves custom command section' $upgraded '(?m)^Custom=MY_CUSTOM_CMD$'
     Assert-Contains 'upgrade appends missing official new command' $upgraded $changeBasepointPattern
-    Assert-Contains 'upgrade appends missing official text style command' $upgraded $textStyleCommandPattern
+    Assert-Contains 'upgrade renames official text style command label' $upgraded $textStyleCommandPattern
+    Assert-NotContains 'upgrade removes old text style command label' $upgraded ('(?m)^' + [regex]::Escape($oldTextStyleCommand) + '$')
     Assert-Before 'upgrade inserts new block command before next section' $upgraded $changeBasepointCommand '[LayerStandard]'
     Assert-Before 'upgrade inserts new text style command before next section' $upgraded $textStyleCommand '[LayerStandard]'
     Assert-Contains 'upgrade preserves custom layer standard' $upgraded '(?m)^CUSTOM-LAYER=2\|CONTINUOUS\|Default\|true$'
