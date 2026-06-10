@@ -363,7 +363,7 @@ namespace BlockBrowser
                                 {
                                     using (Bitmap icon = btr.PreviewIcon)
                                     {
-                                        if (icon != null && IsBitmapUseful(icon))
+                                        if (icon != null && IsBitmapUseful(icon) && ThumbnailCacheService.IsPreviewIconSuitable(icon))
                                         {
                                             Bitmap scaled = ScaleToSquare(icon, size);
                                             SaveThumbnailCache(cachePath, scaled);
