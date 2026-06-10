@@ -87,6 +87,9 @@ namespace BlockBrowser
             var btnInsert = new ToolStripButton("插入");
             btnInsert.Click += (s, e) => DoInsert();
 
+            var btnInsertSettings = new ToolStripButton("插入设置");
+            btnInsertSettings.Click += (s, e) => ShowInsertSettingsDialog();
+
             var btnDelete = new ToolStripButton("删除");
             btnDelete.Click += (s, e) => DoDelete();
 
@@ -155,7 +158,6 @@ namespace BlockBrowser
             var btnManage = new ToolStripDropDownButton("管理");
             btnManage.DropDownItems.AddRange(new ToolStripItem[]
             {
-                btnExportBlock,
                 btnRename,
                 btnDelete,
                 btnOpenFolder
@@ -201,8 +203,8 @@ namespace BlockBrowser
             {
                 lblSearch, txtSearchHost, new ToolStripSeparator(),
                 lblSize, cmbHost, new ToolStripSeparator(),
-                btnInsert, new ToolStripSeparator(),
-                btnAddToLib, new ToolStripSeparator(),
+                btnInsert, btnInsertSettings, new ToolStripSeparator(),
+                btnAddToLib, btnExportBlock, new ToolStripSeparator(),
                 btnRefresh, new ToolStripSeparator(),
                 btnManage, btnLibrary
             });
@@ -864,6 +866,22 @@ namespace BlockBrowser
                         LoadData();
                     }
                     BlockLibrary.SaveConfig();
+                }
+            }
+        }
+
+        private void ShowInsertSettingsDialog()
+        {
+            using (var form = new InsertSettingsDialog(
+                BlockLibrary.InsertScale,
+                BlockLibrary.InsertRotation * 180.0 / Math.PI))
+            {
+                if (form.ShowDialog(this) == DialogResult.OK)
+                {
+                    BlockLibrary.InsertScale = form.InsertScaleValue;
+                    BlockLibrary.InsertRotation = form.InsertRotationDegreesValue * Math.PI / 180.0;
+                    BlockLibrary.SaveConfig();
+                    _lblStatus.Text = "插入设置已更新。";
                 }
             }
         }

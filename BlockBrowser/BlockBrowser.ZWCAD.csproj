@@ -57,6 +57,7 @@
     <Compile Include="BlockBrowserPlugin.cs" />
     <Compile Include="BlockBrowserForm.cs" />
     <Compile Include="ExportBlocksDialog.cs" />
+    <Compile Include="InsertSettingsDialog.cs" />
     <Compile Include="SettingsDialog.cs" />
     <Compile Include="TextPromptDialog.cs" />
     <Compile Include="BlockThumbnailCard.cs" />
