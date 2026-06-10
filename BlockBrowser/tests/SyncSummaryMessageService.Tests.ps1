@@ -37,6 +37,11 @@ $plan.SkippedDuplicateCount = 4
 $plan.ConflictCount = 5
 $plan.DeleteReviewCount = 6
 $plan.FailedCount = 7
+$upload = New-Object BlockBrowser.SyncDecision
+$upload.Kind = [BlockBrowser.SyncDecisionKind]::Upload
+$upload.Path = 'Electrical\Socket.dwg'
+$upload.TargetPath = 'Electrical\Socket.dwg'
+$plan.Decisions.Add($upload)
 
 $dialog = [BlockBrowser.SyncSummaryMessageService]::FormatDialog($plan)
 Assert-True 'dialog message includes upload count' ($dialog.Contains('3'))
@@ -53,5 +58,12 @@ Assert-False 'command message is single line' ($command.Contains("`n"))
 
 $emptyDialog = [BlockBrowser.SyncSummaryMessageService]::FormatDialog($null)
 Assert-True 'null plan formats zero count' ($emptyDialog.Contains('0'))
+
+$preview = [BlockBrowser.SyncSummaryMessageService]::FormatPreviewDialog($plan)
+$previewTitle = -join ([char[]](0x540C, 0x6B65, 0x9884, 0x89C8))
+$previewConfirm = -join ([char[]](0x662F, 0x5426, 0x7EE7, 0x7EED))
+Assert-True 'preview dialog names preview' ($preview.Contains($previewTitle))
+Assert-True 'preview dialog includes path sample' ($preview.Contains('Electrical\Socket.dwg'))
+Assert-True 'preview dialog asks for confirmation' ($preview.Contains($previewConfirm))
 
 Write-Host 'SyncSummaryMessageService.Tests.ps1 passed'

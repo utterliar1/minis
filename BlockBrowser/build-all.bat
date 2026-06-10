@@ -1,6 +1,6 @@
-@echo off
+﻿@echo off
 chcp 65001 >nul
-setlocal
+setlocal EnableDelayedExpansion
 echo ========================================
 echo   Block Browser - Local Build
 echo ========================================
@@ -17,6 +17,12 @@ set "BUILD_FAILED=0"
 if not exist "%OUTPUT%" mkdir "%OUTPUT%"
 if not exist "%OUTPUT%\gcad" mkdir "%OUTPUT%\gcad"
 if not exist "%OUTPUT%\zwcad" mkdir "%OUTPUT%\zwcad"
+
+set "CONFIG_HASH_BEFORE="
+set "CONFIG_HASH_AFTER="
+if exist "%OUTPUT%\config.ini" (
+    for /f "usebackq delims=" %%H in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-FileHash -LiteralPath '%OUTPUT%\config.ini' -Algorithm SHA256).Hash"`) do set "CONFIG_HASH_BEFORE=%%H"
+)
 
 REM === GstarCAD ===
 echo [1/3] Building for GstarCAD 2022...
@@ -56,6 +62,11 @@ if not exist "%OUTPUT%\config.ini" (
     copy /Y "%BASE%BlockBrowser.default.ini" "%OUTPUT%\config.ini" >nul
     echo   Config: created config.ini from default template
 ) else (
+    for /f "usebackq delims=" %%H in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-FileHash -LiteralPath '%OUTPUT%\config.ini' -Algorithm SHA256).Hash"`) do set "CONFIG_HASH_AFTER=%%H"
+    if /I not "!CONFIG_HASH_BEFORE!"=="!CONFIG_HASH_AFTER!" (
+        echo   ERROR: config.ini changed during deployment; aborting to protect user config
+        exit /b 1
+    )
     echo   Config: existing config.ini preserved
 )
 if exist "%OUTPUT%\gcad\config.ini" del /q "%OUTPUT%\gcad\config.ini"

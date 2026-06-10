@@ -21,13 +21,13 @@ function Assert-NotContains($name, $text, $pattern) {
     Write-Host "PASS $name"
 }
 
-Assert-Contains 'plugin app version is 1.3' $pluginSource 'public const string AppVersion = "1\.3";'
-Assert-Contains 'assembly version is 1.3.0.0' $assemblySource 'AssemblyVersion\("1\.3\.0\.0"\)'
-Assert-Contains 'assembly file version is 1.3.0.0' $assemblySource 'AssemblyFileVersion\("1\.3\.0\.0"\)'
-Assert-Contains 'autoload message is 1.3' $autoloadSource 'BlockBrowser v1\.3 ready'
-Assert-Contains 'manual checklist names 1.3' $manualSource 'BlockBrowser 1\.3 clean refactor'
-Assert-Contains 'manual checklist status label is 1.3' $manualSource 'v1\.3 \| WLUP'
-Assert-Contains 'release notes names 1.3' $releaseSource '1\.3 clean refactor'
+Assert-Contains 'plugin app version is 1.3.1' $pluginSource 'public const string AppVersion = "1\.3\.1";'
+Assert-Contains 'assembly version is 1.3.1.0' $assemblySource 'AssemblyVersion\("1\.3\.1\.0"\)'
+Assert-Contains 'assembly file version is 1.3.1.0' $assemblySource 'AssemblyFileVersion\("1\.3\.1\.0"\)'
+Assert-Contains 'autoload message is 1.3.1' $autoloadSource 'BlockBrowser v1\.3\.1 ready'
+Assert-Contains 'manual checklist names 1.3.1' $manualSource 'BlockBrowser 1\.3\.1'
+Assert-Contains 'manual checklist status label is 1.3.1' $manualSource 'v1\.3\.1 \| WLUP'
+Assert-Contains 'release notes names 1.3.1' $releaseSource '1\.3\.1'
 
 Assert-NotContains 'plugin no old 1.25.2 version' $pluginSource '1\.25\.2'
 Assert-NotContains 'assembly no old 1.25.2 version' $assemblySource '1\.25\.2'

@@ -117,6 +117,26 @@ try {
     Assert-True 'missing keys keep existing library path' ($missingKeysSavedText -match 'LibraryPath=OnlyLibrary')
     Assert-True 'missing keys keep existing thumb size' ($missingKeysSavedText -match 'ThumbSize=160')
 
+    $upgradeRoot = Join-Path $tempRoot 'UpgradePlugin'
+    New-Item -ItemType Directory -Force -Path $upgradeRoot | Out-Null
+    Set-Content -Encoding UTF8 -Path (Join-Path $upgradeRoot 'config.ini') -Value @(
+        '# old user config'
+        'LibraryPath=OldBlocks'
+        'ThumbSize=180'
+        ''
+        '[CustomSection]'
+        'KeepMe=Yes'
+    )
+    $upgradeStore = New-Object BlockBrowser.BlockBrowserConfigStore $upgradeRoot
+    $upgradeDefaults = [BlockBrowser.BlockBrowserConfig]::CreateDefault($upgradeRoot)
+    $upgradeLoaded = $upgradeStore.Load($upgradeDefaults)
+    $upgradeText = Get-Content -Encoding UTF8 -Path (Join-Path $upgradeRoot 'config.ini') -Raw
+    Assert-Equal 'upgrade preserves old library value' (Join-Path $upgradeRoot 'OldBlocks') $upgradeLoaded.LibraryPath
+    Assert-Equal 'upgrade preserves old thumb size' 180 $upgradeLoaded.ThumbSize
+    Assert-True 'upgrade appends missing root keys before custom section' ($upgradeText.IndexOf('CurrentLibraryMode=Local') -gt -1 -and $upgradeText.IndexOf('CurrentLibraryMode=Local') -lt $upgradeText.IndexOf('[CustomSection]'))
+    Assert-True 'upgrade preserves custom section' ($upgradeText -match '(?m)^\[CustomSection\]\r?$')
+    Assert-True 'upgrade preserves custom value' ($upgradeText -match '(?m)^KeepMe=Yes\r?$')
+
     $customIni = @(
         'LibraryPath=CustomBlocks'
         'NasLibraryPath=\\NAS\CADBlocks\BlockBrowser'

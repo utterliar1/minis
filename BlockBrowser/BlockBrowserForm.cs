@@ -141,6 +141,14 @@ namespace BlockBrowser
             {
                 try
                 {
+                    var preview = BlockLibrary.PreviewLocalSync();
+                    var confirm = MessageBox.Show(
+                        SyncSummaryMessageService.FormatPreviewDialog(preview),
+                        "同步到 NAS",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+                    if (confirm != DialogResult.Yes) return;
+
                     var plan = BlockLibrary.SyncSafeUploadsToNas();
                     MessageBox.Show(
                         SyncSummaryMessageService.FormatDialog(plan),
