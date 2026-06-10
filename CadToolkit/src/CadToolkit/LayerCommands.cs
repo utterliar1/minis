@@ -115,7 +115,7 @@ namespace CadToolkit
             rbWhitelist.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var search = new TextBox();
-            search.Left = UiScale(368); search.Top = UiScale(12); search.Width = UiScale(240); search.Height = UiScale(24);
+            search.Left = UiScale(428); search.Top = UiScale(12); search.Width = UiScale(180); search.Height = UiScale(24);
             search.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var tree = new TreeView();

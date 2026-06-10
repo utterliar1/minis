@@ -60,7 +60,8 @@ $configSource = Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit.Core\Conf
 $readme = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\README.md') -Raw
 $manualFileName = 'CadToolkit' + (-join ([char[]](0x4F7F, 0x7528, 0x624B, 0x518C))) + '.html'
 $manual = Get-Content -Encoding UTF8 (Join-Path (Join-Path $repo 'CadToolkit') $manualFileName) -Raw
-$textStyleCommandLabel = (-join ([char[]](0x6587, 0x5B57, 0x6837, 0x5F0F, 0x89C4, 0x8303)))
+$oldTextStyleCommandLabel = (-join ([char[]](0x6587, 0x5B57, 0x6837, 0x5F0F, 0x89C4, 0x8303)))
+$textStyleCommandLabel = (-join ([char[]](0x6587, 0x5B57, 0x89C4, 0x8303)))
 $textStyleCommandLine = $textStyleCommandLabel + '=CT_TEXTSTYLESTANDARD'
 
 $standardRuleType = $configType.GetNestedType('TextStyleStandardRule', [Reflection.BindingFlags]'Public')
@@ -90,7 +91,10 @@ foreach ($key in $rootKeys) {
 
 Assert-ContainsLiteral 'project config contains text style command' $projectConfig $textStyleCommandLine
 Assert-ContainsLiteral 'default config contains text style command' $defaultConfig $textStyleCommandLine
-Assert-Contains 'embedded default contains text style command' $configSource '文字样式规范=CT_TEXTSTYLESTANDARD|\\u6587\\u5B57\\u6837\\u5F0F\\u89C4\\u8303=CT_TEXTSTYLESTANDARD'
+Assert-Contains 'embedded default contains text style command' $configSource '文字规范=CT_TEXTSTYLESTANDARD|\\u6587\\u5B57\\u89C4\\u8303=CT_TEXTSTYLESTANDARD'
+Assert-NotContains 'project config removes old text style command label' $projectConfig ([regex]::Escape($oldTextStyleCommandLabel + '=CT_TEXTSTYLESTANDARD'))
+Assert-NotContains 'default config removes old text style command label' $defaultConfig ([regex]::Escape($oldTextStyleCommandLabel + '=CT_TEXTSTYLESTANDARD'))
+Assert-NotContains 'embedded default removes old text style command label' $configSource '文字样式规范=CT_TEXTSTYLESTANDARD|\\u6587\\u5B57\\u6837\\u5F0F\\u89C4\\u8303=CT_TEXTSTYLESTANDARD'
 
 Assert-ContainsLiteral 'project config has text style standard section' $projectConfig '[TextStyleStandard]'
 Assert-ContainsLiteral 'project config has text style map section' $projectConfig '[TextStyleMap]'
@@ -110,8 +114,10 @@ Assert-Contains 'text style standard command is registered' (Get-Content -Encodi
 Assert-NotNull 'text style standard method exists' ($commandsType.GetMethod('TextStyleStandard', [Reflection.BindingFlags]'Public, Instance'))
 
 Assert-ContainsLiteral 'readme documents text style command label' $readme $textStyleCommandLabel
+Assert-NotContains 'readme removes old text style command label' $readme ([regex]::Escape($oldTextStyleCommandLabel))
 Assert-ContainsLiteral 'readme documents text style command name' $readme 'CT_TEXTSTYLESTANDARD'
 Assert-ContainsLiteral 'manual documents text style command label' $manual $textStyleCommandLabel
+Assert-NotContains 'manual removes old text style command label' $manual ([regex]::Escape($oldTextStyleCommandLabel))
 Assert-ContainsLiteral 'manual documents text style command name' $manual 'CT_TEXTSTYLESTANDARD'
 
 $textStyleCommandsSource = Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit\TextStyleCommands.cs') -Raw
@@ -193,13 +199,18 @@ function New-TextStylePlan($source, $target, $count, $reason) {
 
 $standardRulesType = ([Collections.Generic.List``1].MakeGenericType($standardRuleType))
 $standardRules = [Activator]::CreateInstance($standardRulesType)
-function New-TextStyleStandardRule($name) {
+function New-TextStyleStandardRule($name, $fontFile = '', $bigFontFile = '', $fixedHeight = 0.0, $widthFactor = 1.0, $obliqueAngle = 0.0) {
     $rule = [Activator]::CreateInstance($standardRuleType)
     $standardRuleType.GetField('Name').SetValue($rule, $name)
+    $standardRuleType.GetField('FontFile').SetValue($rule, $fontFile)
+    $standardRuleType.GetField('BigFontFile').SetValue($rule, $bigFontFile)
+    $standardRuleType.GetField('FixedHeight').SetValue($rule, [double]$fixedHeight)
+    $standardRuleType.GetField('WidthFactor').SetValue($rule, [double]$widthFactor)
+    $standardRuleType.GetField('ObliqueAngle').SetValue($rule, [double]$obliqueAngle)
     return $rule
 }
-[void]$standardRules.Add((New-TextStyleStandardRule 'STANDARD-TEXT'))
-[void]$standardRules.Add((New-TextStyleStandardRule 'TITLE-TEXT'))
+[void]$standardRules.Add((New-TextStyleStandardRule 'STANDARD-TEXT' 'gbenor.shx' 'gbcbig.shx' 0 1.0 0))
+[void]$standardRules.Add((New-TextStyleStandardRule 'TITLE-TEXT' 'gbcbig.shx' '' 350 0.8 0.1))
 
 $planListType = ([Collections.Generic.List``1].MakeGenericType($planType))
 $plansForPreview = [Activator]::CreateInstance($planListType)
@@ -230,6 +241,13 @@ Assert-Contains 'text style tree unknown child moves to fallback style' (Node-Te
 $mergeNode = $treeWithoutFallback[2]
 Assert-Contains 'text style first merge group sorted by object count' (Node-Text ($mergeNode.Nodes[0])) '^TITLE-TEXT'
 Assert-Contains 'text style second merge group sorted by object count' (Node-Text ($mergeNode.Nodes[1])) '^STANDARD-TEXT'
+Assert-Contains 'text style merge group shows target font detail' (Node-Text ($mergeNode.Nodes[1])) 'gbenor\.shx'
+Assert-Contains 'text style merge group shows target big font detail' (Node-Text ($mergeNode.Nodes[1])) 'gbcbig\.shx'
+Assert-Contains 'text style merge group shows target fixed height detail' (Node-Text ($mergeNode.Nodes[1])) '字高 0'
+Assert-Contains 'text style merge group shows target width detail' (Node-Text ($mergeNode.Nodes[1])) '宽度 1(\.0)?'
+Assert-Contains 'text style merge group shows target oblique detail' (Node-Text ($mergeNode.Nodes[1])) '倾斜 0'
+Assert-Contains 'text style title group shows non-default target detail' (Node-Text ($mergeNode.Nodes[0])) '字高 350'
+Assert-Contains 'text style fallback node shows target font detail' (Node-Text $treeWithFallback[1]) 'gbenor\.shx'
 Assert-Contains 'text style first source sorted by object count' (Node-Text ($mergeNode.Nodes[0].Nodes[0])) '^OLD-TITLE-B'
 Assert-Contains 'text style whitelist child includes reason' (Node-Text ($treeWithoutFallback[3].Nodes[0])) 'white wildcard reason'
 
@@ -279,8 +297,11 @@ Assert-NotContains 'text style tree report excludes hidden merge child' $searche
 Assert-NotContains 'text style tree report excludes hidden unknown child' $searchedMigrationReport 'UNKNOWN-BIG'
 
 Assert-Contains 'text style command source has tree preview builder' $textStyleCommandsSource 'BuildTextStylePlanTreePreview'
+Assert-ContainsLiteral 'text style dialog title is short' $textStyleCommandsSource 'f.Text = "文字规范"'
+Assert-Contains 'text style dialog matches layer dialog size' $textStyleCommandsSource 'ClientSize\s*=\s*new Size\(UiScale\(620\),\s*UiScale\(540\)\)'
 Assert-Contains 'text style preview uses tree view' $textStyleCommandsSource 'new\s+TreeView\s*\('
 Assert-Contains 'text style preview has keyword filter box' $textStyleCommandsSource 'new\s+TextBox\s*\('
+Assert-Contains 'text style preview has compact search box' $textStyleCommandsSource 'search\.Width\s*=\s*UiScale\(180\)'
 Assert-Contains 'text style preview disambiguates drawing font type' $textStyleCommandsSource 'new\s+System\.Drawing\.Font\s*\('
 Assert-NotContains 'text style preview avoids ambiguous Font type' $textStyleCommandsSource 'new\s+Font\s*\('
 Assert-ContainsLiteral 'text style preview all filter label' $textStyleCommandsSource '全部'
@@ -290,12 +311,16 @@ Assert-ContainsLiteral 'text style preview whitelist filter label' $textStyleCom
 Assert-ContainsLiteral 'text style preview current-space scope checkbox' $textStyleCommandsSource '处理当前空间文字'
 Assert-ContainsLiteral 'text style preview attribute scope checkbox' $textStyleCommandsSource '处理块参照属性'
 Assert-ContainsLiteral 'text style preview block definition scope checkbox' $textStyleCommandsSource '处理块定义内部文字'
+Assert-ContainsLiteral 'text style preview scope section label' $textStyleCommandsSource '处理范围'
 Assert-ContainsLiteral 'text style preview fallback checkbox' $textStyleCommandsSource '未识别文字样式归到标准样式'
-Assert-ContainsLiteral 'text style preview normalize height checkbox' $textStyleCommandsSource '同步固定字高'
-Assert-ContainsLiteral 'text style preview normalize width checkbox' $textStyleCommandsSource '同步宽度因子'
-Assert-ContainsLiteral 'text style preview normalize oblique checkbox' $textStyleCommandsSource '同步倾斜角'
-Assert-ContainsLiteral 'text style preview normalize color checkbox' $textStyleCommandsSource '颜色改为 ByLayer'
+Assert-ContainsLiteral 'text style preview cleanup section label' $textStyleCommandsSource '归并清理'
+Assert-ContainsLiteral 'text style preview normalize height checkbox' $textStyleCommandsSource '固定字高'
+Assert-ContainsLiteral 'text style preview normalize width checkbox' $textStyleCommandsSource '宽度因子'
+Assert-ContainsLiteral 'text style preview normalize oblique checkbox' $textStyleCommandsSource '倾斜角'
+Assert-ContainsLiteral 'text style preview normalize color checkbox' $textStyleCommandsSource '颜色 ByLayer'
 Assert-ContainsLiteral 'text style preview delete unused checkbox' $textStyleCommandsSource '删除未使用旧文字样式'
+Assert-ContainsLiteral 'text style preview appearance section label' $textStyleCommandsSource '外观同步'
+Assert-NotContains 'text style preview no longer uses old merge label' $textStyleCommandsSource '归并规则'
 Assert-ContainsLiteral 'text style preview copy button label' $textStyleCommandsSource '复制当前'
 Assert-ContainsLiteral 'text style preview execute button label' $textStyleCommandsSource '执行'
 Assert-ContainsLiteral 'text style preview cancel button label' $textStyleCommandsSource '取消'
@@ -311,6 +336,13 @@ Assert-Contains 'text style normalize width uses config default' $textStyleComma
 Assert-Contains 'text style normalize oblique uses config default' $textStyleCommandsSource 'chkOblique\.Checked\s*=\s*Config\.TextStyleNormalizeOblique'
 Assert-Contains 'text style normalize color uses config default' $textStyleCommandsSource 'chkColorByLayer\.Checked\s*=\s*Config\.TextStyleNormalizeColorByLayer'
 Assert-Contains 'text style delete unused uses config default' $textStyleCommandsSource 'chkDeleteUnused\.Checked\s*=\s*Config\.TextStyleDeleteUnusedOldStyles'
+Assert-Contains 'text style command builds risky option confirmation' $textStyleCommandsSource 'BuildTextStyleRiskWarning'
+Assert-Contains 'text style command confirms risky options before execution' $textStyleCommandsSource 'ConfirmTextStyleRiskOptions'
+Assert-ContainsLiteral 'text style risk warning mentions fallback' $textStyleCommandsSource '未识别文字样式将被归到标准样式'
+Assert-ContainsLiteral 'text style risk warning mentions block definitions' $textStyleCommandsSource '将修改块定义内部文字'
+Assert-ContainsLiteral 'text style risk warning mentions appearance sync' $textStyleCommandsSource '将同步文字外观参数'
+Assert-ContainsLiteral 'text style risk warning mentions deleting old styles' $textStyleCommandsSource '将删除未使用旧文字样式'
+Assert-Contains 'text style risky confirmation can cancel execution' $textStyleCommandsSource 'MessageBoxButtons\.OKCancel'
 Assert-Contains 'text style command builds preview plans from drawing' $textStyleCommandsSource 'BuildTextStyleStandardPlans'
 Assert-Contains 'text style command scans current space' $textStyleCommandsSource 'CountCurrentSpaceTextStyles'
 Assert-Contains 'text style command scans block reference attributes' $textStyleCommandsSource 'CountBlockReferenceAttributesTextStyles'

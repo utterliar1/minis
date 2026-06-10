@@ -31,7 +31,7 @@ namespace CadToolkit
             var standards = Config.GetTextStyleStandards();
             if (standards.Count == 0)
             {
-                Ed.WriteMessage("\n未配置 [TextStyleStandard] 文字样式规范。");
+                Ed.WriteMessage("\n未配置 [TextStyleStandard] 文字规范。");
                 return;
             }
 
@@ -52,11 +52,11 @@ namespace CadToolkit
             var whitelistPlans = preview.WhitelistPlans;
 
             var f = new Form();
-            f.Text = "文字样式规范";
+            f.Text = "文字规范";
             f.StartPosition = FormStartPosition.CenterScreen;
             f.FormBorderStyle = FormBorderStyle.FixedDialog;
             f.MaximizeBox = false; f.MinimizeBox = false; f.ShowInTaskbar = false;
-            f.AutoScaleMode = AutoScaleMode.None; f.AutoScroll = true; f.ClientSize = new Size(UiScale(700), UiScale(640));
+            f.AutoScaleMode = AutoScaleMode.None; f.AutoScroll = true; f.ClientSize = new Size(UiScale(620), UiScale(540));
             TextStylePlanTreeFilter previewFilter = TextStylePlanTreeFilter.All;
 
             var rbAll = new RadioButton();
@@ -76,7 +76,7 @@ namespace CadToolkit
             rbWhitelist.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var search = new TextBox();
-            search.Left = UiScale(368); search.Top = UiScale(12); search.Width = UiScale(318); search.Height = UiScale(24);
+            search.Left = UiScale(428); search.Top = UiScale(12); search.Width = UiScale(180); search.Height = UiScale(24);
             search.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var tree = new TreeView();
@@ -84,52 +84,67 @@ namespace CadToolkit
             tree.FullRowSelect = true;
             tree.ShowNodeToolTips = true;
             tree.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            tree.Left = UiScale(12); tree.Top = UiScale(42); tree.Width = UiScale(674); tree.Height = UiScale(360);
+            tree.Left = UiScale(12); tree.Top = UiScale(42); tree.Width = UiScale(596); tree.Height = UiScale(318);
             BuildTextStylePlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, standards, fallbackToStandard, fallbackStyle, previewFilter, search.Text);
+
+            var lblScope = new Label();
+            lblScope.Text = "处理范围";
+            lblScope.Left = UiScale(12); lblScope.Top = UiScale(372); lblScope.Width = UiScale(78); lblScope.Height = UiScale(24);
+            lblScope.Font = new System.Drawing.Font("Microsoft YaHei", 9f, FontStyle.Bold);
 
             var chkCurrentSpace = new CheckBox();
             chkCurrentSpace.Text = "处理当前空间文字";
-            chkCurrentSpace.Left = UiScale(12); chkCurrentSpace.Top = UiScale(410); chkCurrentSpace.Width = UiScale(210); chkCurrentSpace.Height = UiScale(24); chkCurrentSpace.Checked = true;
+            chkCurrentSpace.Left = UiScale(96); chkCurrentSpace.Top = UiScale(372); chkCurrentSpace.Width = UiScale(150); chkCurrentSpace.Height = UiScale(24); chkCurrentSpace.Checked = true;
             chkCurrentSpace.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkAttributes = new CheckBox();
             chkAttributes.Text = "处理块参照属性";
-            chkAttributes.Left = UiScale(236); chkAttributes.Top = UiScale(410); chkAttributes.Width = UiScale(210); chkAttributes.Height = UiScale(24); chkAttributes.Checked = false;
+            chkAttributes.Left = UiScale(252); chkAttributes.Top = UiScale(372); chkAttributes.Width = UiScale(135); chkAttributes.Height = UiScale(24); chkAttributes.Checked = false;
             chkAttributes.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkBlockDefinitions = new CheckBox();
             chkBlockDefinitions.Text = "处理块定义内部文字";
-            chkBlockDefinitions.Left = UiScale(460); chkBlockDefinitions.Top = UiScale(410); chkBlockDefinitions.Width = UiScale(226); chkBlockDefinitions.Height = UiScale(24); chkBlockDefinitions.Checked = false;
+            chkBlockDefinitions.Left = UiScale(394); chkBlockDefinitions.Top = UiScale(372); chkBlockDefinitions.Width = UiScale(170); chkBlockDefinitions.Height = UiScale(24); chkBlockDefinitions.Checked = false;
             chkBlockDefinitions.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
+            var lblMerge = new Label();
+            lblMerge.Text = "归并清理";
+            lblMerge.Left = UiScale(12); lblMerge.Top = UiScale(400); lblMerge.Width = UiScale(78); lblMerge.Height = UiScale(24);
+            lblMerge.Font = new System.Drawing.Font("Microsoft YaHei", 9f, FontStyle.Bold);
 
             var chkFallback = new CheckBox();
             chkFallback.Text = "未识别文字样式归到标准样式";
-            chkFallback.Left = UiScale(12); chkFallback.Top = UiScale(442); chkFallback.Width = UiScale(330); chkFallback.Height = UiScale(24); chkFallback.Checked = fallbackToStandard;
+            chkFallback.Left = UiScale(96); chkFallback.Top = UiScale(400); chkFallback.Width = UiScale(235); chkFallback.Height = UiScale(24); chkFallback.Checked = fallbackToStandard;
             chkFallback.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
+            var lblAppearance = new Label();
+            lblAppearance.Text = "外观同步";
+            lblAppearance.Left = UiScale(12); lblAppearance.Top = UiScale(428); lblAppearance.Width = UiScale(78); lblAppearance.Height = UiScale(24);
+            lblAppearance.Font = new System.Drawing.Font("Microsoft YaHei", 9f, FontStyle.Bold);
+
             var chkHeight = new CheckBox();
-            chkHeight.Text = "同步固定字高";
-            chkHeight.Left = UiScale(12); chkHeight.Top = UiScale(474); chkHeight.Width = UiScale(160); chkHeight.Height = UiScale(24); chkHeight.Checked = Config.TextStyleNormalizeHeight;
+            chkHeight.Text = "固定字高";
+            chkHeight.Left = UiScale(96); chkHeight.Top = UiScale(428); chkHeight.Width = UiScale(84); chkHeight.Height = UiScale(24); chkHeight.Checked = Config.TextStyleNormalizeHeight;
             chkHeight.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkWidthFactor = new CheckBox();
-            chkWidthFactor.Text = "同步宽度因子";
-            chkWidthFactor.Left = UiScale(180); chkWidthFactor.Top = UiScale(474); chkWidthFactor.Width = UiScale(160); chkWidthFactor.Height = UiScale(24); chkWidthFactor.Checked = Config.TextStyleNormalizeWidthFactor;
+            chkWidthFactor.Text = "宽度因子";
+            chkWidthFactor.Left = UiScale(190); chkWidthFactor.Top = UiScale(428); chkWidthFactor.Width = UiScale(90); chkWidthFactor.Height = UiScale(24); chkWidthFactor.Checked = Config.TextStyleNormalizeWidthFactor;
             chkWidthFactor.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkOblique = new CheckBox();
-            chkOblique.Text = "同步倾斜角";
-            chkOblique.Left = UiScale(348); chkOblique.Top = UiScale(474); chkOblique.Width = UiScale(150); chkOblique.Height = UiScale(24); chkOblique.Checked = Config.TextStyleNormalizeOblique;
+            chkOblique.Text = "倾斜角";
+            chkOblique.Left = UiScale(286); chkOblique.Top = UiScale(428); chkOblique.Width = UiScale(72); chkOblique.Height = UiScale(24); chkOblique.Checked = Config.TextStyleNormalizeOblique;
             chkOblique.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkColorByLayer = new CheckBox();
-            chkColorByLayer.Text = "颜色改为 ByLayer";
-            chkColorByLayer.Left = UiScale(506); chkColorByLayer.Top = UiScale(474); chkColorByLayer.Width = UiScale(180); chkColorByLayer.Height = UiScale(24); chkColorByLayer.Checked = Config.TextStyleNormalizeColorByLayer;
+            chkColorByLayer.Text = "颜色 ByLayer";
+            chkColorByLayer.Left = UiScale(368); chkColorByLayer.Top = UiScale(428); chkColorByLayer.Width = UiScale(115); chkColorByLayer.Height = UiScale(24); chkColorByLayer.Checked = Config.TextStyleNormalizeColorByLayer;
             chkColorByLayer.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             var chkDeleteUnused = new CheckBox();
             chkDeleteUnused.Text = "删除未使用旧文字样式";
-            chkDeleteUnused.Left = UiScale(12); chkDeleteUnused.Top = UiScale(506); chkDeleteUnused.Width = UiScale(250); chkDeleteUnused.Height = UiScale(24); chkDeleteUnused.Checked = Config.TextStyleDeleteUnusedOldStyles;
+            chkDeleteUnused.Left = UiScale(340); chkDeleteUnused.Top = UiScale(400); chkDeleteUnused.Width = UiScale(205); chkDeleteUnused.Height = UiScale(24); chkDeleteUnused.Checked = Config.TextStyleDeleteUnusedOldStyles;
             chkDeleteUnused.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
 
             EventHandler refreshPreview = delegate
@@ -156,7 +171,7 @@ namespace CadToolkit
 
             var copy = new Button();
             copy.Text = "复制当前";
-            copy.Left = UiScale(414); copy.Top = UiScale(590); copy.Width = UiScale(88); copy.Height = UiScale(28); copy.FlatStyle = FlatStyle.System;
+            copy.Left = UiScale(336); copy.Top = UiScale(500); copy.Width = UiScale(88); copy.Height = UiScale(28); copy.FlatStyle = FlatStyle.System;
             copy.Click += delegate
             {
                 try
@@ -172,13 +187,13 @@ namespace CadToolkit
 
             var ok = new Button();
             ok.Text = "执行"; ok.DialogResult = DialogResult.OK;
-            ok.Left = UiScale(510); ok.Top = UiScale(590); ok.Width = UiScale(80); ok.Height = UiScale(28); ok.FlatStyle = FlatStyle.System;
+            ok.Left = UiScale(432); ok.Top = UiScale(500); ok.Width = UiScale(80); ok.Height = UiScale(28); ok.FlatStyle = FlatStyle.System;
 
             var cancel = new Button();
             cancel.Text = "取消"; cancel.DialogResult = DialogResult.Cancel;
-            cancel.Left = UiScale(606); cancel.Top = UiScale(590); cancel.Width = UiScale(80); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
+            cancel.Left = UiScale(528); cancel.Top = UiScale(500); cancel.Width = UiScale(80); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
 
-            f.Controls.AddRange(new Control[] { rbAll, rbUnknown, rbMigration, rbWhitelist, search, tree, chkCurrentSpace, chkAttributes, chkBlockDefinitions, chkFallback, chkHeight, chkWidthFactor, chkOblique, chkColorByLayer, chkDeleteUnused, copy, ok, cancel });
+            f.Controls.AddRange(new Control[] { rbAll, rbUnknown, rbMigration, rbWhitelist, search, tree, lblScope, chkCurrentSpace, chkAttributes, chkBlockDefinitions, lblMerge, chkFallback, lblAppearance, chkHeight, chkWidthFactor, chkOblique, chkColorByLayer, chkDeleteUnused, copy, ok, cancel });
             f.AcceptButton = ok; f.CancelButton = cancel;
             if (f.ShowDialog() != DialogResult.OK) { f.Dispose(); return; }
             processCurrentSpace = chkCurrentSpace.Checked;
@@ -191,6 +206,7 @@ namespace CadToolkit
             normalizeColorByLayer = chkColorByLayer.Checked;
             deleteUnused = chkDeleteUnused.Checked;
             f.Dispose();
+            if (!ConfirmTextStyleRiskOptions(fallbackToStandard, fallbackPlans.Count, fallbackStyle, processBlockDefinitions, normalizeHeight, normalizeWidthFactor, normalizeOblique, normalizeColorByLayer, deleteUnused)) return;
 
             int changedCount = 0, failed = 0, deleted = 0;
             bool changed = RunWithUndo("CT_TEXTSTYLESTANDARD", delegate
@@ -220,7 +236,7 @@ namespace CadToolkit
             });
             if (!changed) return;
 
-            Ed.WriteMessage(string.Format("\n文字样式规范完成：处理 {0} 个对象，失败 {1} 个，删除未使用旧文字样式 {2} 个。", changedCount, failed, deleted));
+            Ed.WriteMessage(string.Format("\n文字规范完成：处理 {0} 个对象，失败 {1} 个，删除未使用旧文字样式 {2} 个。", changedCount, failed, deleted));
         }
 
         class TextStyleStandardPlan
@@ -455,6 +471,42 @@ namespace CadToolkit
             return groups;
         }
 
+        static Dictionary<string, TextStyleStandardRule> BuildTextStyleRuleLookup(List<TextStyleStandardRule> rules)
+        {
+            var lookup = new Dictionary<string, TextStyleStandardRule>(StringComparer.OrdinalIgnoreCase);
+            if (rules == null) return lookup;
+            foreach (var rule in rules)
+            {
+                if (rule == null || string.IsNullOrEmpty(rule.Name)) continue;
+                lookup[rule.Name] = rule;
+            }
+            return lookup;
+        }
+
+        static string FormatTextStyleRuleDetail(TextStyleStandardRule rule)
+        {
+            if (rule == null) return "";
+            return string.Format("字体 {0} + {1}，字高 {2}，宽度 {3}，倾斜 {4}",
+                string.IsNullOrEmpty(rule.FontFile) ? "未指定" : rule.FontFile,
+                string.IsNullOrEmpty(rule.BigFontFile) ? "无大字体" : rule.BigFontFile,
+                FormatTextStyleDouble(rule.FixedHeight),
+                FormatTextStyleDouble(rule.WidthFactor),
+                FormatTextStyleDouble(rule.ObliqueAngle));
+        }
+
+        static string FormatTextStyleTargetLabel(string targetStyle, Dictionary<string, TextStyleStandardRule> ruleByName)
+        {
+            TextStyleStandardRule rule;
+            if (ruleByName != null && ruleByName.TryGetValue(SafeStr(targetStyle), out rule))
+                return string.Format("{0}（{1}）", targetStyle, FormatTextStyleRuleDetail(rule));
+            return SafeStr(targetStyle);
+        }
+
+        static string FormatTextStyleDouble(double value)
+        {
+            return value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
         static TreeNode[] BuildTextStylePlanTreeNodes(List<TextStyleStandardPlan> plans, List<TextStyleStandardPlan> fallbackPlans, List<TextStyleStandardPlan> whitelistPlans, List<TextStyleStandardRule> rules, bool fallbackToStandard, string fallbackStyle)
         {
             var nodes = new List<TreeNode>();
@@ -462,13 +514,15 @@ namespace CadToolkit
             int fallbackObjects = SumTextStylePlanCounts(fallbackPlans);
             int whitelistObjects = SumTextStylePlanCounts(whitelistPlans);
             string targetFallback = SafeStr(fallbackStyle);
+            var ruleByName = BuildTextStyleRuleLookup(rules);
+            string targetFallbackLabel = FormatTextStyleTargetLabel(targetFallback, ruleByName);
 
             var summary = new TreeNode(string.Format("摘要：标准文字样式 {0} 个；将归并 {1} 样式 / {2} 对象；未识别 {3} 样式 / {4} 对象；白名单 {5} 样式 / {6} 对象",
                 rules.Count, plans.Count, migrateObjects, fallbackPlans.Count, fallbackObjects, whitelistPlans.Count, whitelistObjects));
             nodes.Add(summary);
 
             var unknown = new TreeNode(string.Format("未识别文字样式（{0} 样式 / {1} 对象，{2}）",
-                fallbackPlans.Count, fallbackObjects, fallbackToStandard ? "将归到 " + targetFallback : "保持原样"));
+                fallbackPlans.Count, fallbackObjects, fallbackToStandard ? "将归到 " + targetFallbackLabel : "保持原样"));
             foreach (var p in SortTextStylePlansByCount(fallbackPlans))
             {
                 string text = fallbackToStandard
@@ -482,7 +536,7 @@ namespace CadToolkit
             var migrate = new TreeNode(string.Format("将归并文字样式（{0} 样式 / {1} 对象）", plans.Count, migrateObjects));
             foreach (var group in BuildTextStylePlanTargetGroups(plans))
             {
-                var groupNode = new TreeNode(string.Format("{0}（{1} 样式 / {2} 对象）", group.TargetStyle, group.Plans.Count, group.Count));
+                var groupNode = new TreeNode(string.Format("{0}（{1} 样式 / {2} 对象）", FormatTextStyleTargetLabel(group.TargetStyle, ruleByName), group.Plans.Count, group.Count));
                 foreach (var p in SortTextStylePlansByCount(group.Plans))
                     groupNode.Nodes.Add(new TreeNode(string.Format("{0} -> {1}    {2} 对象    {3}", p.SourceStyle, p.TargetStyle, p.Count, SafeStr(p.Reason))));
                 migrate.Nodes.Add(groupNode);
@@ -533,6 +587,33 @@ namespace CadToolkit
             foreach (TreeNode node in nodes)
                 AppendTextStylePlanTreeReportNode(sb, node, 0);
             return sb.ToString();
+        }
+
+        static string BuildTextStyleRiskWarning(bool fallbackToStandard, int fallbackStyleCount, string fallbackStyle, bool blockDefinitions, bool normalizeHeight, bool normalizeWidthFactor, bool normalizeOblique, bool colorByLayer, bool deleteUnused)
+        {
+            var lines = new List<string>();
+            if (fallbackToStandard && fallbackStyleCount > 0)
+                lines.Add(string.Format("未识别文字样式将被归到标准样式：{0}（{1} 个样式）", SafeStr(fallbackStyle), fallbackStyleCount));
+            if (blockDefinitions)
+                lines.Add("将修改块定义内部文字，可能影响同名块的所有参照。");
+            if (normalizeHeight || normalizeWidthFactor || normalizeOblique || colorByLayer)
+                lines.Add("将同步文字外观参数，可能改变字高、宽度因子、倾斜角或颜色。");
+            if (deleteUnused)
+                lines.Add("将删除未使用旧文字样式，建议确认已备份图纸。");
+            if (lines.Count == 0) return "";
+            var sb = new StringBuilder();
+            sb.AppendLine("本次文字规范包含高风险操作：");
+            foreach (var line in lines) sb.AppendLine("- " + line);
+            sb.AppendLine();
+            sb.Append("确认继续执行？");
+            return sb.ToString();
+        }
+
+        static bool ConfirmTextStyleRiskOptions(bool fallbackToStandard, int fallbackStyleCount, string fallbackStyle, bool blockDefinitions, bool normalizeHeight, bool normalizeWidthFactor, bool normalizeOblique, bool colorByLayer, bool deleteUnused)
+        {
+            string warning = BuildTextStyleRiskWarning(fallbackToStandard, fallbackStyleCount, fallbackStyle, blockDefinitions, normalizeHeight, normalizeWidthFactor, normalizeOblique, colorByLayer, deleteUnused);
+            if (warning.Length == 0) return true;
+            return MessageBox.Show(warning, "文字规范确认", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) == DialogResult.OK;
         }
 
         static void BuildTextStylePlanTreePreview(TreeView tree, List<TextStyleStandardPlan> plans, List<TextStyleStandardPlan> fallbackPlans, List<TextStyleStandardPlan> whitelistPlans, List<TextStyleStandardRule> rules, bool fallbackToStandard, string fallbackStyle, TextStylePlanTreeFilter filter, string searchText)

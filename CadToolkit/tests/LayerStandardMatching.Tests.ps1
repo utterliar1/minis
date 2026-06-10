@@ -254,6 +254,7 @@ Assert-Contains 'layer standard migrates all gathered scopes' $layerCommands 'Mo
 Assert-Contains 'layer standard preview uses tree view' $layerCommands 'new\s+TreeView\s*\('
 Assert-Contains 'layer standard fallback rebuilds tree preview' $layerCommands 'BuildLayerPlanTreePreview'
 Assert-Contains 'layer standard preview has keyword filter box' $layerCommands 'new\s+TextBox\s*\('
+Assert-Contains 'layer standard preview has compact search box' $layerCommands 'search\.Width\s*=\s*UiScale\(180\)'
 Assert-Contains 'layer standard preview rebuilds tree on keyword change' $layerCommands 'TextChanged\s*\+='
 Assert-Contains 'layer standard focused preview expands tree' $layerCommands 'tree\.ExpandAll\s*\('
 Assert-Contains 'layer standard filter expands preview tree' $layerCommands 'filter\s*!=\s*LayerPlanTreeFilter\.All'
