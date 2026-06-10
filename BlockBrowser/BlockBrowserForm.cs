@@ -19,6 +19,9 @@ namespace BlockBrowser
 
     public class BlockBrowserForm : Form
     {
+        private const int MinFormWidth = 700;
+        private const int MinFormHeight = 450;
+
         // 模态模式：用户点了插入后返回OK
         private static string _lastCategory = "全部";
 
@@ -37,6 +40,7 @@ namespace BlockBrowser
         private HScrollBar _catScrollBar;
         private TextBox _txtSearch;
         private ToolStrip _toolbar;
+        private ToolStripControlHost _txtSearchHost;
         private StatusStrip _statusBar;
         private ToolStripStatusLabel _lblStatus;
         private ToolStripStatusLabel _lblCount;
@@ -65,8 +69,8 @@ namespace BlockBrowser
         private void InitializeComponent()
         {
             Text = "块浏览器 - " + BlockLibrary.PlatformName;
-            Size = new Size(BlockLibrary.FormWidth, BlockLibrary.FormHeight);
-            MinimumSize = new Size(700, 450);
+            Size = GetInitialFormSize();
+            MinimumSize = new Size(MinFormWidth, MinFormHeight);
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.FromArgb(245, 245, 248);
             AutoScaleMode = AutoScaleMode.Dpi;
@@ -74,6 +78,7 @@ namespace BlockBrowser
             Font = new Font("Microsoft YaHei", 9f);
             KeyPreview = true;
             KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) this.Close(); };
+            Resize += (s, e) => UpdateSearchBoxWidth();
 
             // Timers
             _searchTimer = new System.Windows.Forms.Timer { Interval = 300 };
@@ -187,7 +192,7 @@ namespace BlockBrowser
             _txtSearch = new TextBox { Width = 140, BorderStyle = BorderStyle.FixedSingle };
             _txtSearch.TextChanged += (s, e) => { _searchTimer.Stop(); _searchTimer.Start(); };
             _txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) { _txtSearch.Text = ""; e.SuppressKeyPress = true; } };
-            var txtSearchHost = new ToolStripControlHost(_txtSearch) { AutoSize = false };
+            _txtSearchHost = new ToolStripControlHost(_txtSearch) { AutoSize = false, Width = GetSearchBoxWidth() };
 
             var lblSearch = new ToolStripLabel("搜索:");
 
@@ -209,7 +214,7 @@ namespace BlockBrowser
 
             _toolbar.Items.AddRange(new ToolStripItem[]
             {
-                lblSearch, txtSearchHost, new ToolStripSeparator(),
+                lblSearch, _txtSearchHost, new ToolStripSeparator(),
                 lblSize, cmbHost, new ToolStripSeparator(),
                 btnInsert, btnInsertSettings, new ToolStripSeparator(),
                 btnAddToLib, btnExportBlock, new ToolStripSeparator(),
@@ -360,6 +365,38 @@ namespace BlockBrowser
             Controls.Add(_catHost);
             Controls.Add(_toolbar);
             Controls.Add(_statusBar);
+        }
+
+        private Size GetInitialFormSize()
+        {
+            int width = BlockLibrary.FormWidth;
+            int height = BlockLibrary.FormHeight;
+            try
+            {
+                Rectangle work = Screen.FromPoint(Cursor.Position).WorkingArea;
+                width = Math.Min(width, Math.Max(MinFormWidth, work.Width - 40));
+                height = Math.Min(height, Math.Max(MinFormHeight, work.Height - 60));
+            }
+            catch { }
+
+            return new Size(Math.Max(MinFormWidth, width), Math.Max(MinFormHeight, height));
+        }
+
+        private int GetSearchBoxWidth()
+        {
+            int width = ClientSize.Width > 0 ? ClientSize.Width : BlockLibrary.FormWidth;
+            if (width <= 760) return 100;
+            if (width <= 900) return 120;
+            return 140;
+        }
+
+        private void UpdateSearchBoxWidth()
+        {
+            if (_txtSearch == null || _txtSearchHost == null) return;
+
+            int width = GetSearchBoxWidth();
+            _txtSearch.Width = width;
+            _txtSearchHost.Width = width;
         }
 
         private string GetActiveLibraryStatus()
