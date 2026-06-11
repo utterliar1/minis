@@ -168,7 +168,7 @@
   <ul>
     <li><strong>删除块</strong>：选中块后点击「删除」，文件移到回收站可恢复</li>
     <li><strong>重命名</strong>：选中块后点击「重命名」，输入新名称</li>
-    <li><strong>设置</strong>：修改 NAS 主图库、本地副本、使用模式、插入比例、旋转角度</li>
+    <li><strong>设置</strong>：修改 NAS 主图库、本地图库、使用模式。插入比例和旋转角度请用工具栏「插入设置」</li>
     <li><strong>打开文件夹</strong>：直接打开块库目录，方便手动管理文件</li>
     <li><strong>刷新</strong>：清除内存缓存，重新加载块列表</li>
   </ul>
@@ -225,18 +225,18 @@
     <tr><td><code>CurrentLibraryMode=Nas</code></td><td>必须只看团队主库</td><td>只使用 NAS，NAS 不可用时提示不可用</td></tr>
   </table>
 
-  <h3>办公室内：从 NAS 更新本地副本</h3>
+  <h3>办公室内：更新本地图库</h3>
   <div class="step">
     <div class="step-num">1</div>
     <div class="step-text">确认 NAS 可访问，模式建议为 <code>Auto</code>。</div>
   </div>
   <div class="step">
     <div class="step-num">2</div>
-    <div class="step-text">点击「更新本地」或命令行输入 <code>BBMIRROR</code>。</div>
+    <div class="step-text">点击工具栏「更新本地图库」或命令行输入 <code>BBMIRROR</code>。</div>
   </div>
   <div class="step">
     <div class="step-num">3</div>
-    <div class="step-text">程序把 NAS 中的块复制到本地副本。若本地存在未同步修改，会拒绝覆盖并提示先处理同步。</div>
+    <div class="step-text">程序把 NAS 中的块复制到本地图库。若本地存在未同步修改，会拒绝覆盖并提示先联系指定维护人处理同步。</div>
   </div>
 
   <h3>外出时：继续在本地新增/编辑块</h3>
@@ -267,9 +267,9 @@
   <ol>
     <li>新同事先使用默认 <code>Local</code> 模式熟悉操作。</li>
     <li>确认 NAS 路径后，切换到 <code>Auto</code>。</li>
-    <li>每天开始前运行一次 <code>BBMIRROR</code> 更新本地副本。</li>
+    <li>普通同事每天开始前点击「更新本地图库」，或运行一次 <code>BBMIRROR</code>。</li>
     <li>外出或离线时继续使用本地副本。</li>
-    <li>回到办公室后运行 <code>BBSYNC</code>，只把安全的新块同步到 NAS。</li>
+    <li>只有指定维护人运行 <code>BBSYNC</code> 或使用同步中心，把确认安全的新块同步到 NAS。</li>
   </ol>
 </div>
 
@@ -282,9 +282,9 @@
     <tr><td><code>KLLQ</code></td><td>打开块浏览器（快捷别名）</td></tr>
     <tr><td><code>BBADD</code></td><td>命令行方式添加到库</td></tr>
     <tr><td><code>BBEXPORT</code></td><td>命令行方式导出块</td></tr>
-    <tr><td><code>BBMIRROR</code></td><td>从 NAS 更新本地副本</td></tr>
+    <tr><td><code>BBMIRROR</code></td><td>从 NAS 更新本地图库，普通同事日常主要使用这个入口</td></tr>
     <tr><td><code>BBSYNC</code></td><td>将本地新增块安全同步到 NAS，并报告冲突</td></tr>
-    <tr><td>同步中心</td><td>在 BB 面板「图库」菜单中打开，同步前查看明细，执行后复制结果或打开 <code>sync-log.txt</code></td></tr>
+    <tr><td>同步中心</td><td>在 BB 面板「图库」菜单中打开，建议只由指定维护人使用；同步前查看明细，执行后复制结果或打开 <code>sync-log.txt</code></td></tr>
     <tr><td><code>BBTHUMB</code></td><td>清除所有缩略图缓存</td></tr>
     <tr><td><code>BBINFO</code></td><td>显示插件版本信息</td></tr>
   </table>
@@ -317,7 +317,7 @@
   <div class="a">A：① 确认DWG文件是有效格式<br>② 检查文件是否被其他程序占用<br>③ 同名块会自动重命名（如 door_2），不会冲突</div>
 
   <div class="q">Q：如何共享块库给团队？</div>
-  <div class="a">A：推荐把团队主图库放在 NAS。在「设置」里填写 NAS 主图库路径，同事本机保留本地副本，使用 <code>BBMIRROR</code> 更新、<code>BBSYNC</code> 安全同步。</div>
+  <div class="a">A：推荐把团队主图库放在 NAS。在「设置」里填写 NAS 主图库路径，同事本机保留本地图库，普通同事使用「更新本地图库」或 <code>BBMIRROR</code> 更新；<code>BBSYNC</code> 和同步中心由指定维护人使用。</div>
 
   <div class="q">Q：为什么不同事直接覆盖 NAS 文件？</div>
   <div class="a">A：为了保护团队主库。BlockBrowser 只自动上传 NAS 没有的新文件；遇到同名、冲突或删除请求时会提示处理，不会静默覆盖 NAS。</div>

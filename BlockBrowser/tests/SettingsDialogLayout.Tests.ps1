@@ -7,6 +7,7 @@ if (-not (Test-Path $dialogPath)) {
     throw "Missing source file: $dialogPath"
 }
 $dialogSource = Get-Content -Encoding UTF8 $dialogPath -Raw
+$settingsMethod = [regex]::Match($formSource, 'private\s+void\s+ShowSettingsDialog\(\)[\s\S]*?private\s+void\s+ShowInsertSettingsDialog').Value
 $insertDialogPath = Join-Path $repo 'BlockBrowser\InsertSettingsDialog.cs'
 if (-not (Test-Path $insertDialogPath)) {
     throw "Missing source file: $insertDialogPath"
@@ -30,19 +31,20 @@ Assert-Contains 'settings dialog uses table layout for DPI scaling' $dialogSourc
 Assert-Contains 'settings dialog grows to content' $dialogSource 'AutoSizeMode = AutoSizeMode\.GrowAndShrink'
 Assert-Contains 'settings dialog sets AutoScaleMode' $dialogSource 'AutoScaleMode = AutoScaleMode\.Dpi'
 Assert-Contains 'settings dialog groups library paths' $dialogSource ('new GroupBox\s*\{[^}]*Text = "' + [regex]::Escape($libraryGroupTitle) + '"')
-Assert-Contains 'settings dialog groups insert options' $dialogSource ('new GroupBox\s*\{[^}]*Text = "' + [regex]::Escape($insertGroupTitle) + '"')
+Assert-NotContains 'settings dialog does not duplicate insert options' $dialogSource ('new GroupBox\s*\{[^}]*Text = "' + [regex]::Escape($insertGroupTitle) + '"')
 Assert-Contains 'settings dialog uses wider path text boxes' $dialogSource 'textBox\.Width = 520'
 Assert-Contains 'settings dialog uses three-column path rows' $dialogSource 'ColumnCount = 3'
 Assert-Contains 'settings dialog keeps path labels unwrapped at high DPI' $dialogSource 'ColumnStyle\(SizeType\.Absolute,\s*150\)'
 Assert-Contains 'settings dialog aligns browse buttons with path inputs' $dialogSource 'pathPanel\.Controls\.Add\(btnBrowse,\s*2,\s*row\)'
 Assert-Contains 'settings dialog keeps mode dropdown readable at high DPI' $dialogSource '_cmbLibraryMode[\s\S]*?Width = 128'
-Assert-Contains 'settings dialog reserves mode dropdown column width' $dialogSource 'ColumnStyle\(SizeType\.Absolute,\s*128\)'
+Assert-Contains 'settings dialog places mode in library group' $dialogSource 'AddModeRow\(pathPanel,\s*2,\s*"'
 Assert-Contains 'settings dialog exposes NAS library path' $dialogSource 'NasLibraryPathValue'
 Assert-Contains 'settings dialog exposes local mirror path' $dialogSource 'LocalMirrorPathValue'
 Assert-Contains 'settings dialog exposes current library mode' $dialogSource 'CurrentLibraryModeValue'
-Assert-Contains 'settings dialog exposes insert scale' $dialogSource 'InsertScaleValue'
-Assert-Contains 'settings dialog exposes rotation degrees' $dialogSource 'InsertRotationDegreesValue'
+Assert-NotContains 'settings dialog no insert scale value' $dialogSource 'InsertScaleValue'
+Assert-NotContains 'settings dialog no rotation degrees value' $dialogSource 'InsertRotationDegreesValue'
 Assert-Contains 'form opens settings dialog' $formSource 'new SettingsDialog'
+Assert-NotContains 'form does not read insert values from settings dialog' $settingsMethod 'form\.InsertScaleValue|form\.InsertRotationDegreesValue'
 Assert-Contains 'form refreshes active library after settings change' $formSource 'BlockLibrary\.RefreshActiveLibrary\(\)'
 Assert-NotContains 'form does not overwrite NAS path with local path' $formSource 'BlockLibrary\.NasLibraryPath\s*=\s*plan\.LibraryPath'
 Assert-NotContains 'form no inline settings form' $formSource 'using\s*\(var\s+form\s*=\s*new\s+Form\s*\(\s*\)\)'

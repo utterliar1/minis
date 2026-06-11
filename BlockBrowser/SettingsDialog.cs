@@ -9,15 +9,11 @@ namespace BlockBrowser
         private readonly TextBox _txtNasLibraryPath;
         private readonly TextBox _txtLocalMirrorPath;
         private readonly ComboBox _cmbLibraryMode;
-        private readonly NumericUpDown _numScale;
-        private readonly NumericUpDown _numRotation;
 
         public SettingsDialog(
             string nasLibraryPath,
             string localMirrorPath,
-            LibraryMode currentLibraryMode,
-            double insertScale,
-            double insertRotationDegrees)
+            LibraryMode currentLibraryMode)
         {
             Text = "块浏览器设置";
             StartPosition = FormStartPosition.CenterParent;
@@ -35,10 +31,9 @@ namespace BlockBrowser
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 1,
-                RowCount = 3,
+                RowCount = 2,
                 Dock = DockStyle.Fill
             };
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -59,7 +54,7 @@ namespace BlockBrowser
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 3,
-                RowCount = 2,
+                RowCount = 3,
                 Dock = DockStyle.Fill
             };
             pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
@@ -67,39 +62,16 @@ namespace BlockBrowser
             pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             pathPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             pathPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            pathPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             AddPathRow(pathPanel, 0, "NAS 主图库:", nasLibraryPath, _txtNasLibraryPath);
-            AddPathRow(pathPanel, 1, "本地副本:", localMirrorPath, _txtLocalMirrorPath);
-            libraryGroup.Controls.Add(pathPanel);
-
-            var insertGroup = new GroupBox
-            {
-                Text = "插入设置",
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Dock = DockStyle.Fill,
-                Padding = new Padding(12, 10, 12, 12),
-                Margin = new Padding(0, 0, 0, 14)
-            };
-            var valuePanel = new TableLayoutPanel
-            {
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                ColumnCount = 6,
-                Dock = DockStyle.Fill
-            };
-            valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 128));
-            valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
-            valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            valuePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+            AddPathRow(pathPanel, 1, "本地图库:", localMirrorPath, _txtLocalMirrorPath);
 
             _cmbLibraryMode = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Width = 128,
                 Anchor = AnchorStyles.Left,
-                Margin = new Padding(0, 0, 22, 0)
+                Margin = new Padding(0, 0, 8, 8)
             };
             _cmbLibraryMode.Items.Add(LibraryMode.Local.ToString());
             _cmbLibraryMode.Items.Add(LibraryMode.Auto.ToString());
@@ -107,37 +79,8 @@ namespace BlockBrowser
             _cmbLibraryMode.SelectedItem = currentLibraryMode.ToString();
             if (_cmbLibraryMode.SelectedIndex < 0) _cmbLibraryMode.SelectedItem = LibraryMode.Local.ToString();
 
-            _numScale = new NumericUpDown
-            {
-                Width = 120,
-                Minimum = 0.001m,
-                Maximum = 10000,
-                DecimalPlaces = 3,
-                Value = ClampDecimal((decimal)insertScale, 0.001m, 10000m, 1m),
-                Increment = 0.1m,
-                Anchor = AnchorStyles.Left,
-                Margin = new Padding(0, 0, 22, 0)
-            };
-
-            _numRotation = new NumericUpDown
-            {
-                Width = 100,
-                Minimum = -360,
-                Maximum = 360,
-                DecimalPlaces = 1,
-                Value = ClampDecimal((decimal)insertRotationDegrees, -360m, 360m, 0m),
-                Increment = 5,
-                Anchor = AnchorStyles.Left,
-                Margin = new Padding(0)
-            };
-
-            AddValueLabel(valuePanel, 0, "当前模式:");
-            valuePanel.Controls.Add(_cmbLibraryMode, 1, 0);
-            AddValueLabel(valuePanel, 2, "插入比例:");
-            valuePanel.Controls.Add(_numScale, 3, 0);
-            AddValueLabel(valuePanel, 4, "旋转角度:");
-            valuePanel.Controls.Add(_numRotation, 5, 0);
-            insertGroup.Controls.Add(valuePanel);
+            AddModeRow(pathPanel, 2, "当前模式:", _cmbLibraryMode);
+            libraryGroup.Controls.Add(pathPanel);
 
             var buttonPanel = new FlowLayoutPanel
             {
@@ -169,8 +112,7 @@ namespace BlockBrowser
             buttonPanel.Controls.Add(btnOk);
 
             layout.Controls.Add(libraryGroup, 0, 0);
-            layout.Controls.Add(insertGroup, 0, 1);
-            layout.Controls.Add(buttonPanel, 0, 2);
+            layout.Controls.Add(buttonPanel, 0, 1);
             Controls.Add(layout);
             AcceptButton = btnOk;
             CancelButton = btnCancel;
@@ -195,16 +137,6 @@ namespace BlockBrowser
                     ? mode
                     : LibraryMode.Local;
             }
-        }
-
-        public double InsertScaleValue
-        {
-            get { return (double)_numScale.Value; }
-        }
-
-        public double InsertRotationDegreesValue
-        {
-            get { return (double)_numRotation.Value; }
         }
 
         private static void AddPathRow(TableLayoutPanel pathPanel, int row, string labelText, string pathValue, TextBox textBox)
@@ -243,22 +175,17 @@ namespace BlockBrowser
             pathPanel.Controls.Add(btnBrowse, 2, row);
         }
 
-        private static void AddValueLabel(TableLayoutPanel valuePanel, int column, string text)
+        private static void AddModeRow(TableLayoutPanel pathPanel, int row, string labelText, ComboBox comboBox)
         {
-            valuePanel.Controls.Add(new Label
+            var label = new Label
             {
-                Text = text,
+                Text = labelText,
                 AutoSize = true,
                 Anchor = AnchorStyles.Left,
-                Margin = new Padding(0, 4, 8, 0)
-            }, column, 0);
-        }
-
-        private static decimal ClampDecimal(decimal value, decimal min, decimal max, decimal fallback)
-        {
-            if (value < min) return fallback;
-            if (value > max) return max;
-            return value;
+                Margin = new Padding(0, 4, 8, 8)
+            };
+            pathPanel.Controls.Add(label, 0, row);
+            pathPanel.Controls.Add(comboBox, 1, row);
         }
     }
 }

@@ -1042,11 +1042,11 @@ namespace BlockBrowser
             try
             {
                 BlockLibrary.UpdateLocalMirrorFromNas();
-                ed.WriteMessage("\n本地副本已从 NAS 更新。");
+                ed.WriteMessage("\n本地图库已从 NAS 更新。");
             }
             catch (System.Exception ex)
             {
-                ed.WriteMessage("\n更新本地副本失败: " + ex.Message);
+                ed.WriteMessage("\n更新本地图库失败: " + ex.Message);
             }
         }
         [CommandMethod("BBTHUMB", CommandFlags.Session)]

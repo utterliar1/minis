@@ -126,18 +126,18 @@ namespace BlockBrowser
             var btnRebuildThumbnails = new ToolStripButton("重建缩略图");
             btnRebuildThumbnails.Click += (s, e) => RebuildThumbnails();
 
-            var btnUpdateMirror = new ToolStripButton("更新本地副本");
-            btnUpdateMirror.Click += (s, e) =>
+            var btnUpdateLocalLibrary = new ToolStripButton("更新本地图库");
+            btnUpdateLocalLibrary.Click += (s, e) =>
             {
                 try
                 {
                     BlockLibrary.UpdateLocalMirrorFromNas();
-                    MessageBox.Show("本地副本已更新。", "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("本地图库已更新。", "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     LoadData();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("更新失败: " + ex.Message, "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("更新本地图库失败: " + ex.Message, "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             };
 
@@ -183,7 +183,6 @@ namespace BlockBrowser
             var btnLibrary = new ToolStripDropDownButton("图库");
             btnLibrary.DropDownItems.AddRange(new ToolStripItem[]
             {
-                btnUpdateMirror,
                 btnSyncCenter,
                 btnSync,
                 new ToolStripSeparator(),
@@ -223,7 +222,7 @@ namespace BlockBrowser
                 lblSize, cmbHost, new ToolStripSeparator(),
                 btnInsert, btnInsertSettings, new ToolStripSeparator(),
                 btnAddToLib, btnExportBlock, new ToolStripSeparator(),
-                btnRefresh, new ToolStripSeparator(),
+                btnRefresh, btnUpdateLocalLibrary, new ToolStripSeparator(),
                 btnManage, btnLibrary
             });
 
@@ -895,9 +894,7 @@ namespace BlockBrowser
             using (var form = new SettingsDialog(
                 BlockLibrary.NasLibraryPath,
                 BlockLibrary.LocalMirrorPath,
-                BlockLibrary.CurrentLibraryMode,
-                BlockLibrary.InsertScale,
-                BlockLibrary.InsertRotation * 180.0 / Math.PI))
+                BlockLibrary.CurrentLibraryMode))
             {
                 if (form.ShowDialog(this) == DialogResult.OK)
                 {
@@ -908,8 +905,8 @@ namespace BlockBrowser
                         form.LocalMirrorPathValue,
                         BlockLibrary.CurrentLibraryMode,
                         form.CurrentLibraryModeValue,
-                        form.InsertScaleValue,
-                        form.InsertRotationDegreesValue,
+                        BlockLibrary.InsertScale,
+                        BlockLibrary.InsertRotation * 180.0 / Math.PI,
                         Directory.Exists);
 
                     if (!plan.IsValid) { MessageBox.Show("NAS 主图库路径和本地副本路径不能为空。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
