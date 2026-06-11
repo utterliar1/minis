@@ -27,6 +27,11 @@ Assert-Contains 'BlockLibrary exposes AllowNasSync' $pluginSource 'public\s+stat
 Assert-Contains 'sync function guards NAS sync permission' $pluginSource 'SyncSafeUploadsToNas\(\)[\s\S]*?EnsureNasSyncAllowed\(\)'
 Assert-Contains 'preview function guards NAS sync permission' $pluginSource 'PreviewLocalSync\(\)[\s\S]*?EnsureNasSyncAllowed\(\)'
 Assert-Contains 'BBSYNC command checks permission before preview' $pluginSource 'SyncLocalChanges\(\)[\s\S]*?if\s*\(!BlockLibrary\.AllowNasSync\)[\s\S]*?return;[\s\S]*?PreviewLocalSync\(\)'
+Assert-Contains 'write helper blocks readonly NAS writes' $pluginSource 'EnsureActiveLibraryWritable\(\)[\s\S]*?ActiveLibrary\.Kind\s*==\s*ActiveLibraryKind\.Nas[\s\S]*?!AllowNasSync'
+Assert-Contains 'create category checks active library write permission' $pluginSource 'CreateCategory\(string\s+category\)[\s\S]*?EnsureActiveLibraryWritable\(\)'
+Assert-Contains 'rename checks active library write permission' $pluginSource 'RenameBlock\(BlockInfo\s+block,\s*string\s+newName\)[\s\S]*?EnsureActiveLibraryWritable\(\)'
+Assert-Contains 'save selection checks active library write permission' $pluginSource 'SaveSelectionAsBlockWithSelection[\s\S]*?EnsureActiveLibraryWritable\(\)'
+Assert-Contains 'export block checks active library write permission' $pluginSource 'ExportBlockFromCurrentDrawing[\s\S]*?EnsureActiveLibraryWritable\(\)'
 Assert-Contains 'form hides sync entries unless allowed' $formSource 'if\s*\(BlockLibrary\.AllowNasSync\)[\s\S]*?btnLibrary\.DropDownItems\.Add\(btnSyncCenter\)[\s\S]*?btnLibrary\.DropDownItems\.Add\(btnSync\)'
 Assert-NotContains 'form no unconditional sync center menu array' $formSource 'btnLibrary\.DropDownItems\.AddRange\(new\s+ToolStripItem\[\]\s*\{[\s\S]*?btnSyncCenter[\s\S]*?btnSync'
 

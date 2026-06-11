@@ -16,6 +16,10 @@ $designatedMaintainer = [regex]::Escape(-join ([char[]](0x6307, 0x5B9A, 0x7EF4, 
 $searchBlockNameOnly = -join ([char[]](0x6240, 0x6709, 0x5173, 0x952E, 0x8BCD, 0x90FD, 0x9700, 0x51FA, 0x73B0, 0x5728, 0x5757, 0x540D, 0x4E2D))
 $searchIgnoresCategory = -join ([char[]](0x5206, 0x7C7B, 0x540D, 0x4E0D, 0x4F1A, 0x53C2, 0x4E0E, 0x5339, 0x914D))
 $searchExample = (-join ([char[]](0x9632, 0x5835))) + ' lc'
+$readonlyUpdateSource = -join ([char[]](0x53EA, 0x8BFB, 0x66F4, 0x65B0, 0x6765, 0x6E90))
+$preferLocalMirror = -join ([char[]](0x4F18, 0x5148, 0x4F7F, 0x7528, 0x672C, 0x5730, 0x526F, 0x672C))
+$nasChanges = -join ([char[]](0x65B0, 0x589E, 0x3001, 0x4FEE, 0x6539, 0x3001, 0x5220, 0x9664))
+$ordinaryNoNasWrite = -join ([char[]](0x666E, 0x901A, 0x540C, 0x4E8B, 0x7684, 0x7535, 0x8111, 0x4E0D, 0x4F1A, 0x5199, 0x5165, 0x0020, 0x004E, 0x0041, 0x0053))
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) {
@@ -35,6 +39,10 @@ Assert-Contains 'manual explains sync center' $manual $syncCenter
 Assert-Contains 'manual explains sync log' $manual 'sync-log\.txt'
 Assert-Contains 'manual explains NAS sync permission flag' $manual 'AllowNasSync'
 Assert-Contains 'manual explains update local library wording' $manual $updateLocalLibrary
+Assert-Contains 'manual explains ordinary users prefer local mirror' $manual ([regex]::Escape($preferLocalMirror))
+Assert-Contains 'manual explains NAS is readonly update source' $manual ([regex]::Escape($readonlyUpdateSource))
+Assert-Contains 'manual explains update mirrors NAS changes' $manual ([regex]::Escape($nasChanges))
+Assert-Contains 'manual explains ordinary users do not write NAS' $manual ([regex]::Escape($ordinaryNoNasWrite))
 Assert-Contains 'manual explains designated NAS maintainer' $manual $designatedMaintainer
 Assert-Contains 'manual explains NAS protection' $manual $nasProtection
 Assert-Contains 'manual explains search only matches block names' $manual ([regex]::Escape($searchBlockNameOnly))

@@ -23,6 +23,9 @@ namespace BlockBrowser
                     : Unavailable(ActiveLibraryKind.LocalMirror, settings.LocalMirrorPath, "Local mirror is unavailable.");
             }
 
+            if (!settings.AllowNasSync && localMirrorAvailable)
+                return Available(ActiveLibraryKind.LocalMirror, settings.LocalMirrorPath, "Using local mirror for read-only NAS workflow.");
+
             if (nasAvailable)
                 return Available(ActiveLibraryKind.Nas, settings.LibraryPath, "Using NAS library.");
 
