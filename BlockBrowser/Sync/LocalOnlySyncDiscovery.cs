@@ -16,6 +16,17 @@ namespace BlockBrowser
             string userName,
             DateTime utcNow)
         {
+            return Discover(localMirrorPath, nasLibraryPath, existingEntries, userName, utcNow, null);
+        }
+
+        public static List<ChangeJournalEntry> Discover(
+            string localMirrorPath,
+            string nasLibraryPath,
+            IEnumerable<ChangeJournalEntry> existingEntries,
+            string userName,
+            DateTime utcNow,
+            IEnumerable<string> protectedCategoryNames)
+        {
             var results = new List<ChangeJournalEntry>();
             if (string.IsNullOrEmpty(localMirrorPath) || string.IsNullOrEmpty(nasLibraryPath))
                 return results;
@@ -31,6 +42,8 @@ namespace BlockBrowser
             {
                 string rel = ToRelativePath(localMirrorPath, file);
                 if (string.IsNullOrEmpty(rel) || IsInternalPath(rel))
+                    continue;
+                if (IsProtectedCategoryPath(rel, protectedCategoryNames))
                     continue;
 
                 string key = Normalize(rel);
@@ -82,6 +95,19 @@ namespace BlockBrowser
         {
             string[] parts = (relativePath ?? "").Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
             return parts.Any(p => InternalDirectoryNames.Contains(p, StringComparer.OrdinalIgnoreCase));
+        }
+
+        private static bool IsProtectedCategoryPath(string relativePath, IEnumerable<string> protectedCategoryNames)
+        {
+            var protectedNames = new HashSet<string>(
+                (protectedCategoryNames ?? new string[0])
+                    .Where(p => !string.IsNullOrWhiteSpace(p))
+                    .Select(p => p.Trim()),
+                StringComparer.OrdinalIgnoreCase);
+            if (protectedNames.Count == 0) return false;
+
+            string[] parts = (relativePath ?? "").Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length > 0 && protectedNames.Contains(parts[0]);
         }
 
         private static string Normalize(string path)

@@ -20,6 +20,9 @@ $readonlyUpdateSource = -join ([char[]](0x53EA, 0x8BFB, 0x66F4, 0x65B0, 0x6765, 
 $preferLocalMirror = -join ([char[]](0x4F18, 0x5148, 0x4F7F, 0x7528, 0x672C, 0x5730, 0x526F, 0x672C))
 $nasChanges = -join ([char[]](0x65B0, 0x589E, 0x3001, 0x4FEE, 0x6539, 0x3001, 0x5220, 0x9664))
 $ordinaryNoNasWrite = -join ([char[]](0x666E, 0x901A, 0x540C, 0x4E8B, 0x7684, 0x7535, 0x8111, 0x4E0D, 0x4F1A, 0x5199, 0x5165, 0x0020, 0x004E, 0x0041, 0x0053))
+$personalBlocksCategory = -join ([char[]](0x4E2A, 0x4EBA, 0x5757))
+$protectedMirrorKeepsLocal = -join ([char[]](0x4E0D, 0x4F1A, 0x8986, 0x76D6, 0x6216, 0x5220, 0x9664))
+$protectedCategoryNotSyncedToNas = -join ([char[]](0x4E0D, 0x4F1A, 0x81EA, 0x52A8, 0x540C, 0x6B65, 0x5230, 0x0020, 0x004E, 0x0041, 0x0053))
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) {
@@ -43,6 +46,10 @@ Assert-Contains 'manual explains ordinary users prefer local mirror' $manual ([r
 Assert-Contains 'manual explains NAS is readonly update source' $manual ([regex]::Escape($readonlyUpdateSource))
 Assert-Contains 'manual explains update mirrors NAS changes' $manual ([regex]::Escape($nasChanges))
 Assert-Contains 'manual explains ordinary users do not write NAS' $manual ([regex]::Escape($ordinaryNoNasWrite))
+Assert-Contains 'manual explains protected local categories config' $manual 'ProtectedLocalCategories'
+Assert-Contains 'manual explains default personal blocks category' $manual ([regex]::Escape($personalBlocksCategory))
+Assert-Contains 'manual explains mirror keeps protected categories' $manual ([regex]::Escape($protectedMirrorKeepsLocal))
+Assert-Contains 'manual explains protected categories are not synced to NAS' $manual ([regex]::Escape($protectedCategoryNotSyncedToNas))
 Assert-Contains 'manual explains designated NAS maintainer' $manual $designatedMaintainer
 Assert-Contains 'manual explains NAS protection' $manual $nasProtection
 Assert-Contains 'manual explains search only matches block names' $manual ([regex]::Escape($searchBlockNameOnly))

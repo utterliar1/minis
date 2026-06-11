@@ -9,11 +9,13 @@ namespace BlockBrowser
         public BlockBrowserConfig()
         {
             RecentBlocks = new List<string>();
+            ProtectedLocalCategories = new List<string>();
         }
 
         public string LibraryPath { get; set; }
         public string NasLibraryPath { get; set; }
         public string LocalMirrorPath { get; set; }
+        public List<string> ProtectedLocalCategories { get; private set; }
         public bool PreferLocalWhenNasUnavailable { get; set; }
         public bool AllowNasSync { get; set; }
         public LibraryMode CurrentLibraryMode { get; set; }
@@ -28,7 +30,7 @@ namespace BlockBrowser
         public static BlockBrowserConfig CreateDefault(string pluginRoot)
         {
             string libraryPath = Path.Combine(pluginRoot ?? "", "我的常用块");
-            return new BlockBrowserConfig
+            var config = new BlockBrowserConfig
             {
                 LibraryPath = libraryPath,
                 NasLibraryPath = libraryPath,
@@ -43,6 +45,8 @@ namespace BlockBrowser
                 FormWidth = 1000,
                 FormHeight = 650
             };
+            config.ProtectedLocalCategories.Add("个人块");
+            return config;
         }
 
         public BlockBrowserConfig Clone()
@@ -64,6 +68,7 @@ namespace BlockBrowser
             };
 
             clone.RecentBlocks.AddRange(RecentBlocks);
+            clone.ProtectedLocalCategories.AddRange(ProtectedLocalCategories);
             return clone;
         }
     }

@@ -205,6 +205,7 @@
     <tr><th>配置项</th><th>作用</th><th>建议</th></tr>
     <tr><td><code>NasLibraryPath</code></td><td>办公室 NAS 主图库，团队共同维护的来源</td><td>办公室共享路径，如 <code>\\NAS\CADBlocks\BlockBrowser</code></td></tr>
     <tr><td><code>LocalMirrorPath</code></td><td>移动电脑本地副本，离开办公室也能继续新增/编辑块</td><td>默认 <code>我的常用块</code>，即插件目录下的本地图库</td></tr>
+    <tr><td><code>ProtectedLocalCategories</code></td><td>本地保护分类，放个人块或临时块</td><td>默认 <code>个人块</code>；多个分类用分号分隔</td></tr>
     <tr><td><code>LibraryPath</code></td><td>当前实际正在使用的图库路径，由程序按模式解析</td><td>一般不要手动改</td></tr>
     <tr><td><code>AllowNasSync</code></td><td>是否允许这台电脑执行同步到 NAS</td><td>普通同事保持 <code>0</code>；指定维护人电脑设为 <code>1</code></td></tr>
   </table>
@@ -215,6 +216,7 @@
     <li>打开 <code>BB</code> 面板，点击「设置」。</li>
     <li>在「NAS 主图库」填写办公室共享路径，例如 <code>\\NAS\CADBlocks\BlockBrowser</code>。</li>
     <li>「本地副本」保持 <code>我的常用块</code>，或选择同事电脑上的本地图库目录。</li>
+    <li>「保护分类」保持默认 <code>个人块</code>，让个人内容留在本机，不跟随 NAS 镜像清理。</li>
     <li>办公室内建议把模式设为 <code>Auto</code>；只想先本地试用则保持 <code>Local</code>。</li>
   </ol>
 
@@ -237,13 +239,14 @@
   </div>
   <div class="step">
     <div class="step-num">3</div>
-    <div class="step-text">程序把 NAS 中的新增、修改、删除同步到本地图库；本地已有变更记录的文件会被保护，避免误删个人新增内容。</div>
+    <div class="step-text">程序把 NAS 中的新增、修改、删除同步到本地图库；本地已有变更记录的文件会被保护，受保护分类（默认 <code>个人块</code>）不会覆盖或删除。</div>
   </div>
 
   <h3>外出时：继续在本地新增/编辑块</h3>
   <ul>
     <li><code>AllowNasSync=0</code> 时，<code>Auto</code> 会优先使用本地副本；NAS 只作为更新来源。</li>
     <li>可以继续「添加到库」、导出块、重命名块。</li>
+    <li>个人常用块建议放进 <code>个人块</code> 分类；该分类不会被「更新本地图库」覆盖、删除或清空。</li>
     <li>普通同事删除块时只删除本地副本，不会直接删除 NAS 文件；如果 NAS 中仍有该块，下次更新本地图库会恢复。</li>
     <li>本地变更会记录在 <code>.blockbrowser/local-changes.json</code>，回到办公室后用于同步判断。</li>
   </ul>
@@ -257,7 +260,7 @@
     <div class="step-num">2</div>
     <div class="step-text">点击「同步中心」查看明细预览，确认后执行同步；也可以点击「同步到NAS」或命令行输入 <code>BBSYNC</code>。</div>
   </div>
-  <div class="tip">💡 <code>BBSYNC</code> 会读取本地变更记录，也会扫描本地副本中 NAS 尚不存在的 <code>.dwg</code> 文件；即使某个块是手动放进本地副本的，也可以作为安全新块补传。同步中心可以复制明细，并把执行记录追加到本地副本的 <code>.blockbrowser/sync-log.txt</code>。</div>
+  <div class="tip">💡 <code>BBSYNC</code> 会读取本地变更记录，也会扫描本地副本中 NAS 尚不存在的 <code>.dwg</code> 文件；即使某个块是手动放进本地副本的，也可以作为安全新块补传。<code>ProtectedLocalCategories</code> 中的分类不会自动同步到 NAS，默认 <code>个人块</code> 仍保留在本机。同步中心可以复制明细，并把执行记录追加到本地副本的 <code>.blockbrowser/sync-log.txt</code>。</div>
   <div class="step">
     <div class="step-num">3</div>
     <div class="step-text">查看同步结果：上传、跳过重复、冲突、删除待确认、失败数量。</div>
@@ -269,6 +272,7 @@
     <li>新同事先使用默认 <code>Local</code> 模式熟悉操作。</li>
     <li>确认 NAS 路径后，切换到 <code>Auto</code>，普通同事保持 <code>AllowNasSync=0</code>。</li>
     <li>普通同事每天开始前点击「更新本地图库」，或运行一次 <code>BBMIRROR</code>，让本地副本跟随 NAS 的新增、修改和删除。</li>
+    <li>个人内容放在默认 <code>个人块</code> 分类；需要分享给团队时，再由维护人移动到普通分类后同步。</li>
     <li>外出或离线时继续使用本地副本。</li>
     <li>只有指定维护人把 <code>AllowNasSync=1</code> 后，才能运行 <code>BBSYNC</code> 或使用同步中心，把确认安全的新块同步到 NAS。</li>
   </ol>
@@ -283,8 +287,8 @@
     <tr><td><code>KLLQ</code></td><td>打开块浏览器（快捷别名）</td></tr>
     <tr><td><code>BBADD</code></td><td>命令行方式添加到库</td></tr>
     <tr><td><code>BBEXPORT</code></td><td>命令行方式导出块</td></tr>
-    <tr><td><code>BBMIRROR</code></td><td>从 NAS 更新本地图库，普通同事日常主要使用这个入口</td></tr>
-    <tr><td><code>BBSYNC</code></td><td>将本地新增块安全同步到 NAS，并报告冲突</td></tr>
+    <tr><td><code>BBMIRROR</code></td><td>从 NAS 更新本地图库，普通同事日常主要使用这个入口；受保护分类会被跳过</td></tr>
+    <tr><td><code>BBSYNC</code></td><td>将本地新增块安全同步到 NAS，并报告冲突；受保护分类不会自动上传</td></tr>
     <tr><td>同步中心</td><td>仅在 <code>AllowNasSync=1</code> 时显示，供指定维护人使用；同步前查看明细，执行后复制结果或打开 <code>sync-log.txt</code></td></tr>
     <tr><td><code>BBTHUMB</code></td><td>清除所有缩略图缓存</td></tr>
     <tr><td><code>BBINFO</code></td><td>显示插件版本信息</td></tr>

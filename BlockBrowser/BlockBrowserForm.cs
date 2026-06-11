@@ -896,6 +896,7 @@ namespace BlockBrowser
             using (var form = new SettingsDialog(
                 BlockLibrary.NasLibraryPath,
                 BlockLibrary.LocalMirrorPath,
+                BlockLibrary.GetProtectedLocalCategoriesText(),
                 BlockLibrary.CurrentLibraryMode))
             {
                 if (form.ShowDialog(this) == DialogResult.OK)
@@ -905,6 +906,8 @@ namespace BlockBrowser
                         form.NasLibraryPathValue,
                         BlockLibrary.LocalMirrorPath,
                         form.LocalMirrorPathValue,
+                        BlockLibrary.GetProtectedLocalCategoriesText(),
+                        form.ProtectedLocalCategoriesValue,
                         BlockLibrary.CurrentLibraryMode,
                         form.CurrentLibraryModeValue,
                         BlockLibrary.InsertScale,
@@ -920,10 +923,11 @@ namespace BlockBrowser
                     }
                     BlockLibrary.InsertScale = plan.InsertScale;
                     BlockLibrary.InsertRotation = plan.InsertRotationRadians;
-                    if (plan.NasLibraryPathChanged || plan.LocalMirrorPathChanged || plan.CurrentLibraryModeChanged)
+                    if (plan.NasLibraryPathChanged || plan.LocalMirrorPathChanged || plan.ProtectedLocalCategoriesChanged || plan.CurrentLibraryModeChanged)
                     {
                         BlockLibrary.NasLibraryPath = plan.NasLibraryPath;
                         BlockLibrary.LocalMirrorPath = plan.LocalMirrorPath;
+                        BlockLibrary.SetProtectedLocalCategoriesFromText(plan.ProtectedLocalCategories);
                         BlockLibrary.CurrentLibraryMode = plan.CurrentLibraryMode;
                         BlockLibrary.RefreshActiveLibrary();
                         ResourceDisposalService.DisposeDictionaryValuesAndClear(_categoryCards);

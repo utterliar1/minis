@@ -37,6 +37,11 @@ namespace BlockBrowser
 
         public static void MirrorDirectoryContents(string sourceDir, string targetDir, IEnumerable<string> protectedRelativePaths)
         {
+            MirrorDirectoryContents(sourceDir, targetDir, protectedRelativePaths, null);
+        }
+
+        public static void MirrorDirectoryContents(string sourceDir, string targetDir, IEnumerable<string> protectedRelativePaths, IEnumerable<string> protectedCategoryNames)
+        {
             if (string.IsNullOrEmpty(sourceDir) || !Directory.Exists(sourceDir))
                 throw new DirectoryNotFoundException(sourceDir);
             if (string.IsNullOrEmpty(targetDir))
@@ -47,11 +52,13 @@ namespace BlockBrowser
             string targetRoot = BlockBrowserConfigStore.EnsureTrailingSeparator(targetDir);
             var sourcePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var protectedPaths = BuildProtectedPathSet(protectedRelativePaths);
+            var protectedCategories = BuildProtectedPathSet(protectedCategoryNames);
 
             foreach (string dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
             {
                 string rel = dir.Substring(sourceRoot.Length);
                 if (IsInternalLibraryPath(rel)) continue;
+                if (IsProtectedCategoryPath(rel, protectedCategories)) continue;
                 Directory.CreateDirectory(Path.Combine(targetDir, rel));
             }
 
@@ -59,6 +66,7 @@ namespace BlockBrowser
             {
                 string rel = file.Substring(sourceRoot.Length);
                 if (IsInternalLibraryPath(rel)) continue;
+                if (IsProtectedCategoryPath(rel, protectedCategories)) continue;
 
                 string key = NormalizeRelativePath(rel);
                 sourcePaths.Add(key);
@@ -74,6 +82,7 @@ namespace BlockBrowser
             {
                 string rel = file.Substring(targetRoot.Length);
                 if (IsInternalLibraryPath(rel)) continue;
+                if (IsProtectedCategoryPath(rel, protectedCategories)) continue;
 
                 string key = NormalizeRelativePath(rel);
                 if (sourcePaths.Contains(key) || protectedPaths.Contains(key)) continue;
@@ -158,6 +167,17 @@ namespace BlockBrowser
         private static string NormalizeRelativePath(string path)
         {
             return (path ?? "").Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar).Trim();
+        }
+
+        private static bool IsProtectedCategoryPath(string relativePath, HashSet<string> protectedCategories)
+        {
+            if (protectedCategories == null || protectedCategories.Count == 0) return false;
+            string normalized = NormalizeRelativePath(relativePath);
+            if (string.IsNullOrEmpty(normalized)) return false;
+
+            int sep = normalized.IndexOf(Path.DirectorySeparatorChar);
+            string firstSegment = sep >= 0 ? normalized.Substring(0, sep) : normalized;
+            return protectedCategories.Contains(firstSegment);
         }
     }
 }

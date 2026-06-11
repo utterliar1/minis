@@ -47,6 +47,8 @@ namespace BlockBrowser
         public static int FormHeight { get; set; }
         public static string NasLibraryPath { get; set; }
         public static string LocalMirrorPath { get; set; }
+        private static readonly List<string> _protectedLocalCategories = new List<string>();
+        public static List<string> ProtectedLocalCategories { get { return _protectedLocalCategories; } }
         public static bool PreferLocalWhenNasUnavailable { get; set; }
         public static bool AllowNasSync { get; set; }
         public static LibraryMode CurrentLibraryMode { get; set; }
@@ -145,6 +147,8 @@ namespace BlockBrowser
                 FormHeight = FormHeight
             };
 
+            config.ProtectedLocalCategories.Clear();
+            config.ProtectedLocalCategories.AddRange(ProtectedLocalCategories);
             config.RecentBlocks.AddRange(_recentBlocks);
             return config;
         }
@@ -156,6 +160,8 @@ namespace BlockBrowser
             LibraryPath = config.LibraryPath;
             NasLibraryPath = config.NasLibraryPath;
             LocalMirrorPath = config.LocalMirrorPath;
+            ProtectedLocalCategories.Clear();
+            ProtectedLocalCategories.AddRange(config.ProtectedLocalCategories);
             PreferLocalWhenNasUnavailable = config.PreferLocalWhenNasUnavailable;
             AllowNasSync = config.AllowNasSync;
             CurrentLibraryMode = config.CurrentLibraryMode;
@@ -204,6 +210,8 @@ namespace BlockBrowser
         {
             if (ActiveLibrary == null || ActiveLibrary.Kind != ActiveLibraryKind.LocalMirror)
                 return;
+            if (IsProtectedLocalCategoryPath(relativePath) || IsProtectedLocalCategoryPath(toRelativePath))
+                return;
 
             var entries = ChangeJournal.Load(LocalJournalPath);
             _journalSequence++;
@@ -227,6 +235,29 @@ namespace BlockBrowser
             return LibraryPathService.ToLibraryRelativePath(LibraryPath, fullPath);
         }
 
+        public static string GetProtectedLocalCategoriesText()
+        {
+            return string.Join(";", ProtectedLocalCategories.ToArray());
+        }
+
+        public static void SetProtectedLocalCategoriesFromText(string text)
+        {
+            ProtectedLocalCategories.Clear();
+            foreach (string part in (text ?? "").Split(new[] { ';', '；', ',', '，', '|' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string category = part.Trim();
+                if (string.IsNullOrEmpty(category)) continue;
+                if (!ProtectedLocalCategories.Contains(category)) ProtectedLocalCategories.Add(category);
+            }
+        }
+
+        private static bool IsProtectedLocalCategoryPath(string relativePath)
+        {
+            if (ProtectedLocalCategories.Count == 0 || string.IsNullOrEmpty(relativePath)) return false;
+            string[] parts = relativePath.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length > 0 && ProtectedLocalCategories.Contains(parts[0], StringComparer.OrdinalIgnoreCase);
+        }
+
         public static void CopyDirectoryContents(string sourceDir, string targetDir)
         {
             BlockFileOperations.CopyDirectoryContents(sourceDir, targetDir);
@@ -243,7 +274,7 @@ namespace BlockBrowser
             if (pending.Count > 0 && AllowNasSync)
                 throw new InvalidOperationException("Local changes are pending. Sync or clear local changes before updating the local mirror from NAS.");
 
-            BlockFileOperations.MirrorDirectoryContents(NasLibraryPath, LocalMirrorPath, GetProtectedLocalPaths(pending));
+            BlockFileOperations.MirrorDirectoryContents(NasLibraryPath, LocalMirrorPath, GetProtectedLocalPaths(pending), ProtectedLocalCategories);
         }
 
         private static IEnumerable<string> GetProtectedLocalPaths(IEnumerable<ChangeJournalEntry> entries)
@@ -289,7 +320,8 @@ namespace BlockBrowser
                 NasLibraryPath,
                 entries,
                 SyncUserName,
-                DateTime.UtcNow));
+                DateTime.UtcNow,
+                ProtectedLocalCategories));
             return SyncPlanner.CreatePlan(syncEntries, BuildSnapshots(syncEntries));
         }
 
@@ -306,7 +338,8 @@ namespace BlockBrowser
                 NasLibraryPath,
                 entries,
                 SyncUserName,
-                DateTime.UtcNow));
+                DateTime.UtcNow,
+                ProtectedLocalCategories));
             var plan = SyncPlanner.CreatePlan(syncEntries, BuildSnapshots(syncEntries));
             var uploadedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -352,12 +385,23 @@ namespace BlockBrowser
 
         public static List<string> GetCategories()
         {
-            return BlockLibraryService.GetCategories(LibraryPath);
+            return MergeProtectedCategories(BlockLibraryService.GetCategories(LibraryPath));
         }
 
         public static List<string> GetBrowsableCategories()
         {
             return BlockLibraryService.GetBrowsableCategories(LibraryPath);
+        }
+
+        private static List<string> MergeProtectedCategories(List<string> categories)
+        {
+            var merged = categories ?? new List<string>();
+            foreach (string category in ProtectedLocalCategories)
+            {
+                if (string.IsNullOrWhiteSpace(category)) continue;
+                if (!merged.Contains(category)) merged.Add(category);
+            }
+            return merged;
         }
 
         public static CategoryCreationResult CreateCategory(string category)

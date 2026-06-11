@@ -145,11 +145,16 @@ try {
     New-Item -ItemType Directory -Force -Path (Join-Path $scanLocal '.thumbs') | Out-Null
     New-Item -ItemType Directory -Force -Path $scanNas | Out-Null
     Set-Content -Path (Join-Path $scanLocal 'Electrical\LocalOnly.dwg') -Value 'local dwg'
+    $protectedCategoryName = -join ([char[]](0x4E2A, 0x4EBA, 0x5757))
+    New-Item -ItemType Directory -Force -Path (Join-Path $scanLocal $protectedCategoryName) | Out-Null
+    Set-Content -Path (Join-Path $scanLocal (Join-Path $protectedCategoryName 'PersonalOnly.dwg')) -Value 'personal dwg'
     Set-Content -Path (Join-Path $scanLocal '.blockbrowser\ignore.dwg') -Value 'journal internal'
     Set-Content -Path (Join-Path $scanLocal '.thumbs\ignore.dwg') -Value 'thumb internal'
 
     $emptyJournal = New-Object 'System.Collections.Generic.List[BlockBrowser.ChangeJournalEntry]'
-    $discovered = [BlockBrowser.LocalOnlySyncDiscovery]::Discover($scanLocal, $scanNas, $emptyJournal, 'WLUP', [datetime]'2026-06-09T08:00:00Z')
+    $protectedCategories = New-Object 'System.Collections.Generic.List[string]'
+    $protectedCategories.Add($protectedCategoryName)
+    $discovered = [BlockBrowser.LocalOnlySyncDiscovery]::Discover($scanLocal, $scanNas, $emptyJournal, 'WLUP', [datetime]'2026-06-09T08:00:00Z', $protectedCategories)
     Assert-Equal 'local-only scan count' 1 $discovered.Count
     Assert-Equal 'local-only scan action' ([BlockBrowser.LocalChangeAction]::Add) $discovered[0].Action
     Assert-Equal 'local-only scan path' 'Electrical\LocalOnly.dwg' $discovered[0].Path

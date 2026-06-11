@@ -8,11 +8,13 @@ namespace BlockBrowser
     {
         private readonly TextBox _txtNasLibraryPath;
         private readonly TextBox _txtLocalMirrorPath;
+        private readonly TextBox _txtProtectedLocalCategories;
         private readonly ComboBox _cmbLibraryMode;
 
         public SettingsDialog(
             string nasLibraryPath,
             string localMirrorPath,
+            string protectedLocalCategories,
             LibraryMode currentLibraryMode)
         {
             Text = "块浏览器设置";
@@ -39,6 +41,7 @@ namespace BlockBrowser
 
             _txtNasLibraryPath = new TextBox();
             _txtLocalMirrorPath = new TextBox();
+            _txtProtectedLocalCategories = new TextBox();
 
             var libraryGroup = new GroupBox
             {
@@ -54,7 +57,7 @@ namespace BlockBrowser
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 3,
-                RowCount = 3,
+                RowCount = 4,
                 Dock = DockStyle.Fill
             };
             pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
@@ -63,8 +66,10 @@ namespace BlockBrowser
             pathPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             pathPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             pathPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            pathPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             AddPathRow(pathPanel, 0, "NAS 主图库:", nasLibraryPath, _txtNasLibraryPath);
             AddPathRow(pathPanel, 1, "本地图库:", localMirrorPath, _txtLocalMirrorPath);
+            AddTextRow(pathPanel, 2, "保护分类:", protectedLocalCategories, _txtProtectedLocalCategories);
 
             _cmbLibraryMode = new ComboBox
             {
@@ -79,7 +84,7 @@ namespace BlockBrowser
             _cmbLibraryMode.SelectedItem = currentLibraryMode.ToString();
             if (_cmbLibraryMode.SelectedIndex < 0) _cmbLibraryMode.SelectedItem = LibraryMode.Local.ToString();
 
-            AddModeRow(pathPanel, 2, "当前模式:", _cmbLibraryMode);
+            AddModeRow(pathPanel, 3, "当前模式:", _cmbLibraryMode);
             libraryGroup.Controls.Add(pathPanel);
 
             var buttonPanel = new FlowLayoutPanel
@@ -128,6 +133,11 @@ namespace BlockBrowser
             get { return _txtLocalMirrorPath.Text; }
         }
 
+        public string ProtectedLocalCategoriesValue
+        {
+            get { return _txtProtectedLocalCategories.Text; }
+        }
+
         public LibraryMode CurrentLibraryModeValue
         {
             get
@@ -173,6 +183,24 @@ namespace BlockBrowser
             pathPanel.Controls.Add(label, 0, row);
             pathPanel.Controls.Add(textBox, 1, row);
             pathPanel.Controls.Add(btnBrowse, 2, row);
+        }
+
+        private static void AddTextRow(TableLayoutPanel pathPanel, int row, string labelText, string textValue, TextBox textBox)
+        {
+            var label = new Label
+            {
+                Text = labelText,
+                AutoSize = true,
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 4, 8, 8)
+            };
+            textBox.Text = textValue ?? "";
+            textBox.Width = 520;
+            textBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            textBox.Margin = new Padding(0, 0, 8, 8);
+
+            pathPanel.Controls.Add(label, 0, row);
+            pathPanel.Controls.Add(textBox, 1, row);
         }
 
         private static void AddModeRow(TableLayoutPanel pathPanel, int row, string labelText, ComboBox comboBox)
