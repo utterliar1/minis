@@ -95,10 +95,10 @@ namespace BlockBrowser
             var btnInsertSettings = new ToolStripButton("插入设置");
             btnInsertSettings.Click += (s, e) => ShowInsertSettingsDialog();
 
-            var btnDelete = new ToolStripButton("删除");
+            var btnDelete = new ToolStripMenuItem("删除");
             btnDelete.Click += (s, e) => DoDelete();
 
-            var btnRename = new ToolStripButton("重命名");
+            var btnRename = new ToolStripMenuItem("重命名");
             btnRename.Click += (s, e) => DoRename();
 
             var btnRefresh = new ToolStripButton("刷新列表");
@@ -110,20 +110,20 @@ namespace BlockBrowser
             var btnExportBlock = new ToolStripButton("导出块");
             btnExportBlock.Click += BtnExportBlock_Click;
 
-            var btnOpenFolder = new ToolStripButton("打开文件夹");
+            var btnOpenFolder = new ToolStripMenuItem("打开文件夹");
             btnOpenFolder.Click += (s, e) =>
             {
                 if (Directory.Exists(BlockLibrary.LibraryPath))
                     System.Diagnostics.Process.Start("explorer.exe", BlockLibrary.LibraryPath);
             };
 
-            var btnSettings = new ToolStripButton("设置");
+            var btnSettings = new ToolStripMenuItem("设置");
             btnSettings.Click += (s, e) => ShowSettingsDialog();
 
-            var btnPrebuildThumbnails = new ToolStripButton("预生成缩略图");
+            var btnPrebuildThumbnails = new ToolStripMenuItem("预生成缩略图");
             btnPrebuildThumbnails.Click += (s, e) => PrebuildVisibleThumbnails();
 
-            var btnRebuildThumbnails = new ToolStripButton("重建缩略图");
+            var btnRebuildThumbnails = new ToolStripMenuItem("重建缩略图");
             btnRebuildThumbnails.Click += (s, e) => RebuildThumbnails();
 
             var btnUpdateLocalLibrary = new ToolStripButton("更新本地图库");
@@ -141,7 +141,7 @@ namespace BlockBrowser
                 }
             };
 
-            var btnSync = new ToolStripButton("同步到NAS");
+            var btnSync = new ToolStripMenuItem("同步到NAS");
             btnSync.Click += (s, e) =>
             {
                 try
@@ -169,7 +169,7 @@ namespace BlockBrowser
                 }
             };
 
-            var btnSyncCenter = new ToolStripButton("同步中心");
+            var btnSyncCenter = new ToolStripMenuItem("同步中心");
             btnSyncCenter.Click += (s, e) => ShowSyncCenterDialog();
 
             var btnManage = new ToolStripDropDownButton("管理");
