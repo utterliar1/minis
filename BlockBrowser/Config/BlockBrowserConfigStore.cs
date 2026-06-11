@@ -40,7 +40,9 @@ namespace BlockBrowser
                 string key = trimmed.Substring(0, eq).Trim();
                 string val = trimmed.Substring(eq + 1).Trim();
                 loadedKeys.Add(key);
-                if (string.IsNullOrEmpty(val) && !key.Equals("UserName", StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.IsNullOrEmpty(val)
+                    && !key.Equals("UserName", StringComparison.OrdinalIgnoreCase)
+                    && !key.Equals("ProtectedLocalCategories", StringComparison.OrdinalIgnoreCase)) continue;
 
                 if (key.Equals("ThumbSize", StringComparison.OrdinalIgnoreCase))
                 {
@@ -90,6 +92,11 @@ namespace BlockBrowser
                 {
                     config.LocalMirrorPath = FromConfigPath(val);
                 }
+                else if (key.Equals("ProtectedLocalCategories", StringComparison.OrdinalIgnoreCase))
+                {
+                    config.ProtectedLocalCategories.Clear();
+                    config.ProtectedLocalCategories.AddRange(ParseProtectedLocalCategories(val));
+                }
                 else if (key.Equals("PreferLocalWhenNasUnavailable", StringComparison.OrdinalIgnoreCase))
                 {
                     config.PreferLocalWhenNasUnavailable = val == "1" || val.Equals("true", StringComparison.OrdinalIgnoreCase);
@@ -133,6 +140,7 @@ namespace BlockBrowser
             lines.Add("LibraryPath=" + ToConfigPath(config.LibraryPath));
             lines.Add("NasLibraryPath=" + ToConfigPath(config.NasLibraryPath));
             lines.Add("LocalMirrorPath=" + ToConfigPath(config.LocalMirrorPath));
+            lines.Add("ProtectedLocalCategories=" + FormatProtectedLocalCategories(config.ProtectedLocalCategories));
             lines.Add("PreferLocalWhenNasUnavailable=" + (config.PreferLocalWhenNasUnavailable ? "1" : "0"));
             lines.Add("AllowNasSync=" + (config.AllowNasSync ? "1" : "0"));
             lines.Add("CurrentLibraryMode=" + config.CurrentLibraryMode);
@@ -158,6 +166,7 @@ namespace BlockBrowser
             AddMissingConfigLine(missingLines, loadedKeys, "LibraryPath", ToConfigPath(config.LibraryPath));
             AddMissingConfigLine(missingLines, loadedKeys, "NasLibraryPath", ToConfigPath(config.NasLibraryPath));
             AddMissingConfigLine(missingLines, loadedKeys, "LocalMirrorPath", ToConfigPath(config.LocalMirrorPath));
+            AddMissingConfigLine(missingLines, loadedKeys, "ProtectedLocalCategories", FormatProtectedLocalCategories(config.ProtectedLocalCategories));
             AddMissingConfigLine(missingLines, loadedKeys, "PreferLocalWhenNasUnavailable", config.PreferLocalWhenNasUnavailable ? "1" : "0");
             AddMissingConfigLine(missingLines, loadedKeys, "AllowNasSync", config.AllowNasSync ? "1" : "0");
             AddMissingConfigLine(missingLines, loadedKeys, "CurrentLibraryMode", config.CurrentLibraryMode.ToString());
@@ -191,6 +200,34 @@ namespace BlockBrowser
         {
             if (loadedKeys.Contains(key)) return;
             lines.Add(key + "=" + (value ?? ""));
+        }
+
+        private static List<string> ParseProtectedLocalCategories(string value)
+        {
+            var categories = new List<string>();
+            if (string.IsNullOrEmpty(value)) return categories;
+
+            foreach (string part in value.Split(new[] { ';', '；', ',', '，', '|' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string category = part.Trim();
+                if (string.IsNullOrEmpty(category)) continue;
+                if (!categories.Contains(category)) categories.Add(category);
+            }
+
+            return categories;
+        }
+
+        private static string FormatProtectedLocalCategories(IEnumerable<string> categories)
+        {
+            var list = new List<string>();
+            foreach (string category in categories ?? new string[0])
+            {
+                string item = (category ?? "").Trim();
+                if (string.IsNullOrEmpty(item)) continue;
+                if (!list.Contains(item)) list.Add(item);
+            }
+
+            return string.Join(";", list.ToArray());
         }
 
         public void EnsureUserConfigExists()

@@ -65,6 +65,7 @@ try {
         'NasLibraryPath=我的常用块'
         'LocalMirrorPath=我的常用块'
         'PreferLocalWhenNasUnavailable=1'
+        'ProtectedLocalCategories=个人块'
         'CurrentLibraryMode=Local'
         'UserName='
         'ThumbSize=128'
@@ -78,6 +79,8 @@ try {
     $store = New-Object BlockBrowser.BlockBrowserConfigStore $pluginRoot
     $defaultConfig = [BlockBrowser.BlockBrowserConfig]::CreateDefault($pluginRoot)
     Assert-Equal 'code default local mirror uses plugin library' (Join-Path $pluginRoot '我的常用块') $defaultConfig.LocalMirrorPath
+    Assert-Equal 'code default protected category count' 1 $defaultConfig.ProtectedLocalCategories.Count
+    Assert-Equal 'code default protected category name' '个人块' $defaultConfig.ProtectedLocalCategories[0]
     Assert-Equal 'code default mode is local' ([BlockBrowser.LibraryMode]::Local) $defaultConfig.CurrentLibraryMode
     $loaded = $store.Load($defaultConfig)
 
@@ -85,6 +88,7 @@ try {
     Assert-Equal 'relative library path expands under plugin root' (Join-Path $pluginRoot '我的常用块') $loaded.LibraryPath
     Assert-Equal 'missing NAS override follows library path' $loaded.LibraryPath $loaded.NasLibraryPath
     Assert-Equal 'default local mirror path follows plugin library' (Join-Path $pluginRoot '我的常用块') $loaded.LocalMirrorPath
+    Assert-Equal 'default protected category follows template' '个人块' $loaded.ProtectedLocalCategories[0]
     Assert-True 'auto fallback is enabled' $loaded.PreferLocalWhenNasUnavailable
     Assert-Equal 'default library mode is local' ([BlockBrowser.LibraryMode]::Local) $loaded.CurrentLibraryMode
     Assert-Equal 'default thumb size' 128 $loaded.ThumbSize
@@ -113,6 +117,7 @@ try {
     Assert-Equal 'missing keys load keeps existing thumb size' 160 $missingKeysLoaded.ThumbSize
     Assert-True 'missing keys append NAS path' ($missingKeysSavedText -match 'NasLibraryPath=OnlyLibrary')
     Assert-True 'missing keys append local mirror path' ($missingKeysSavedText -match 'LocalMirrorPath=我的常用块')
+    Assert-True 'missing keys append protected categories' ($missingKeysSavedText -match 'ProtectedLocalCategories=个人块')
     Assert-True 'missing keys append current mode' ($missingKeysSavedText -match 'CurrentLibraryMode=Local')
     Assert-True 'missing keys keep existing library path' ($missingKeysSavedText -match 'LibraryPath=OnlyLibrary')
     Assert-True 'missing keys keep existing thumb size' ($missingKeysSavedText -match 'ThumbSize=160')
@@ -142,6 +147,7 @@ try {
         'NasLibraryPath=\\NAS\CADBlocks\BlockBrowser'
         'LocalMirrorPath=%USERPROFILE%\Documents\BB-Mirror'
         'PreferLocalWhenNasUnavailable=0'
+        'ProtectedLocalCategories=个人块;临时块'
         'CurrentLibraryMode=Local'
         'UserName=WLUP'
         'ThumbSize=160'
@@ -157,6 +163,9 @@ try {
     Assert-Equal 'custom library path is relative to plugin root' (Join-Path $pluginRoot 'CustomBlocks') $loaded.LibraryPath
     Assert-Equal 'NAS path is preserved' '\\NAS\CADBlocks\BlockBrowser' $loaded.NasLibraryPath
     Assert-Equal 'local mirror path expands environment variables' ([Environment]::ExpandEnvironmentVariables('%USERPROFILE%\Documents\BB-Mirror')) $loaded.LocalMirrorPath
+    Assert-Equal 'protected category parsed count' 2 $loaded.ProtectedLocalCategories.Count
+    Assert-Equal 'protected category parsed first' '个人块' $loaded.ProtectedLocalCategories[0]
+    Assert-Equal 'protected category parsed second' '临时块' $loaded.ProtectedLocalCategories[1]
     Assert-False 'fallback can be disabled' $loaded.PreferLocalWhenNasUnavailable
     Assert-Equal 'library mode parsed' ([BlockBrowser.LibraryMode]::Local) $loaded.CurrentLibraryMode
     Assert-Equal 'sync user parsed' 'WLUP' $loaded.SyncUserName
@@ -170,6 +179,9 @@ try {
     $loaded.LibraryPath = Join-Path $pluginRoot 'CustomBlocks'
     $loaded.NasLibraryPath = '\\NAS\CADBlocks\BlockBrowser'
     $loaded.LocalMirrorPath = Join-Path $pluginRoot 'Mirror'
+    $loaded.ProtectedLocalCategories.Clear()
+    $loaded.ProtectedLocalCategories.Add('个人块')
+    $loaded.ProtectedLocalCategories.Add('临时块')
     $loaded.PreferLocalWhenNasUnavailable = $true
     $loaded.CurrentLibraryMode = [BlockBrowser.LibraryMode]::Auto
     $loaded.SyncUserName = 'Alice'
@@ -184,6 +196,7 @@ try {
     $savedText = Get-Content -Encoding UTF8 -Path (Join-Path $pluginRoot 'config.ini') -Raw
     Assert-True 'save writes relative library path' ($savedText -match 'LibraryPath=CustomBlocks')
     Assert-True 'save writes relative local mirror path' ($savedText -match 'LocalMirrorPath=Mirror')
+    Assert-True 'save writes protected categories' ($savedText -match 'ProtectedLocalCategories=个人块;临时块')
     Assert-True 'save writes rotation in degrees' ($savedText -match 'InsertRotation=180')
     Assert-True 'save writes recent blocks' ($savedText -match 'RecentBlocks=C:\\C\.dwg')
 

@@ -138,19 +138,29 @@ try {
     New-Item -ItemType Directory -Force -Path (Join-Path $mirrorSource 'A'), (Join-Path $mirrorTarget 'A'), (Join-Path $mirrorTarget '.blockbrowser'), (Join-Path $mirrorTarget '.thumbs') | Out-Null
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorSource 'A\Keep.dwg') -Value 'nas keep'
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorSource 'A\Changed.dwg') -Value 'nas changed'
+    New-Item -ItemType Directory -Force -Path (Join-Path $mirrorSource '个人块'), (Join-Path $mirrorTarget '个人块') | Out-Null
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorSource '个人块\NasPersonal.dwg') -Value 'nas personal'
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\Keep.dwg') -Value 'local keep'
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\Changed.dwg') -Value 'old local'
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\DeletedOnNas.dwg') -Value 'stale'
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\LocalOnly.dwg') -Value 'personal'
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget '个人块\LocalPersonal.dwg') -Value 'local personal'
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget '个人块\SameName.dwg') -Value 'local same'
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorSource '个人块\SameName.dwg') -Value 'nas same'
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget '.blockbrowser\local-changes.json') -Value 'journal'
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget '.thumbs\Keep.png') -Value 'thumb'
     $protectedPaths = New-Object 'System.Collections.Generic.List[string]'
     $protectedPaths.Add('A\LocalOnly.dwg')
-    [BlockBrowser.BlockFileOperations]::MirrorDirectoryContents($mirrorSource, $mirrorTarget, $protectedPaths)
+    $protectedCategories = New-Object 'System.Collections.Generic.List[string]'
+    $protectedCategories.Add('个人块')
+    [BlockBrowser.BlockFileOperations]::MirrorDirectoryContents($mirrorSource, $mirrorTarget, $protectedPaths, $protectedCategories)
     Assert-True 'mirror keeps NAS file' (Test-Path (Join-Path $mirrorTarget 'A\Keep.dwg'))
     Assert-Equal 'mirror overwrites changed file' 'nas changed' (Get-Content -Raw -Path (Join-Path $mirrorTarget 'A\Changed.dwg')).Trim()
     Assert-False 'mirror removes file deleted on NAS' (Test-Path (Join-Path $mirrorTarget 'A\DeletedOnNas.dwg'))
     Assert-True 'mirror preserves protected local-only file' (Test-Path (Join-Path $mirrorTarget 'A\LocalOnly.dwg'))
+    Assert-True 'mirror preserves protected category local file' (Test-Path (Join-Path $mirrorTarget '个人块\LocalPersonal.dwg'))
+    Assert-False 'mirror does not copy NAS file into protected category' (Test-Path (Join-Path $mirrorTarget '个人块\NasPersonal.dwg'))
+    Assert-Equal 'mirror does not overwrite protected category file' 'local same' (Get-Content -Raw -Path (Join-Path $mirrorTarget '个人块\SameName.dwg')).Trim()
     Assert-True 'mirror keeps journal directory' (Test-Path (Join-Path $mirrorTarget '.blockbrowser\local-changes.json'))
     Assert-True 'mirror keeps thumbnail directory' (Test-Path (Join-Path $mirrorTarget '.thumbs\Keep.png'))
 }

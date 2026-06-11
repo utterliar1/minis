@@ -18,12 +18,16 @@ function Assert-NotContains($name, $text, $pattern) {
 }
 
 Assert-Contains 'config exposes AllowNasSync' $configSource 'public\s+bool\s+AllowNasSync\s*\{\s*get;\s*set;\s*\}'
+Assert-Contains 'config exposes protected local categories' $configSource 'ProtectedLocalCategories'
 Assert-Contains 'default config disables NAS sync' $configSource 'AllowNasSync\s*=\s*false'
 Assert-Contains 'default ini disables NAS sync' $defaultConfig 'AllowNasSync=0'
 Assert-Contains 'config load parses AllowNasSync' $storeSource 'key\.Equals\("AllowNasSync"[\s\S]*?config\.AllowNasSync'
 Assert-Contains 'config save writes AllowNasSync' $storeSource 'AllowNasSync="\s*\+\s*\(config\.AllowNasSync\s*\?'
 Assert-Contains 'config upgrade appends AllowNasSync' $storeSource 'AddMissingConfigLine\(missingLines,\s*loadedKeys,\s*"AllowNasSync"'
 Assert-Contains 'BlockLibrary exposes AllowNasSync' $pluginSource 'public\s+static\s+bool\s+AllowNasSync\s*\{\s*get;\s*set;\s*\}'
+Assert-Contains 'BlockLibrary exposes protected local categories' $pluginSource 'ProtectedLocalCategories'
+Assert-Contains 'mirror update passes protected categories' $pluginSource 'MirrorDirectoryContents\(NasLibraryPath,\s*LocalMirrorPath,\s*GetProtectedLocalPaths\(pending\),\s*ProtectedLocalCategories'
+Assert-Contains 'sync discovery passes protected categories' $pluginSource 'LocalOnlySyncDiscovery\.Discover\([\s\S]*?ProtectedLocalCategories'
 Assert-Contains 'sync function guards NAS sync permission' $pluginSource 'SyncSafeUploadsToNas\(\)[\s\S]*?EnsureNasSyncAllowed\(\)'
 Assert-Contains 'preview function guards NAS sync permission' $pluginSource 'PreviewLocalSync\(\)[\s\S]*?EnsureNasSyncAllowed\(\)'
 Assert-Contains 'BBSYNC command checks permission before preview' $pluginSource 'SyncLocalChanges\(\)[\s\S]*?if\s*\(!BlockLibrary\.AllowNasSync\)[\s\S]*?return;[\s\S]*?PreviewLocalSync\(\)'
