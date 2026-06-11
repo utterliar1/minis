@@ -94,6 +94,10 @@ namespace BlockBrowser
                 {
                     config.PreferLocalWhenNasUnavailable = val == "1" || val.Equals("true", StringComparison.OrdinalIgnoreCase);
                 }
+                else if (key.Equals("AllowNasSync", StringComparison.OrdinalIgnoreCase))
+                {
+                    config.AllowNasSync = val == "1" || val.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
                 else if (key.Equals("CurrentLibraryMode", StringComparison.OrdinalIgnoreCase))
                 {
                     LibraryMode mode;
@@ -130,6 +134,7 @@ namespace BlockBrowser
             lines.Add("NasLibraryPath=" + ToConfigPath(config.NasLibraryPath));
             lines.Add("LocalMirrorPath=" + ToConfigPath(config.LocalMirrorPath));
             lines.Add("PreferLocalWhenNasUnavailable=" + (config.PreferLocalWhenNasUnavailable ? "1" : "0"));
+            lines.Add("AllowNasSync=" + (config.AllowNasSync ? "1" : "0"));
             lines.Add("CurrentLibraryMode=" + config.CurrentLibraryMode);
             lines.Add("UserName=" + (config.SyncUserName ?? ""));
             lines.Add("ThumbSize=" + config.ThumbSize);
@@ -154,6 +159,7 @@ namespace BlockBrowser
             AddMissingConfigLine(missingLines, loadedKeys, "NasLibraryPath", ToConfigPath(config.NasLibraryPath));
             AddMissingConfigLine(missingLines, loadedKeys, "LocalMirrorPath", ToConfigPath(config.LocalMirrorPath));
             AddMissingConfigLine(missingLines, loadedKeys, "PreferLocalWhenNasUnavailable", config.PreferLocalWhenNasUnavailable ? "1" : "0");
+            AddMissingConfigLine(missingLines, loadedKeys, "AllowNasSync", config.AllowNasSync ? "1" : "0");
             AddMissingConfigLine(missingLines, loadedKeys, "CurrentLibraryMode", config.CurrentLibraryMode.ToString());
             AddMissingConfigLine(missingLines, loadedKeys, "UserName", config.SyncUserName ?? "");
             AddMissingConfigLine(missingLines, loadedKeys, "ThumbSize", config.ThumbSize.ToString());

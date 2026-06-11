@@ -206,6 +206,7 @@
     <tr><td><code>NasLibraryPath</code></td><td>办公室 NAS 主图库，团队共同维护的来源</td><td>办公室共享路径，如 <code>\\NAS\CADBlocks\BlockBrowser</code></td></tr>
     <tr><td><code>LocalMirrorPath</code></td><td>移动电脑本地副本，离开办公室也能继续新增/编辑块</td><td>默认 <code>我的常用块</code>，即插件目录下的本地图库</td></tr>
     <tr><td><code>LibraryPath</code></td><td>当前实际正在使用的图库路径，由程序按模式解析</td><td>一般不要手动改</td></tr>
+    <tr><td><code>AllowNasSync</code></td><td>是否允许这台电脑执行同步到 NAS</td><td>普通同事保持 <code>0</code>；指定维护人电脑设为 <code>1</code></td></tr>
   </table>
 
   <h3>首次给同事配置</h3>
@@ -269,7 +270,7 @@
     <li>确认 NAS 路径后，切换到 <code>Auto</code>。</li>
     <li>普通同事每天开始前点击「更新本地图库」，或运行一次 <code>BBMIRROR</code>。</li>
     <li>外出或离线时继续使用本地副本。</li>
-    <li>只有指定维护人运行 <code>BBSYNC</code> 或使用同步中心，把确认安全的新块同步到 NAS。</li>
+    <li>只有指定维护人把 <code>AllowNasSync=1</code> 后，才能运行 <code>BBSYNC</code> 或使用同步中心，把确认安全的新块同步到 NAS。</li>
   </ol>
 </div>
 
@@ -284,7 +285,7 @@
     <tr><td><code>BBEXPORT</code></td><td>命令行方式导出块</td></tr>
     <tr><td><code>BBMIRROR</code></td><td>从 NAS 更新本地图库，普通同事日常主要使用这个入口</td></tr>
     <tr><td><code>BBSYNC</code></td><td>将本地新增块安全同步到 NAS，并报告冲突</td></tr>
-    <tr><td>同步中心</td><td>在 BB 面板「图库」菜单中打开，建议只由指定维护人使用；同步前查看明细，执行后复制结果或打开 <code>sync-log.txt</code></td></tr>
+    <tr><td>同步中心</td><td>仅在 <code>AllowNasSync=1</code> 时显示，供指定维护人使用；同步前查看明细，执行后复制结果或打开 <code>sync-log.txt</code></td></tr>
     <tr><td><code>BBTHUMB</code></td><td>清除所有缩略图缓存</td></tr>
     <tr><td><code>BBINFO</code></td><td>显示插件版本信息</td></tr>
   </table>

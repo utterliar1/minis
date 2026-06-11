@@ -15,6 +15,7 @@ namespace BlockBrowser
         public string NasLibraryPath { get; set; }
         public string LocalMirrorPath { get; set; }
         public bool PreferLocalWhenNasUnavailable { get; set; }
+        public bool AllowNasSync { get; set; }
         public LibraryMode CurrentLibraryMode { get; set; }
         public string SyncUserName { get; set; }
         public int ThumbSize { get; set; }
@@ -33,6 +34,7 @@ namespace BlockBrowser
                 NasLibraryPath = libraryPath,
                 LocalMirrorPath = libraryPath,
                 PreferLocalWhenNasUnavailable = true,
+                AllowNasSync = false,
                 CurrentLibraryMode = LibraryMode.Local,
                 SyncUserName = Environment.UserName,
                 ThumbSize = 128,
@@ -51,6 +53,7 @@ namespace BlockBrowser
                 NasLibraryPath = NasLibraryPath,
                 LocalMirrorPath = LocalMirrorPath,
                 PreferLocalWhenNasUnavailable = PreferLocalWhenNasUnavailable,
+                AllowNasSync = AllowNasSync,
                 CurrentLibraryMode = CurrentLibraryMode,
                 SyncUserName = SyncUserName,
                 ThumbSize = ThumbSize,

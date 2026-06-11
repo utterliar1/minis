@@ -74,10 +74,11 @@ foreach ($item in $expectedManageOrder) {
     $lastIndex = $index
 }
 
-$libraryMatch = [regex]::Match($formSource, 'btnLibrary\.DropDownItems\.AddRange\(new\s+ToolStripItem\[\]\s*\{(?<items>[\s\S]*?)\}\);')
-Assert-True 'library menu add range block found' $libraryMatch.Success
+$libraryMatch = [regex]::Match($formSource, 'var\s+btnLibrary\s*=\s*new\s+ToolStripDropDownButton\("[^"]+"\);(?<items>[\s\S]*?)// Search box')
+Assert-True 'library menu block found' $libraryMatch.Success
 $libraryItems = $libraryMatch.Groups['items'].Value
 Assert-False 'library menu excludes local library update action' ($libraryItems.Contains('btnUpdateLocalLibrary') -or $libraryItems.Contains('btnUpdateMirror'))
+Assert-True 'library menu guards sync actions by permission' ($libraryItems -match 'if\s*\(BlockLibrary\.AllowNasSync\)')
 $expectedLibraryOrder = @('btnSyncCenter', 'btnSync', 'btnPrebuildThumbnails', 'btnRebuildThumbnails', 'btnSettings')
 $lastIndex = -1
 foreach ($item in $expectedLibraryOrder) {

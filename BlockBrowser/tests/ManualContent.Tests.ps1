@@ -33,6 +33,7 @@ Assert-Contains 'manual explains mirror command' $manual 'BBMIRROR'
 Assert-Contains 'manual explains sync command' $manual 'BBSYNC'
 Assert-Contains 'manual explains sync center' $manual $syncCenter
 Assert-Contains 'manual explains sync log' $manual 'sync-log\.txt'
+Assert-Contains 'manual explains NAS sync permission flag' $manual 'AllowNasSync'
 Assert-Contains 'manual explains update local library wording' $manual $updateLocalLibrary
 Assert-Contains 'manual explains designated NAS maintainer' $manual $designatedMaintainer
 Assert-Contains 'manual explains NAS protection' $manual $nasProtection

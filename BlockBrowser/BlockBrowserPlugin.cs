@@ -48,6 +48,7 @@ namespace BlockBrowser
         public static string NasLibraryPath { get; set; }
         public static string LocalMirrorPath { get; set; }
         public static bool PreferLocalWhenNasUnavailable { get; set; }
+        public static bool AllowNasSync { get; set; }
         public static LibraryMode CurrentLibraryMode { get; set; }
         public static string SyncUserName { get; set; }
         public static ActiveLibraryResult ActiveLibrary { get; private set; }
@@ -134,6 +135,7 @@ namespace BlockBrowser
                 NasLibraryPath = NasLibraryPath,
                 LocalMirrorPath = LocalMirrorPath,
                 PreferLocalWhenNasUnavailable = PreferLocalWhenNasUnavailable,
+                AllowNasSync = AllowNasSync,
                 CurrentLibraryMode = CurrentLibraryMode,
                 SyncUserName = SyncUserName,
                 ThumbSize = ThumbSize,
@@ -155,6 +157,7 @@ namespace BlockBrowser
             NasLibraryPath = config.NasLibraryPath;
             LocalMirrorPath = config.LocalMirrorPath;
             PreferLocalWhenNasUnavailable = config.PreferLocalWhenNasUnavailable;
+            AllowNasSync = config.AllowNasSync;
             CurrentLibraryMode = config.CurrentLibraryMode;
             SyncUserName = config.SyncUserName;
             ThumbSize = config.ThumbSize;
@@ -268,6 +271,7 @@ namespace BlockBrowser
 
         public static SyncPlan PreviewLocalSync()
         {
+            EnsureNasSyncAllowed();
             var entries = ChangeJournal.Load(LocalJournalPath);
             var syncEntries = new List<ChangeJournalEntry>(entries);
             syncEntries.AddRange(LocalOnlySyncDiscovery.Discover(
@@ -281,6 +285,7 @@ namespace BlockBrowser
 
         public static SyncPlan SyncSafeUploadsToNas()
         {
+            EnsureNasSyncAllowed();
             if (string.IsNullOrEmpty(NasLibraryPath) || !Directory.Exists(NasLibraryPath))
                 throw new DirectoryNotFoundException("NAS library is unavailable: " + NasLibraryPath);
 
@@ -321,6 +326,12 @@ namespace BlockBrowser
             }
 
             return plan;
+        }
+
+        private static void EnsureNasSyncAllowed()
+        {
+            if (!AllowNasSync)
+                throw new InvalidOperationException("当前电脑未启用同步到 NAS。请联系指定维护人。");
         }
 
         public static List<string> GetCategories()
@@ -1017,6 +1028,12 @@ namespace BlockBrowser
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
             try
             {
+                if (!BlockLibrary.AllowNasSync)
+                {
+                    ed.WriteMessage("\n当前电脑未启用同步到 NAS。请联系指定维护人。");
+                    return;
+                }
+
                 var preview = BlockLibrary.PreviewLocalSync();
                 ed.WriteMessage("\n" + SyncSummaryMessageService.FormatPreviewCommand(preview));
                 var confirm = ed.GetString("\n继续同步到 NAS? [Y/N] <N>: ");
