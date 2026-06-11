@@ -181,16 +181,16 @@ namespace BlockBrowser
             });
 
             var btnLibrary = new ToolStripDropDownButton("图库");
-            btnLibrary.DropDownItems.AddRange(new ToolStripItem[]
+            if (BlockLibrary.AllowNasSync)
             {
-                btnSyncCenter,
-                btnSync,
-                new ToolStripSeparator(),
-                btnPrebuildThumbnails,
-                btnRebuildThumbnails,
-                new ToolStripSeparator(),
-                btnSettings
-            });
+                btnLibrary.DropDownItems.Add(btnSyncCenter);
+                btnLibrary.DropDownItems.Add(btnSync);
+                btnLibrary.DropDownItems.Add(new ToolStripSeparator());
+            }
+            btnLibrary.DropDownItems.Add(btnPrebuildThumbnails);
+            btnLibrary.DropDownItems.Add(btnRebuildThumbnails);
+            btnLibrary.DropDownItems.Add(new ToolStripSeparator());
+            btnLibrary.DropDownItems.Add(btnSettings);
 
             // Search box - wide, with explicit MinimumSize
             _txtSearch = new TextBox { Width = 140, BorderStyle = BorderStyle.FixedSingle };
@@ -585,7 +585,7 @@ namespace BlockBrowser
         private void QueueVisibleMissingThumbnails()
         {
             _thumbTimer.Stop();
-            var needLoad = _cards.Where(c => c.Visible && !HasThumbnail(c)).ToList();
+            var needLoad = _cards.Where(c => BlockFilterService.Matches(c.Block, _txtSearch.Text) && !HasThumbnail(c)).ToList();
             _failCount = 0;
             _pendingThumbCards = needLoad;
             _thumbIndex = 0;
