@@ -6,4 +6,4 @@ services:
     ports:
       - "127.0.0.1:3090:80"
     volumes:
-      - /root/overtime-tracker/data:/data
+      - ./data:/data
