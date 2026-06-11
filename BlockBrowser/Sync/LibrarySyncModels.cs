@@ -43,6 +43,7 @@ namespace BlockBrowser
         public string LibraryPath { get; set; }
         public string LocalMirrorPath { get; set; }
         public bool PreferLocalWhenNasUnavailable { get; set; }
+        public bool AllowNasSync { get; set; }
         public LibraryMode CurrentLibraryMode { get; set; }
         public string UserName { get; set; }
     }

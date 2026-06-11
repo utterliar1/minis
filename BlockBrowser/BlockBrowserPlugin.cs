@@ -240,10 +240,20 @@ namespace BlockBrowser
                 throw new InvalidOperationException("Local mirror path is empty.");
 
             var pending = ChangeJournal.Load(LocalJournalPath);
-            if (pending.Count > 0)
+            if (pending.Count > 0 && AllowNasSync)
                 throw new InvalidOperationException("Local changes are pending. Sync or clear local changes before updating the local mirror from NAS.");
 
-            CopyDirectoryContents(NasLibraryPath, LocalMirrorPath);
+            BlockFileOperations.MirrorDirectoryContents(NasLibraryPath, LocalMirrorPath, GetProtectedLocalPaths(pending));
+        }
+
+        private static IEnumerable<string> GetProtectedLocalPaths(IEnumerable<ChangeJournalEntry> entries)
+        {
+            foreach (var entry in entries ?? new ChangeJournalEntry[0])
+            {
+                if (entry == null) continue;
+                if (!string.IsNullOrEmpty(entry.Path)) yield return entry.Path;
+                if (!string.IsNullOrEmpty(entry.ToPath)) yield return entry.ToPath;
+            }
         }
 
         public static List<SyncFileSnapshot> BuildSnapshots(IEnumerable<ChangeJournalEntry> entries)
@@ -334,6 +344,12 @@ namespace BlockBrowser
                 throw new InvalidOperationException("当前电脑未启用同步到 NAS。请联系指定维护人。");
         }
 
+        private static void EnsureActiveLibraryWritable()
+        {
+            if (ActiveLibrary != null && ActiveLibrary.Kind == ActiveLibraryKind.Nas && !AllowNasSync)
+                throw new InvalidOperationException("当前电脑未启用写入 NAS。请先更新本地图库后，在本地副本中操作。");
+        }
+
         public static List<string> GetCategories()
         {
             return BlockLibraryService.GetCategories(LibraryPath);
@@ -346,6 +362,7 @@ namespace BlockBrowser
 
         public static CategoryCreationResult CreateCategory(string category)
         {
+            EnsureActiveLibraryWritable();
             return CategoryCreationService.CreateCategory(LibraryPath, category);
         }
 
@@ -665,6 +682,7 @@ namespace BlockBrowser
 
         public static bool RenameBlock(BlockInfo block, string newName)
         {
+            EnsureActiveLibraryWritable();
             if (!BlockFileOperations.CanRenameBlock(block, newName, true)) return false;
 
             string oldPath = block.FilePath;
@@ -757,6 +775,15 @@ namespace BlockBrowser
             Document doc = CadApp.DocumentManager.MdiActiveDocument;
             if (doc == null) return false;
             Editor ed = doc.Editor;
+            try
+            {
+                EnsureActiveLibraryWritable();
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage("\n保存失败: " + ex.Message);
+                return false;
+            }
             BlockWritePlan plan = BlockWriteService.PrepareSaveTarget(LibraryPath, blockName, category);
             if (!plan.IsValid)
             {
@@ -801,6 +828,15 @@ namespace BlockBrowser
             Document doc = CadApp.DocumentManager.MdiActiveDocument;
             if (doc == null) return false;
             Editor ed = doc.Editor;
+            try
+            {
+                EnsureActiveLibraryWritable();
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage("\n导出失败: " + ex.Message);
+                return false;
+            }
             BlockWritePlan plan = BlockWriteService.PrepareSaveTarget(LibraryPath, blockName, category);
             if (!plan.IsValid)
             {

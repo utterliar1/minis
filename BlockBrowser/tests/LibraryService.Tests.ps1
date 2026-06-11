@@ -132,6 +132,27 @@ try {
     Assert-False 'copy skips thumb dir' (Test-Path (Join-Path $copyTarget '.thumbs\Skip.png'))
     Assert-False 'copy skips nested thumb dir' (Test-Path (Join-Path $copyTarget 'A\.thumbs\NestedSkip.png'))
     Assert-True 'copy keeps thumb backup dir' (Test-Path (Join-Path $copyTarget '.thumbs-backup\Keep.txt'))
+
+    $mirrorSource = Join-Path $tempRoot 'MirrorSource'
+    $mirrorTarget = Join-Path $tempRoot 'MirrorTarget'
+    New-Item -ItemType Directory -Force -Path (Join-Path $mirrorSource 'A'), (Join-Path $mirrorTarget 'A'), (Join-Path $mirrorTarget '.blockbrowser'), (Join-Path $mirrorTarget '.thumbs') | Out-Null
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorSource 'A\Keep.dwg') -Value 'nas keep'
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorSource 'A\Changed.dwg') -Value 'nas changed'
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\Keep.dwg') -Value 'local keep'
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\Changed.dwg') -Value 'old local'
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\DeletedOnNas.dwg') -Value 'stale'
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\LocalOnly.dwg') -Value 'personal'
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget '.blockbrowser\local-changes.json') -Value 'journal'
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget '.thumbs\Keep.png') -Value 'thumb'
+    $protectedPaths = New-Object 'System.Collections.Generic.List[string]'
+    $protectedPaths.Add('A\LocalOnly.dwg')
+    [BlockBrowser.BlockFileOperations]::MirrorDirectoryContents($mirrorSource, $mirrorTarget, $protectedPaths)
+    Assert-True 'mirror keeps NAS file' (Test-Path (Join-Path $mirrorTarget 'A\Keep.dwg'))
+    Assert-Equal 'mirror overwrites changed file' 'nas changed' (Get-Content -Raw -Path (Join-Path $mirrorTarget 'A\Changed.dwg')).Trim()
+    Assert-False 'mirror removes file deleted on NAS' (Test-Path (Join-Path $mirrorTarget 'A\DeletedOnNas.dwg'))
+    Assert-True 'mirror preserves protected local-only file' (Test-Path (Join-Path $mirrorTarget 'A\LocalOnly.dwg'))
+    Assert-True 'mirror keeps journal directory' (Test-Path (Join-Path $mirrorTarget '.blockbrowser\local-changes.json'))
+    Assert-True 'mirror keeps thumbnail directory' (Test-Path (Join-Path $mirrorTarget '.thumbs\Keep.png'))
 }
 finally {
     if (Test-Path $tempRoot) {

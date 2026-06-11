@@ -222,7 +222,7 @@
   <table>
     <tr><th>模式</th><th>适合场景</th><th>实际行为</th></tr>
     <tr><td><code>CurrentLibraryMode=Local</code></td><td>默认新装、移动电脑、本地试用</td><td>只使用本地副本，不访问 NAS</td></tr>
-    <tr><td><code>CurrentLibraryMode=Auto</code></td><td>办公室和外出都要用</td><td>NAS 可用时用 NAS；NAS 不可用时自动用本地副本</td></tr>
+    <tr><td><code>CurrentLibraryMode=Auto</code></td><td>办公室和外出都要用</td><td>普通同事优先用本地副本，并把 NAS 作为只读更新来源；指定维护人可直接使用 NAS</td></tr>
     <tr><td><code>CurrentLibraryMode=Nas</code></td><td>必须只看团队主库</td><td>只使用 NAS，NAS 不可用时提示不可用</td></tr>
   </table>
 
@@ -237,14 +237,14 @@
   </div>
   <div class="step">
     <div class="step-num">3</div>
-    <div class="step-text">程序把 NAS 中的块复制到本地图库。若本地存在未同步修改，会拒绝覆盖并提示先联系指定维护人处理同步。</div>
+    <div class="step-text">程序把 NAS 中的新增、修改、删除同步到本地图库；本地已有变更记录的文件会被保护，避免误删个人新增内容。</div>
   </div>
 
   <h3>外出时：继续在本地新增/编辑块</h3>
   <ul>
-    <li>NAS 不可用时，<code>Auto</code> 会自动切到本地副本。</li>
+    <li><code>AllowNasSync=0</code> 时，<code>Auto</code> 会优先使用本地副本；NAS 只作为更新来源。</li>
     <li>可以继续「添加到库」、导出块、重命名块。</li>
-    <li>删除块时只记录删除请求，不会直接删除 NAS 文件。</li>
+    <li>普通同事删除块时只删除本地副本，不会直接删除 NAS 文件；如果 NAS 中仍有该块，下次更新本地图库会恢复。</li>
     <li>本地变更会记录在 <code>.blockbrowser/local-changes.json</code>，回到办公室后用于同步判断。</li>
   </ul>
 
@@ -262,13 +262,13 @@
     <div class="step-num">3</div>
     <div class="step-text">查看同步结果：上传、跳过重复、冲突、删除待确认、失败数量。</div>
   </div>
-  <div class="warn">⚠️ 为保护 NAS，本地文件不会静默覆盖 NAS。NAS 已有同路径文件会跳过；本地和 NAS 都改过会标记为冲突；本地删除只会列为待确认。</div>
+  <div class="warn">⚠️ 为保护 NAS，普通同事的电脑不会写入 NAS。只有指定维护人把 <code>AllowNasSync=1</code> 后，才能通过同步中心或 <code>BBSYNC</code> 把确认安全的新块同步到 NAS；删除和重命名仍需要人工确认。</div>
 
   <h3>给团队的建议流程</h3>
   <ol>
     <li>新同事先使用默认 <code>Local</code> 模式熟悉操作。</li>
-    <li>确认 NAS 路径后，切换到 <code>Auto</code>。</li>
-    <li>普通同事每天开始前点击「更新本地图库」，或运行一次 <code>BBMIRROR</code>。</li>
+    <li>确认 NAS 路径后，切换到 <code>Auto</code>，普通同事保持 <code>AllowNasSync=0</code>。</li>
+    <li>普通同事每天开始前点击「更新本地图库」，或运行一次 <code>BBMIRROR</code>，让本地副本跟随 NAS 的新增、修改和删除。</li>
     <li>外出或离线时继续使用本地副本。</li>
     <li>只有指定维护人把 <code>AllowNasSync=1</code> 后，才能运行 <code>BBSYNC</code> 或使用同步中心，把确认安全的新块同步到 NAS。</li>
   </ol>

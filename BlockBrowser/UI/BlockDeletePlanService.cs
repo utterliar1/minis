@@ -7,6 +7,7 @@ namespace BlockBrowser
         NoSelection,
         MissingFile,
         RecordLocalDeleteRequest,
+        ReadOnlyNasBlocked,
         FileLocked,
         DeleteFile
     }
@@ -23,6 +24,7 @@ namespace BlockBrowser
         public static BlockDeletePlan CreatePlan(
             BlockInfo block,
             ActiveLibraryResult activeLibrary,
+            bool allowNasSync,
             Func<string, bool> fileExists,
             Func<string, bool> canOpenForExclusiveWrite)
         {
@@ -43,11 +45,21 @@ namespace BlockBrowser
                 };
             }
 
-            if (activeLibrary != null && activeLibrary.Kind == ActiveLibraryKind.LocalMirror)
+            if (activeLibrary != null && activeLibrary.Kind == ActiveLibraryKind.LocalMirror && allowNasSync)
             {
                 return new BlockDeletePlan
                 {
                     Action = BlockDeleteAction.RecordLocalDeleteRequest,
+                    FilePath = filePath,
+                    BlockName = blockName
+                };
+            }
+
+            if (activeLibrary != null && activeLibrary.Kind == ActiveLibraryKind.Nas && !allowNasSync)
+            {
+                return new BlockDeletePlan
+                {
+                    Action = BlockDeleteAction.ReadOnlyNasBlocked,
                     FilePath = filePath,
                     BlockName = blockName
                 };

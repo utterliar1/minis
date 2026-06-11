@@ -14,6 +14,7 @@ namespace BlockBrowser
                 LibraryPath = config.NasLibraryPath,
                 LocalMirrorPath = config.LocalMirrorPath,
                 PreferLocalWhenNasUnavailable = config.PreferLocalWhenNasUnavailable,
+                AllowNasSync = config.AllowNasSync,
                 CurrentLibraryMode = config.CurrentLibraryMode,
                 UserName = config.SyncUserName
             };

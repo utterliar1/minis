@@ -43,15 +43,33 @@ $nas.Kind = [BlockBrowser.ActiveLibraryKind]::Nas
 $recordPlan = [BlockBrowser.BlockDeletePlanService]::CreatePlan(
     $block,
     $local,
+    $true,
     [Func[string,bool]] { param($p) $true },
     [Func[string,bool]] { param($p) throw 'local mirror should not check file lock' })
 Assert-Equal 'local mirror records delete request' ([BlockBrowser.BlockDeleteAction]::RecordLocalDeleteRequest) $recordPlan.Action
 Assert-Equal 'local mirror keeps file path' $path $recordPlan.FilePath
 Assert-Equal 'local mirror keeps block name' 'Door' $recordPlan.BlockName
 
+$readonlyLocalPlan = [BlockBrowser.BlockDeletePlanService]::CreatePlan(
+    $block,
+    $local,
+    $false,
+    [Func[string,bool]] { param($p) $true },
+    [Func[string,bool]] { param($p) $true })
+Assert-Equal 'readonly local mirror deletes local file' ([BlockBrowser.BlockDeleteAction]::DeleteFile) $readonlyLocalPlan.Action
+
+$readonlyNasPlan = [BlockBrowser.BlockDeletePlanService]::CreatePlan(
+    $block,
+    $nas,
+    $false,
+    [Func[string,bool]] { param($p) $true },
+    [Func[string,bool]] { param($p) throw 'readonly NAS should not check file lock' })
+Assert-Equal 'readonly NAS blocks direct delete' ([BlockBrowser.BlockDeleteAction]::ReadOnlyNasBlocked) $readonlyNasPlan.Action
+
 $deletePlan = [BlockBrowser.BlockDeletePlanService]::CreatePlan(
     $block,
     $nas,
+    $true,
     [Func[string,bool]] { param($p) $true },
     [Func[string,bool]] { param($p) $true })
 Assert-Equal 'nas unlocked deletes file' ([BlockBrowser.BlockDeleteAction]::DeleteFile) $deletePlan.Action
@@ -59,6 +77,7 @@ Assert-Equal 'nas unlocked deletes file' ([BlockBrowser.BlockDeleteAction]::Dele
 $lockedPlan = [BlockBrowser.BlockDeletePlanService]::CreatePlan(
     $block,
     $nas,
+    $true,
     [Func[string,bool]] { param($p) $true },
     [Func[string,bool]] { param($p) $false })
 Assert-Equal 'nas locked warns user' ([BlockBrowser.BlockDeleteAction]::FileLocked) $lockedPlan.Action
@@ -66,6 +85,7 @@ Assert-Equal 'nas locked warns user' ([BlockBrowser.BlockDeleteAction]::FileLock
 $missingPlan = [BlockBrowser.BlockDeletePlanService]::CreatePlan(
     $block,
     $nas,
+    $true,
     [Func[string,bool]] { param($p) $false },
     [Func[string,bool]] { param($p) $true })
 Assert-Equal 'missing file warns user' ([BlockBrowser.BlockDeleteAction]::MissingFile) $missingPlan.Action
@@ -73,6 +93,7 @@ Assert-Equal 'missing file warns user' ([BlockBrowser.BlockDeleteAction]::Missin
 $nonePlan = [BlockBrowser.BlockDeletePlanService]::CreatePlan(
     $null,
     $nas,
+    $true,
     [Func[string,bool]] { param($p) $true },
     [Func[string,bool]] { param($p) $true })
 Assert-Equal 'null block reports no selection' ([BlockBrowser.BlockDeleteAction]::NoSelection) $nonePlan.Action
