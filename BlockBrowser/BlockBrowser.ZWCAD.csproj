@@ -78,6 +78,7 @@
     <Compile Include="UI\MirrorPreviewTreeBuilder.cs" />
     <Compile Include="UI\ResourceDisposalService.cs" />
     <Compile Include="UI\SettingsUpdateService.cs" />
+    <Compile Include="UI\SyncPlanTreeBuilder.cs" />
     <Compile Include="Sync\LibrarySyncModels.cs" />
     <Compile Include="Sync\ActiveLibraryResolver.cs" />
     <Compile Include="Sync\ChangeJournal.cs" />
