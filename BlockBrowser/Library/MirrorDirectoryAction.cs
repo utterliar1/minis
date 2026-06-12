@@ -5,6 +5,8 @@ namespace BlockBrowser
         CopyNew,
         Overwrite,
         Delete,
-        ProtectedSkip
+        ProtectedSkip,
+        ProtectedCategorySkip,
+        ProtectedLocalChangeSkip
     }
 }

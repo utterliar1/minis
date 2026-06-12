@@ -239,13 +239,13 @@
   </div>
   <div class="step">
     <div class="step-num">3</div>
-    <div class="step-text">先查看「更新本地图库树形预览」：新增、覆盖、删除、保护跳过会按分组和文件夹展开；确认后才会开始执行。</div>
+    <div class="step-text">先查看「更新本地图库树形预览」：新增、覆盖、删除、白名单跳过、本地变更跳过会按分组和文件夹展开；确认后才会开始执行。</div>
   </div>
   <div class="step">
     <div class="step-num">4</div>
     <div class="step-text">程序把 NAS 中的新增、修改、删除同步到本地图库；本地已有变更记录的文件会被保护，受保护分类（默认 <code>个人块</code>）不会覆盖或删除。</div>
   </div>
-  <div class="tip">💡 更新完成后会显示新增、覆盖、删除、保护跳过数量；如果看到保护跳过，通常表示 <code>个人块</code> 等白名单分类已被保留。</div>
+  <div class="tip">💡 更新完成后会显示新增、覆盖、删除、保护跳过总数；树形预览里的「白名单跳过」来自 <code>ProtectedLocalCategories</code>，「本地变更跳过」来自 <code>.blockbrowser/local-changes.json</code>。如果某个分类不在白名单里却被跳过，通常说明它里面有待处理的本地新增、编辑、删除或重命名记录。</div>
 
   <h3>外出时：继续在本地新增/编辑块</h3>
   <ul>

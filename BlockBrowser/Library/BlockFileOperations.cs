@@ -75,7 +75,7 @@ namespace BlockBrowser
                 if (IsProtectedCategoryPath(rel, protectedCategories))
                 {
                     result.ProtectedSkipCount++;
-                    AddEntry(result, MirrorDirectoryAction.ProtectedSkip, rel);
+                    AddEntry(result, MirrorDirectoryAction.ProtectedCategorySkip, rel);
                     continue;
                 }
 
@@ -84,7 +84,7 @@ namespace BlockBrowser
                 if (protectedPaths.Contains(key))
                 {
                     result.ProtectedSkipCount++;
-                    AddEntry(result, MirrorDirectoryAction.ProtectedSkip, rel);
+                    AddEntry(result, MirrorDirectoryAction.ProtectedLocalChangeSkip, rel);
                     continue;
                 }
 
@@ -111,7 +111,7 @@ namespace BlockBrowser
                     if (IsProtectedCategoryPath(rel, protectedCategories))
                     {
                         result.ProtectedSkipCount++;
-                        AddEntry(result, MirrorDirectoryAction.ProtectedSkip, rel);
+                        AddEntry(result, MirrorDirectoryAction.ProtectedCategorySkip, rel);
                         continue;
                     }
 
@@ -120,7 +120,7 @@ namespace BlockBrowser
                     if (protectedPaths.Contains(key))
                     {
                         result.ProtectedSkipCount++;
-                        AddEntry(result, MirrorDirectoryAction.ProtectedSkip, rel);
+                        AddEntry(result, MirrorDirectoryAction.ProtectedLocalChangeSkip, rel);
                         continue;
                     }
 

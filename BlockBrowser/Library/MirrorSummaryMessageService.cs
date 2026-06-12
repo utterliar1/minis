@@ -96,6 +96,10 @@ namespace BlockBrowser
                     return "\u5220\u9664";
                 case MirrorDirectoryAction.ProtectedSkip:
                     return "\u4FDD\u62A4\u8DF3\u8FC7";
+                case MirrorDirectoryAction.ProtectedCategorySkip:
+                    return "\u767D\u540D\u5355\u8DF3\u8FC7";
+                case MirrorDirectoryAction.ProtectedLocalChangeSkip:
+                    return "\u672C\u5730\u53D8\u66F4\u8DF3\u8FC7";
                 default:
                     return "\u672A\u77E5";
             }

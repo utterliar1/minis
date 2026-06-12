@@ -89,16 +89,24 @@ $overwriteEntry = New-Object BlockBrowser.MirrorDirectoryEntry
 $overwriteEntry.Action = [BlockBrowser.MirrorDirectoryAction]::Overwrite
 $overwriteEntry.RelativePath = 'Electrical\Switch\Door.dwg'
 $protectedEntry = New-Object BlockBrowser.MirrorDirectoryEntry
-$protectedEntry.Action = [BlockBrowser.MirrorDirectoryAction]::ProtectedSkip
+$protectedEntry.Action = [BlockBrowser.MirrorDirectoryAction]::ProtectedCategorySkip
 $protectedEntry.RelativePath = '个人块\Draft.dwg'
 $treeResult = New-Object BlockBrowser.MirrorDirectoryResult
 $treeResult.Entries.Add($deleteEntry)
 $treeResult.Entries.Add($overwriteEntry)
 $treeResult.Entries.Add($protectedEntry)
+$localChangeEntry = New-Object BlockBrowser.MirrorDirectoryEntry
+$localChangeEntry.Action = [BlockBrowser.MirrorDirectoryAction]::ProtectedLocalChangeSkip
+$localChangeEntry.RelativePath = 'LocalChange\Draft.dwg'
+$treeResult.Entries.Add($localChangeEntry)
 $treeNodes = [BlockBrowser.MirrorPreviewTreeBuilder]::Build($treeResult)
 Assert-True 'tree has action groups' ($treeNodes.Count -ge 3)
 Assert-True 'tree puts delete group first' ($treeNodes[0].Tag -eq [BlockBrowser.MirrorDirectoryAction]::Delete)
 Assert-True 'tree keeps overwrite group second' ($treeNodes[1].Tag -eq [BlockBrowser.MirrorDirectoryAction]::Overwrite)
+$categorySkipLabel = -join ([char[]](0x767D, 0x540D, 0x5355, 0x8DF3, 0x8FC7))
+$localChangeSkipLabel = -join ([char[]](0x672C, 0x5730, 0x53D8, 0x66F4, 0x8DF3, 0x8FC7))
+Assert-True 'tree includes category skip group' ($treeNodes | Where-Object { $_.Text -match $categorySkipLabel -and $_.Tag -eq [BlockBrowser.MirrorDirectoryAction]::ProtectedCategorySkip })
+Assert-True 'tree includes local change skip group' ($treeNodes | Where-Object { $_.Text -match $localChangeSkipLabel -and $_.Tag -eq [BlockBrowser.MirrorDirectoryAction]::ProtectedLocalChangeSkip })
 Assert-True 'tree groups delete by first folder' ($treeNodes[0].Nodes[0].Text -eq 'Electrical')
 Assert-True 'tree groups nested folder' ($treeNodes[0].Nodes[0].Nodes[0].Text -eq 'Switch')
 Assert-True 'tree leaf is file name' ($treeNodes[0].Nodes[0].Nodes[0].Nodes[0].Text -eq 'Old.dwg')
