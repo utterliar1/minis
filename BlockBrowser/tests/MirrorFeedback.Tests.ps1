@@ -122,6 +122,8 @@ $zwcadProject = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockB
 Assert-Contains 'BlockLibrary exposes mirror preview' $pluginSource 'public\s+static\s+MirrorDirectoryResult\s+PreviewLocalMirrorFromNas\(\)'
 Assert-Contains 'BlockLibrary returns mirror result' $pluginSource 'public\s+static\s+MirrorDirectoryResult\s+UpdateLocalMirrorFromNas\(\)'
 Assert-Contains 'BlockLibrary uses mirror preview for update' $pluginSource 'PreviewLocalMirrorFromNas\(\)[\s\S]*?BlockFileOperations\.ApplyMirrorDirectoryResult'
+Assert-Contains 'mirror preview protects pending local changes' $pluginSource 'ChangeJournal\.Load\(LocalJournalPath\)[\s\S]*?PreviewMirrorDirectoryContents\(NasLibraryPath,\s*LocalMirrorPath,\s*GetProtectedLocalPaths\(pending\),\s*ProtectedLocalCategories\)'
+Assert-NotContains 'mirror preview does not block pending local changes' $pluginSource 'Local changes are pending'
 Assert-Contains 'BBMIRROR writes mirror summary' $pluginSource 'MirrorSummaryMessageService\.FormatCommand\(result\)'
 Assert-Contains 'BBMIRROR writes mirror preview' $pluginSource 'MirrorSummaryMessageService\.FormatPreviewCommand\(preview\)'
 Assert-Contains 'BBMIRROR asks for confirmation' $pluginSource 'GetString\([\s\S]*?\[Y/N\]'

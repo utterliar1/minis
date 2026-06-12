@@ -278,9 +278,6 @@ namespace BlockBrowser
                 throw new InvalidOperationException("Local mirror path is empty.");
 
             var pending = ChangeJournal.Load(LocalJournalPath);
-            if (pending.Count > 0 && AllowNasSync)
-                throw new InvalidOperationException("Local changes are pending. Sync or clear local changes before updating the local mirror from NAS.");
-
             return BlockFileOperations.PreviewMirrorDirectoryContents(NasLibraryPath, LocalMirrorPath, GetProtectedLocalPaths(pending), ProtectedLocalCategories);
         }
 
