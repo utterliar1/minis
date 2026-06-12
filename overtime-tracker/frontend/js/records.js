@@ -1,7 +1,18 @@
 // Records calendar and export
 var OT = window.OT = window.OT || {};
 
-OT.loadAllRecords = async function loadAllRecords(){try{const d=await api('/records');allRecords=d.records||[]}catch(e){allRecords=[]}};
+OT.loadAllRecords = async function loadAllRecords(){
+  recordsLoaded=false;
+  try{
+    const d=await api('/records');
+    allRecords=d.records||[];
+    recordsLoaded=true;
+  }catch(e){
+    allRecords=[];
+    recordsLoaded=false;
+    throw e;
+  }
+};
 
 OT.renderCalendar = function renderCalendar(){
   const grid=document.getElementById('calendar-grid'),label=document.getElementById('cal-month-label');

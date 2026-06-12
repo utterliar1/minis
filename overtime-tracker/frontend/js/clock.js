@@ -29,6 +29,7 @@ OT.updateGeoStatus = function updateGeoStatus(){
 OT.updateClockButton = function updateClockButton(){
   const btn=document.getElementById('clock-btn'),txt=document.getElementById('clock-btn-text'),last=OT.getLastClockRecord();
   if((settings.lat==null||settings.lng==null)&&!currentPos){btn.className='clock-btn disabled';txt.textContent='请等待管理员配置';return}
+  if(!recordsLoaded){btn.className='clock-btn disabled';txt.textContent='加载记录中';return}
   if(!currentPos){btn.className='clock-btn disabled';txt.textContent=OT.lastGeoErrorMessage?'定位未开启':'获取位置中';return}
   if(currentPos&&currentPos.accuracy>(settings.gpsAccuracy||100)){btn.className='clock-btn disabled';txt.textContent='GPS精度不足';return}
   if(!last){btn.className='clock-btn check-in';txt.textContent='打卡上班'}
@@ -115,6 +116,9 @@ OT.handleClock = async function handleClock(){
   if(btn.classList.contains('disabled')){showToast('请先满足打卡条件');return}
   if(!currentPos){showToast(OT.lastGeoErrorMessage||'正在获取位置...');return}
   if(settings.lat==null||settings.lng==null){showToast('打卡地点未配置');return}
+  if(!recordsLoaded){
+    try{await OT.loadAllRecords()}catch(e){showToast('记录加载失败，请刷新后重试');return}
+  }
   const last=OT.getLastClockRecord();let type='in';
   if(last&&last.type==='in')type='out';
   let reason='';
