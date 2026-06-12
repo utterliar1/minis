@@ -76,6 +76,13 @@
     <Compile Include="BlockBrowserPlugin.cs" />
     <Compile Include="Commands\BlockBrowserCommands.cs" />
     <Compile Include="Forms\BlockBrowserForm.cs" />
+    <Compile Include="Forms\BlockBrowserForm.Layout.cs" />
+    <Compile Include="Forms\BlockBrowserForm.CategoryBar.cs" />
+    <Compile Include="Forms\BlockBrowserForm.BlockGrid.cs" />
+    <Compile Include="Forms\BlockBrowserForm.Thumbnails.cs" />
+    <Compile Include="Forms\BlockBrowserForm.Actions.cs" />
+    <Compile Include="Forms\BlockBrowserForm.Dialogs.cs" />
+    <Compile Include="Forms\BlockBrowserForm.Diagnostics.cs" />
     <Compile Include="Forms\ExportBlocksDialog.cs" />
     <Compile Include="Forms\InsertSettingsDialog.cs" />
     <Compile Include="Forms\MirrorPreviewDialog.cs" />

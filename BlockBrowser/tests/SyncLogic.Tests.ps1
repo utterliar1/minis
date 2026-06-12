@@ -188,7 +188,11 @@ $merged = [BlockBrowser.MetadataMerger]::Merge($nasTags, 'NAS note', $localTags,
 Assert-Equal 'metadata tag merge count' 2 $merged.Tags.Count
 Assert-True 'metadata note conflict' $merged.HasNoteConflict
 
-$formSource = Get-Content -Encoding UTF8 (Join-Path $root 'Forms\BlockBrowserForm.cs') -Raw
+$formSource = @(
+    Get-ChildItem -Path (Join-Path $root 'Forms') -Filter 'BlockBrowserForm*.cs' |
+        Sort-Object Name |
+        ForEach-Object { Get-Content -Encoding UTF8 $_.FullName -Raw }
+) -join "`n"
 $pluginSource = Get-Content -Encoding UTF8 (Join-Path $root 'Commands\BlockBrowserCommands.cs') -Raw
 Assert-True 'panel uses sync center instead of direct sync flow' ($formSource -match 'ShowSyncCenterDialog\(\)[\s\S]*?new\s+SyncCenterDialog\(' -and $formSource -notmatch 'new\s+ToolStripMenuItem\("同步到NAS"\)|FormatPreviewDialog\(preview\)[\s\S]*?SyncSafeUploadsToNas\(\)')
 Assert-True 'command sync opens sync center instead of command preview flow' ($pluginSource -match 'SyncLocalChanges\(\)[\s\S]*?OpenSyncCenterDialog\(\)' -and $pluginSource -notmatch 'FormatPreviewCommand\(preview\)[\s\S]*?GetString[\s\S]*?SyncSafeUploadsToNas\(\)')

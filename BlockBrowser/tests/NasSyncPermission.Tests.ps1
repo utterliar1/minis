@@ -8,7 +8,11 @@ $pluginSource = @(
     Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Library\BlockLibrary.Operations.cs') -Raw
     Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Commands\BlockBrowserCommands.cs') -Raw
 ) -join "`n"
-$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\BlockBrowserForm.cs') -Raw
+$formSource = @(
+    Get-ChildItem -Path (Join-Path $repo 'BlockBrowser\Forms') -Filter 'BlockBrowserForm*.cs' |
+        Sort-Object Name |
+        ForEach-Object { Get-Content -Encoding UTF8 $_.FullName -Raw }
+) -join "`n"
 $configSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Config\BlockBrowserConfig.cs') -Raw
 $storeSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Config\BlockBrowserConfigStore.cs') -Raw
 $defaultConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.default.ini') -Raw

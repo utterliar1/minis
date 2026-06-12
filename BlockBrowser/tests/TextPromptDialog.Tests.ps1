@@ -9,7 +9,11 @@ if (-not (Test-Path $dialogPath)) {
 }
 
 $dialogSource = Get-Content -Encoding UTF8 $dialogPath -Raw
-$formSource = Get-Content -Encoding UTF8 $formPath -Raw
+$formSource = @(
+    Get-ChildItem -Path (Join-Path $repo 'BlockBrowser\Forms') -Filter 'BlockBrowserForm*.cs' |
+        Sort-Object Name |
+        ForEach-Object { Get-Content -Encoding UTF8 $_.FullName -Raw }
+) -join "`n"
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) { throw "$name did not find pattern: $pattern" }

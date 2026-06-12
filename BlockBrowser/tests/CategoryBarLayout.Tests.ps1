@@ -1,7 +1,12 @@
 $ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\BlockBrowserForm.cs') -Raw
+$formSource = @(
+    Get-ChildItem -Path (Join-Path $repo 'BlockBrowser\Forms') -Filter 'BlockBrowserForm*.cs' |
+        Sort-Object Name |
+        ForEach-Object { Get-Content -Encoding UTF8 $_.FullName -Raw }
+) -join "`n"
+$categorySource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\BlockBrowserForm.CategoryBar.cs') -Raw
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) { throw "$name did not find pattern: $pattern" }
@@ -58,7 +63,7 @@ Assert-Contains 'category layout leaves bottom right blank' $formSource '_catLay
 Assert-Contains 'category host contains category layout' $formSource '_catHost\.Controls\.Add\(_catLayout\)'
 Assert-NotContains 'main form no direct category bar add' $formSource '(?m)^\s*Controls\.Add\(_catBar\);'
 
-$createCategoryMatch = [regex]::Match($formSource, 'private\s+void\s+BtnCreateCategory_Click\(object\s+sender,\s+EventArgs\s+e\)(?<body>[\s\S]*?)private\s+void\s+BtnAddToLib_Click')
+$createCategoryMatch = [regex]::Match($categorySource, 'private\s+void\s+BtnCreateCategory_Click\(object\s+sender,\s+EventArgs\s+e\)(?<body>[\s\S]*)')
 Assert-True 'create category handler found' $createCategoryMatch.Success
 $createCategoryBody = $createCategoryMatch.Groups['body'].Value
 Assert-NotContains 'create category does not trigger full data reload' $createCategoryBody 'LoadData\s*\('

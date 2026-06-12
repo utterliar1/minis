@@ -4,7 +4,11 @@ $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $syncSummarySource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Sync\SyncSummaryMessageService.cs') -Raw
 $syncTreeSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\UI\SyncPlanTreeBuilder.cs') -Raw
 $syncCenterSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\SyncCenterDialog.cs') -Raw
-$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\BlockBrowserForm.cs') -Raw
+$formSource = @(
+    Get-ChildItem -Path (Join-Path $repo 'BlockBrowser\Forms') -Filter 'BlockBrowserForm*.cs' |
+        Sort-Object Name |
+        ForEach-Object { Get-Content -Encoding UTF8 $_.FullName -Raw }
+) -join "`n"
 $pluginSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Commands\BlockBrowserCommands.cs') -Raw
 $csprojSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.csproj') -Raw
 $acadSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.AutoCAD.csproj') -Raw
