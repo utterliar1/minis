@@ -114,7 +114,7 @@ Assert-True 'tree leaf tag keeps source entry' ([object]::ReferenceEquals($delet
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $pluginSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowserPlugin.cs') -Raw
-$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowserForm.cs') -Raw
+$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\BlockBrowserForm.cs') -Raw
 $mainProject = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.csproj') -Raw
 $acadProject = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.AutoCAD.csproj') -Raw
 $zwcadProject = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.ZWCAD.csproj') -Raw
@@ -136,14 +136,14 @@ Assert-Contains 'main project compiles mirror entry' $mainProject 'Library\\Mirr
 Assert-Contains 'main project compiles mirror result' $mainProject 'Library\\MirrorDirectoryResult\.cs'
 Assert-Contains 'main project compiles mirror summary service' $mainProject 'Library\\MirrorSummaryMessageService\.cs'
 Assert-Contains 'main project compiles mirror preview tree builder' $mainProject 'UI\\MirrorPreviewTreeBuilder\.cs'
-Assert-Contains 'main project compiles mirror preview dialog' $mainProject 'MirrorPreviewDialog\.cs'
+Assert-Contains 'main project compiles mirror preview dialog' $mainProject 'Forms\\MirrorPreviewDialog\.cs'
 Assert-Contains 'AutoCAD project compiles mirror action' $acadProject 'Library\\MirrorDirectoryAction\.cs'
 Assert-Contains 'AutoCAD project compiles mirror entry' $acadProject 'Library\\MirrorDirectoryEntry\.cs'
 Assert-Contains 'AutoCAD project compiles mirror result' $acadProject 'Library\\MirrorDirectoryResult\.cs'
-Assert-Contains 'AutoCAD project compiles mirror preview dialog' $acadProject 'MirrorPreviewDialog\.cs'
+Assert-Contains 'AutoCAD project compiles mirror preview dialog' $acadProject 'Forms\\MirrorPreviewDialog\.cs'
 Assert-Contains 'ZWCAD project compiles mirror action' $zwcadProject 'Library\\MirrorDirectoryAction\.cs'
 Assert-Contains 'ZWCAD project compiles mirror entry' $zwcadProject 'Library\\MirrorDirectoryEntry\.cs'
 Assert-Contains 'ZWCAD project compiles mirror result' $zwcadProject 'Library\\MirrorDirectoryResult\.cs'
-Assert-Contains 'ZWCAD project compiles mirror preview dialog' $zwcadProject 'MirrorPreviewDialog\.cs'
+Assert-Contains 'ZWCAD project compiles mirror preview dialog' $zwcadProject 'Forms\\MirrorPreviewDialog\.cs'
 
 Write-Host 'MirrorFeedback.Tests.ps1 passed'

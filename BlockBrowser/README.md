@@ -1,4 +1,4 @@
-﻿# 块浏览器 BlockBrowser
+# 块浏览器 BlockBrowser
 
 多 CAD 平台块浏览器插件，支持**浩辰CAD 2022**、**AutoCAD 2020**、**中望CAD 2020**。
 
@@ -62,8 +62,8 @@ autoload.lsp 会自动检测 CAD 平台和插件目录。
 
 ## 阶段资料
 
-- [阶段版本说明](RELEASE_NOTES.md)
-- [手动测试清单](MANUAL_TEST_CHECKLIST.md)
+- [阶段版本说明](Docs/RELEASE_NOTES.md)
+- [手动测试清单](Docs/MANUAL_TEST_CHECKLIST.md)
 
 ## 界面操作
 

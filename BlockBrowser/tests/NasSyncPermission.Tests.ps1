@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $pluginSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowserPlugin.cs') -Raw
-$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowserForm.cs') -Raw
+$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\BlockBrowserForm.cs') -Raw
 $configSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Config\BlockBrowserConfig.cs') -Raw
 $storeSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Config\BlockBrowserConfigStore.cs') -Raw
 $defaultConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.default.ini') -Raw

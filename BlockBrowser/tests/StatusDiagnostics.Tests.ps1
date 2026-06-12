@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowserForm.cs') -Raw
-$dialogSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\StatusDiagnosticsDialog.cs') -Raw
+$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\BlockBrowserForm.cs') -Raw
+$dialogSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\StatusDiagnosticsDialog.cs') -Raw
 $serviceSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\UI\StatusDiagnosticsService.cs') -Raw
 $csprojSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.csproj') -Raw
 $acadSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.AutoCAD.csproj') -Raw
@@ -24,11 +24,11 @@ Assert-Contains 'form counts thumbnail cache png files' $formSource 'Directory\.
 Assert-Contains 'dialog is read only text report' $dialogSource 'ReadOnly\s*=\s*true'
 Assert-Contains 'dialog supports copying report' $dialogSource 'Clipboard\.SetText\(_txtReport\.Text\)'
 Assert-Contains 'service exposes format report' $serviceSource 'public\s+static\s+string\s+FormatReport\('
-Assert-Contains 'main project compiles status dialog' $csprojSource 'Compile Include="StatusDiagnosticsDialog\.cs"'
+Assert-Contains 'main project compiles status dialog' $csprojSource 'Compile Include="Forms\\StatusDiagnosticsDialog\.cs"'
 Assert-Contains 'main project compiles status service' $csprojSource 'Compile Include="UI\\StatusDiagnosticsService\.cs"'
-Assert-Contains 'AutoCAD project compiles status dialog' $acadSource 'Compile Include="StatusDiagnosticsDialog\.cs"'
+Assert-Contains 'AutoCAD project compiles status dialog' $acadSource 'Compile Include="Forms\\StatusDiagnosticsDialog\.cs"'
 Assert-Contains 'AutoCAD project compiles status service' $acadSource 'Compile Include="UI\\StatusDiagnosticsService\.cs"'
-Assert-Contains 'ZWCAD project compiles status dialog' $zwcadSource 'Compile Include="StatusDiagnosticsDialog\.cs"'
+Assert-Contains 'ZWCAD project compiles status dialog' $zwcadSource 'Compile Include="Forms\\StatusDiagnosticsDialog\.cs"'
 Assert-Contains 'ZWCAD project compiles status service' $zwcadSource 'Compile Include="UI\\StatusDiagnosticsService\.cs"'
 
 Write-Host 'StatusDiagnostics.Tests.ps1 passed'

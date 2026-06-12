@@ -1,14 +1,14 @@
 $ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowserForm.cs') -Raw
-$dialogPath = Join-Path $repo 'BlockBrowser\SettingsDialog.cs'
+$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\BlockBrowserForm.cs') -Raw
+$dialogPath = Join-Path $repo 'BlockBrowser\Forms\SettingsDialog.cs'
 if (-not (Test-Path $dialogPath)) {
     throw "Missing source file: $dialogPath"
 }
 $dialogSource = Get-Content -Encoding UTF8 $dialogPath -Raw
 $settingsMethod = [regex]::Match($formSource, 'private\s+void\s+ShowSettingsDialog\(\)[\s\S]*?private\s+void\s+ShowInsertSettingsDialog').Value
-$insertDialogPath = Join-Path $repo 'BlockBrowser\InsertSettingsDialog.cs'
+$insertDialogPath = Join-Path $repo 'BlockBrowser\Forms\InsertSettingsDialog.cs'
 if (-not (Test-Path $insertDialogPath)) {
     throw "Missing source file: $insertDialogPath"
 }

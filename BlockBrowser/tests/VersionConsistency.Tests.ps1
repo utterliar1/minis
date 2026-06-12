@@ -4,8 +4,8 @@ $root = Split-Path -Parent $PSScriptRoot
 $pluginSource = Get-Content -Encoding UTF8 (Join-Path $root 'BlockBrowserPlugin.cs') -Raw
 $assemblySource = Get-Content -Encoding UTF8 (Join-Path $root 'Properties\AssemblyInfo.cs') -Raw
 $autoloadSource = Get-Content -Encoding UTF8 (Join-Path $root 'autoload.lsp') -Raw
-$manualSource = Get-Content -Encoding UTF8 (Join-Path $root 'MANUAL_TEST_CHECKLIST.md') -Raw
-$releaseSource = Get-Content -Encoding UTF8 (Join-Path $root 'RELEASE_NOTES.md') -Raw
+$manualSource = Get-Content -Encoding UTF8 (Join-Path $root 'Docs\MANUAL_TEST_CHECKLIST.md') -Raw
+$releaseSource = Get-Content -Encoding UTF8 (Join-Path $root 'Docs\RELEASE_NOTES.md') -Raw
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) {

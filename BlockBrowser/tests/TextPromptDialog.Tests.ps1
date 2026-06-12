@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-$dialogPath = Join-Path $repo 'BlockBrowser\TextPromptDialog.cs'
-$formPath = Join-Path $repo 'BlockBrowser\BlockBrowserForm.cs'
+$dialogPath = Join-Path $repo 'BlockBrowser\Forms\TextPromptDialog.cs'
+$formPath = Join-Path $repo 'BlockBrowser\Forms\BlockBrowserForm.cs'
 
 if (-not (Test-Path $dialogPath)) {
     throw "Missing dialog source file: $dialogPath"

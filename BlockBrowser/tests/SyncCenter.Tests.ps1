@@ -3,8 +3,8 @@ $ErrorActionPreference = 'Stop'
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $syncSummarySource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Sync\SyncSummaryMessageService.cs') -Raw
 $syncTreeSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\UI\SyncPlanTreeBuilder.cs') -Raw
-$syncCenterSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\SyncCenterDialog.cs') -Raw
-$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowserForm.cs') -Raw
+$syncCenterSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\SyncCenterDialog.cs') -Raw
+$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\BlockBrowserForm.cs') -Raw
 $pluginSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowserPlugin.cs') -Raw
 $csprojSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.csproj') -Raw
 $acadSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.AutoCAD.csproj') -Raw
@@ -36,11 +36,11 @@ Assert-Contains 'library menu contains sync center when allowed' $formSource 'if
 Assert-NotContains 'library menu does not contain separate sync action' $formSource 'new\s+ToolStripMenuItem\("同步到NAS"\)|DropDownItems\.Add\(btnSync\)'
 Assert-Contains 'BBSYNC opens sync center dialog' $pluginSource 'SyncLocalChanges\(\)[\s\S]*?OpenSyncCenterDialog\(\)'
 Assert-Contains 'command helper creates sync center dialog' $pluginSource 'OpenSyncCenterDialog\(\)[\s\S]*?new\s+SyncCenterDialog\('
-Assert-Contains 'main project compiles sync center dialog' $csprojSource 'Compile Include="SyncCenterDialog\.cs"'
+Assert-Contains 'main project compiles sync center dialog' $csprojSource 'Compile Include="Forms\\SyncCenterDialog\.cs"'
 Assert-Contains 'main project compiles sync plan tree builder' $csprojSource 'Compile Include="UI\\SyncPlanTreeBuilder\.cs"'
-Assert-Contains 'AutoCAD project compiles sync center dialog' $acadSource 'Compile Include="SyncCenterDialog\.cs"'
+Assert-Contains 'AutoCAD project compiles sync center dialog' $acadSource 'Compile Include="Forms\\SyncCenterDialog\.cs"'
 Assert-Contains 'AutoCAD project compiles sync plan tree builder' $acadSource 'Compile Include="UI\\SyncPlanTreeBuilder\.cs"'
-Assert-Contains 'ZWCAD project compiles sync center dialog' $zwcadSource 'Compile Include="SyncCenterDialog\.cs"'
+Assert-Contains 'ZWCAD project compiles sync center dialog' $zwcadSource 'Compile Include="Forms\\SyncCenterDialog\.cs"'
 Assert-Contains 'ZWCAD project compiles sync plan tree builder' $zwcadSource 'Compile Include="UI\\SyncPlanTreeBuilder\.cs"'
 
 Write-Host 'SyncCenter.Tests.ps1 passed'

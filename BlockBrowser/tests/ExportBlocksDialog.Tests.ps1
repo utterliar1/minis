@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-$dialogPath = Join-Path $repo 'BlockBrowser\ExportBlocksDialog.cs'
+$dialogPath = Join-Path $repo 'BlockBrowser\Forms\ExportBlocksDialog.cs'
 $pluginPath = Join-Path $repo 'BlockBrowser\BlockBrowserPlugin.cs'
 
 if (-not (Test-Path $dialogPath)) {

@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowserForm.cs') -Raw
+$formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\BlockBrowserForm.cs') -Raw
 $updateLocalLibraryText = -join ([char[]](0x66F4, 0x65B0, 0x672C, 0x5730, 0x56FE, 0x5E93))
 $updateLocalMirrorText = -join ([char[]](0x66F4, 0x65B0, 0x672C, 0x5730, 0x526F, 0x672C))
 $completeThumbnailsText = -join ([char[]](0x8865, 0x5168, 0x7F29, 0x7565, 0x56FE))
