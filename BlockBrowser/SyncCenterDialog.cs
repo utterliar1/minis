@@ -10,8 +10,9 @@ namespace BlockBrowser
         private readonly Func<SyncPlan> _previewProvider;
         private readonly Func<SyncPlan> _syncRunner;
         private readonly string _logPath;
-        private readonly TextBox _txtDetails;
+        private readonly TreeView _treeDetails;
         private readonly Label _lblLogPath;
+        private SyncPlan _lastPlan;
 
         public SyncCenterDialog(Func<SyncPlan> previewProvider, Func<SyncPlan> syncRunner, string logPath)
         {
@@ -47,13 +48,11 @@ namespace BlockBrowser
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
-            _txtDetails = new TextBox
+            _treeDetails = new TreeView
             {
                 Dock = DockStyle.Fill,
-                Multiline = true,
-                ReadOnly = true,
-                ScrollBars = ScrollBars.Both,
-                WordWrap = false
+                HideSelection = false,
+                ShowNodeToolTips = true
             };
 
             var buttons = new FlowLayoutPanel
@@ -69,8 +68,9 @@ namespace BlockBrowser
             var btnCopy = new Button { Text = "\u590D\u5236", Width = 82, Height = 28 };
             btnCopy.Click += (s, e) =>
             {
-                if (!string.IsNullOrEmpty(_txtDetails.Text))
-                    Clipboard.SetText(_txtDetails.Text);
+                string report = SyncSummaryMessageService.FormatDetailedReport(_lastPlan);
+                if (!string.IsNullOrEmpty(report))
+                    Clipboard.SetText(report);
             };
 
             var btnOpenLog = new Button { Text = "\u6253\u5F00\u65E5\u5FD7", Width = 92, Height = 28 };
@@ -97,7 +97,7 @@ namespace BlockBrowser
             buttons.Controls.Add(btnRefresh);
 
             layout.Controls.Add(_lblLogPath, 0, 0);
-            layout.Controls.Add(_txtDetails, 0, 1);
+            layout.Controls.Add(_treeDetails, 0, 1);
             layout.Controls.Add(buttons, 0, 2);
             Controls.Add(layout);
 
@@ -110,11 +110,14 @@ namespace BlockBrowser
             {
                 _lblLogPath.Text = "\u65E5\u5FD7: " + _logPath;
                 var plan = _previewProvider == null ? null : _previewProvider();
-                _txtDetails.Text = SyncSummaryMessageService.FormatDetailedReport(plan);
+                _lastPlan = plan;
+                SyncPlanTreeBuilder.Populate(_treeDetails, plan);
             }
             catch (Exception ex)
             {
-                _txtDetails.Text = "\u540C\u6B65\u9884\u89C8\u5931\u8D25: " + ex.Message;
+                _lastPlan = null;
+                _treeDetails.Nodes.Clear();
+                _treeDetails.Nodes.Add(new TreeNode("\u540C\u6B65\u9884\u89C8\u5931\u8D25: " + ex.Message));
             }
         }
 
@@ -132,7 +135,8 @@ namespace BlockBrowser
 
                 var plan = _syncRunner == null ? null : _syncRunner();
                 SyncSummaryMessageService.AppendLog(_logPath, plan);
-                _txtDetails.Text = SyncSummaryMessageService.FormatDetailedReport(plan);
+                _lastPlan = plan;
+                SyncPlanTreeBuilder.Populate(_treeDetails, plan);
             }
             catch (Exception ex)
             {
