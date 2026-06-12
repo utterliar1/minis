@@ -72,6 +72,7 @@
     <Compile Include="BlockBrowserForm.cs" />
     <Compile Include="ExportBlocksDialog.cs" />
     <Compile Include="InsertSettingsDialog.cs" />
+    <Compile Include="MirrorPreviewDialog.cs" />
     <Compile Include="SettingsDialog.cs" />
     <Compile Include="SyncCenterDialog.cs" />
     <Compile Include="TextPromptDialog.cs" />
@@ -84,6 +85,7 @@
     <Compile Include="UI\BlockRenamePlanService.cs" />
     <Compile Include="UI\CardCacheService.cs" />
     <Compile Include="UI\ExportBlockRequestService.cs" />
+    <Compile Include="UI\MirrorPreviewTreeBuilder.cs" />
     <Compile Include="UI\ResourceDisposalService.cs" />
     <Compile Include="UI\SettingsUpdateService.cs" />
     <Compile Include="Sync\LibrarySyncModels.cs" />

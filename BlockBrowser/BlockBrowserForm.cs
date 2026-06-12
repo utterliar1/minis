@@ -132,8 +132,11 @@ namespace BlockBrowser
                 try
                 {
                     var preview = BlockLibrary.PreviewLocalMirrorFromNas();
-                    if (MessageBox.Show(MirrorSummaryMessageService.FormatPreviewDialog(preview), "块浏览器", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
-                        return;
+                    using (var previewDialog = new MirrorPreviewDialog(preview))
+                    {
+                        if (previewDialog.ShowDialog(this) != DialogResult.OK)
+                            return;
+                    }
                     var result = BlockLibrary.UpdateLocalMirrorFromNas();
                     MessageBox.Show(MirrorSummaryMessageService.FormatDialog(result), "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     LoadData();
