@@ -66,6 +66,7 @@
     <Compile Include="Thumbnails\ThumbnailCacheService.cs" />
     <Compile Include="Thumbnails\ThumbnailLoadProgressService.cs" />
     <Compile Include="Thumbnails\ThumbnailMemoryCacheService.cs" />
+    <Compile Include="Thumbnails\CadThumbnailRenderer.cs" />
     <Compile Include="Thumbnails\BlockLibrary.Thumbnails.cs" />
     <Compile Include="BlockBrowserPlugin.cs" />
     <Compile Include="Commands\BlockBrowserCommands.cs" />
