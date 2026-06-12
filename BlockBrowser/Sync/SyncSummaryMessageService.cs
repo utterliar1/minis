@@ -10,11 +10,12 @@ namespace BlockBrowser
         {
             var counts = SyncSummaryCounts.FromPlan(plan);
             return string.Format(
-                "同步完成:\n上传: {0}\n重复跳过: {1}\n冲突: {2}\n删除待确认: {3}\n失败: {4}",
+                "\u540C\u6B65\u5B8C\u6210:\n\u4E0A\u4F20: {0}\n\u91CD\u590D\u8DF3\u8FC7: {1}\n\u51B2\u7A81: {2}\n\u5220\u9664\u5F85\u786E\u8BA4: {3}\n\u767D\u540D\u5355\u8DF3\u8FC7: {4}\n\u5931\u8D25: {5}",
                 counts.UploadCount,
                 counts.SkippedDuplicateCount,
                 counts.ConflictCount,
                 counts.DeleteReviewCount,
+                counts.ProtectedCategorySkipCount,
                 counts.FailedCount);
         }
 
@@ -22,24 +23,21 @@ namespace BlockBrowser
         {
             var counts = SyncSummaryCounts.FromPlan(plan);
             return string.Format(
-                "同步完成: {0} 上传, {1} 重复跳过, {2} 冲突, {3} 删除待确认, {4} 失败",
+                "\u540C\u6B65\u5B8C\u6210: {0} \u4E0A\u4F20, {1} \u91CD\u590D\u8DF3\u8FC7, {2} \u51B2\u7A81, {3} \u5220\u9664\u5F85\u786E\u8BA4, {4} \u767D\u540D\u5355\u8DF3\u8FC7, {5} \u5931\u8D25",
                 counts.UploadCount,
                 counts.SkippedDuplicateCount,
                 counts.ConflictCount,
                 counts.DeleteReviewCount,
+                counts.ProtectedCategorySkipCount,
                 counts.FailedCount);
         }
 
         public static string FormatPreviewDialog(SyncPlan plan)
         {
             var counts = SyncSummaryCounts.FromPlan(plan);
-            var sb = new System.Text.StringBuilder();
+            var sb = new StringBuilder();
             sb.AppendLine("\u540C\u6B65\u9884\u89C8:");
-            sb.AppendLine(string.Format("\u5C06\u4E0A\u4F20: {0}", counts.UploadCount));
-            sb.AppendLine(string.Format("\u91CD\u590D\u8DF3\u8FC7: {0}", counts.SkippedDuplicateCount));
-            sb.AppendLine(string.Format("\u51B2\u7A81: {0}", counts.ConflictCount));
-            sb.AppendLine(string.Format("\u5220\u9664\u5F85\u786E\u8BA4: {0}", counts.DeleteReviewCount));
-            sb.AppendLine(string.Format("\u5931\u8D25: {0}", counts.FailedCount));
+            AppendCounts(sb, counts);
             AppendDecisionSamples(sb, plan);
             sb.AppendLine();
             sb.Append("\u662F\u5426\u7EE7\u7EED\u540C\u6B65\u5230 NAS\uFF1F");
@@ -50,11 +48,12 @@ namespace BlockBrowser
         {
             var counts = SyncSummaryCounts.FromPlan(plan);
             return string.Format(
-                "\u540C\u6B65\u9884\u89C8: {0} \u5C06\u4E0A\u4F20, {1} \u91CD\u590D\u8DF3\u8FC7, {2} \u51B2\u7A81, {3} \u5220\u9664\u5F85\u786E\u8BA4, {4} \u5931\u8D25",
+                "\u540C\u6B65\u9884\u89C8: {0} \u5C06\u4E0A\u4F20, {1} \u91CD\u590D\u8DF3\u8FC7, {2} \u51B2\u7A81, {3} \u5220\u9664\u5F85\u786E\u8BA4, {4} \u767D\u540D\u5355\u8DF3\u8FC7, {5} \u5931\u8D25",
                 counts.UploadCount,
                 counts.SkippedDuplicateCount,
                 counts.ConflictCount,
                 counts.DeleteReviewCount,
+                counts.ProtectedCategorySkipCount,
                 counts.FailedCount);
         }
 
@@ -63,11 +62,7 @@ namespace BlockBrowser
             var counts = SyncSummaryCounts.FromPlan(plan);
             var sb = new StringBuilder();
             sb.AppendLine("\u540C\u6B65\u660E\u7EC6");
-            sb.AppendLine(string.Format("\u4E0A\u4F20: {0}", counts.UploadCount));
-            sb.AppendLine(string.Format("\u91CD\u590D\u8DF3\u8FC7: {0}", counts.SkippedDuplicateCount));
-            sb.AppendLine(string.Format("\u51B2\u7A81: {0}", counts.ConflictCount));
-            sb.AppendLine(string.Format("\u5220\u9664\u5F85\u786E\u8BA4: {0}", counts.DeleteReviewCount));
-            sb.AppendLine(string.Format("\u5931\u8D25: {0}", counts.FailedCount));
+            AppendCounts(sb, counts);
             sb.AppendLine();
 
             if (plan == null || plan.Decisions == null || plan.Decisions.Count == 0)
@@ -101,13 +96,23 @@ namespace BlockBrowser
             File.AppendAllText(logPath, sb.ToString(), Encoding.UTF8);
         }
 
-        private static void AppendDecisionSamples(System.Text.StringBuilder sb, SyncPlan plan)
+        private static void AppendCounts(StringBuilder sb, SyncSummaryCounts counts)
+        {
+            sb.AppendLine(string.Format("\u5C06\u4E0A\u4F20: {0}", counts.UploadCount));
+            sb.AppendLine(string.Format("\u91CD\u590D\u8DF3\u8FC7: {0}", counts.SkippedDuplicateCount));
+            sb.AppendLine(string.Format("\u51B2\u7A81: {0}", counts.ConflictCount));
+            sb.AppendLine(string.Format("\u5220\u9664\u5F85\u786E\u8BA4: {0}", counts.DeleteReviewCount));
+            sb.AppendLine(string.Format("\u767D\u540D\u5355\u8DF3\u8FC7: {0}", counts.ProtectedCategorySkipCount));
+            sb.AppendLine(string.Format("\u5931\u8D25: {0}", counts.FailedCount));
+        }
+
+        private static void AppendDecisionSamples(StringBuilder sb, SyncPlan plan)
         {
             if (plan == null || plan.Decisions == null || plan.Decisions.Count == 0) return;
 
             sb.AppendLine();
             sb.AppendLine("\u660E\u7EC6\u9884\u89C8:");
-            int count = System.Math.Min(10, plan.Decisions.Count);
+            int count = Math.Min(10, plan.Decisions.Count);
             for (int i = 0; i < count; i++)
             {
                 var decision = plan.Decisions[i];
@@ -127,13 +132,15 @@ namespace BlockBrowser
                 case SyncDecisionKind.VersionCopy:
                     return "\u4E0A\u4F20";
                 case SyncDecisionKind.SkipDuplicate:
-                    return "\u8DF3\u8FC7";
+                    return "\u91CD\u590D\u8DF3\u8FC7";
                 case SyncDecisionKind.Conflict:
                     return "\u51B2\u7A81";
                 case SyncDecisionKind.DeleteReview:
                     return "\u5220\u9664\u786E\u8BA4";
                 case SyncDecisionKind.RenameReview:
                     return "\u91CD\u547D\u540D\u786E\u8BA4";
+                case SyncDecisionKind.ProtectedCategorySkip:
+                    return "\u767D\u540D\u5355\u8DF3\u8FC7";
                 case SyncDecisionKind.Error:
                     return "\u5931\u8D25";
                 default:
@@ -147,6 +154,7 @@ namespace BlockBrowser
             public int SkippedDuplicateCount;
             public int ConflictCount;
             public int DeleteReviewCount;
+            public int ProtectedCategorySkipCount;
             public int FailedCount;
 
             public static SyncSummaryCounts FromPlan(SyncPlan plan)
@@ -159,6 +167,7 @@ namespace BlockBrowser
                     SkippedDuplicateCount = plan.SkippedDuplicateCount,
                     ConflictCount = plan.ConflictCount,
                     DeleteReviewCount = plan.DeleteReviewCount,
+                    ProtectedCategorySkipCount = plan.ProtectedCategorySkipCount,
                     FailedCount = plan.FailedCount
                 };
             }

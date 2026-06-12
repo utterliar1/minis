@@ -44,7 +44,11 @@ namespace BlockBrowser
                 if (string.IsNullOrEmpty(rel) || IsInternalPath(rel))
                     continue;
                 if (IsProtectedCategoryPath(rel, protectedCategoryNames))
+                {
+                    sequence++;
+                    results.Add(CreateEntry(LocalChangeAction.ProtectedCategorySkip, rel, file, userName, utcNow, sequence));
                     continue;
+                }
 
                 string key = Normalize(rel);
                 if (existingPaths.Contains(key))
@@ -56,20 +60,25 @@ namespace BlockBrowser
 
                 sequence++;
                 existingPaths.Add(key);
-                results.Add(new ChangeJournalEntry
-                {
-                    Id = ChangeJournal.CreateId(utcNow, userName, sequence),
-                    Action = LocalChangeAction.Add,
-                    Path = rel,
-                    ToPath = "",
-                    BaseNasLastWriteUtc = null,
-                    LocalLastWriteUtc = File.GetLastWriteTimeUtc(file),
-                    User = string.IsNullOrEmpty(userName) ? Environment.UserName : userName,
-                    CreatedUtc = utcNow
-                });
+                results.Add(CreateEntry(LocalChangeAction.Add, rel, file, userName, utcNow, sequence));
             }
 
             return results;
+        }
+
+        private static ChangeJournalEntry CreateEntry(LocalChangeAction action, string relativePath, string filePath, string userName, DateTime utcNow, int sequence)
+        {
+            return new ChangeJournalEntry
+            {
+                Id = ChangeJournal.CreateId(utcNow, userName, sequence),
+                Action = action,
+                Path = relativePath,
+                ToPath = "",
+                BaseNasLastWriteUtc = null,
+                LocalLastWriteUtc = File.GetLastWriteTimeUtc(filePath),
+                User = string.IsNullOrEmpty(userName) ? Environment.UserName : userName,
+                CreatedUtc = utcNow
+            };
         }
 
         private static string ToRelativePath(string root, string fullPath)

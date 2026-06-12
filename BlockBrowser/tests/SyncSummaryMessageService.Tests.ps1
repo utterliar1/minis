@@ -37,6 +37,7 @@ $plan.SkippedDuplicateCount = 4
 $plan.ConflictCount = 5
 $plan.DeleteReviewCount = 6
 $plan.FailedCount = 7
+$plan.ProtectedCategorySkipCount = 8
 $upload = New-Object BlockBrowser.SyncDecision
 $upload.Kind = [BlockBrowser.SyncDecisionKind]::Upload
 $upload.Path = 'Electrical\Socket.dwg'
@@ -49,11 +50,13 @@ Assert-True 'dialog message includes skipped count' ($dialog.Contains('4'))
 Assert-True 'dialog message includes conflict count' ($dialog.Contains('5'))
 Assert-True 'dialog message includes delete review count' ($dialog.Contains('6'))
 Assert-True 'dialog message includes failed count' ($dialog.Contains('7'))
+Assert-True 'dialog message includes protected category skip count' ($dialog.Contains('8'))
 Assert-True 'dialog message is multiline' ($dialog.Contains("`n"))
 
 $command = [BlockBrowser.SyncSummaryMessageService]::FormatCommand($plan)
 Assert-True 'command message includes upload count' ($command.Contains('3'))
 Assert-True 'command message includes failed count' ($command.Contains('7'))
+Assert-True 'command message includes protected category skip count' ($command.Contains('8'))
 Assert-False 'command message is single line' ($command.Contains("`n"))
 
 $emptyDialog = [BlockBrowser.SyncSummaryMessageService]::FormatDialog($null)
@@ -65,5 +68,16 @@ $previewConfirm = -join ([char[]](0x662F, 0x5426, 0x7EE7, 0x7EED))
 Assert-True 'preview dialog names preview' ($preview.Contains($previewTitle))
 Assert-True 'preview dialog includes path sample' ($preview.Contains('Electrical\Socket.dwg'))
 Assert-True 'preview dialog asks for confirmation' ($preview.Contains($previewConfirm))
+
+$protectedDecision = New-Object BlockBrowser.SyncDecision
+$protectedDecision.Kind = [BlockBrowser.SyncDecisionKind]::ProtectedCategorySkip
+$protectedDecision.Path = 'Personal\Draft.dwg'
+$protectedPlan = New-Object BlockBrowser.SyncPlan
+$protectedPlan.ProtectedCategorySkipCount = 1
+$protectedPlan.Decisions.Add($protectedDecision)
+$protectedReport = [BlockBrowser.SyncSummaryMessageService]::FormatDetailedReport($protectedPlan)
+$whitelistSkipLabel = -join ([char[]](0x767D, 0x540D, 0x5355, 0x8DF3, 0x8FC7))
+Assert-True 'detailed report labels protected category skip' ($protectedReport.Contains($whitelistSkipLabel))
+Assert-True 'detailed report includes protected path' ($protectedReport.Contains('Personal\Draft.dwg'))
 
 Write-Host 'SyncSummaryMessageService.Tests.ps1 passed'
