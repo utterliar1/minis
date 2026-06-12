@@ -114,7 +114,9 @@ Assert-True 'tree leaf tag keeps source entry' ([object]::ReferenceEquals($delet
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $pluginSource = @(
-    Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Library\BlockLibrary.Sync.cs') -Raw
+    Get-ChildItem -Path (Join-Path $repo 'BlockBrowser\Library') -Filter 'BlockLibrary*.cs' |
+        Sort-Object Name |
+        ForEach-Object { Get-Content -Encoding UTF8 $_.FullName -Raw }
     Get-ChildItem -Path (Join-Path $repo 'BlockBrowser\Commands') -Filter 'BlockBrowserCommands*.cs' |
         Sort-Object Name |
         ForEach-Object { Get-Content -Encoding UTF8 $_.FullName -Raw }

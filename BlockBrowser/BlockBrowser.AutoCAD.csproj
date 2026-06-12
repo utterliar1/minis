@@ -59,6 +59,10 @@
     <Compile Include="Library\BlockWriteService.cs" />
     <Compile Include="Library\BlockLibrary.Configuration.cs" />
     <Compile Include="Library\BlockLibrary.Sync.cs" />
+    <Compile Include="Library\BlockLibrary.LocalChanges.cs" />
+    <Compile Include="Library\BlockLibrary.Mirror.cs" />
+    <Compile Include="Library\BlockLibrary.SyncPlanning.cs" />
+    <Compile Include="Library\BlockLibrary.NasUpload.cs" />
     <Compile Include="Library\BlockLibrary.Catalog.cs" />
     <Compile Include="Library\BlockLibrary.Operations.cs" />
     <Compile Include="Library\BlockLibrary.Insert.cs" />
