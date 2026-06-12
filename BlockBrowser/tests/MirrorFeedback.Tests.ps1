@@ -113,7 +113,10 @@ Assert-True 'tree leaf is file name' ($treeNodes[0].Nodes[0].Nodes[0].Nodes[0].T
 Assert-True 'tree leaf tag keeps source entry' ([object]::ReferenceEquals($deleteEntry, $treeNodes[0].Nodes[0].Nodes[0].Nodes[0].Tag))
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-$pluginSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowserPlugin.cs') -Raw
+$pluginSource = @(
+    Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Library\BlockLibrary.Sync.cs') -Raw
+    Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Commands\BlockBrowserCommands.cs') -Raw
+) -join "`n"
 $formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Forms\BlockBrowserForm.cs') -Raw
 $mainProject = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.csproj') -Raw
 $acadProject = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.AutoCAD.csproj') -Raw

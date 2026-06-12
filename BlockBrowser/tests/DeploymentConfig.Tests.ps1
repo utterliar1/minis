@@ -4,7 +4,10 @@ $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $project = Join-Path $repo 'BlockBrowser'
 $buildAll = Get-Content -Encoding UTF8 (Join-Path $project 'build-all.bat') -Raw
 $buildAllBytes = [System.IO.File]::ReadAllBytes((Join-Path $project 'build-all.bat'))
-$plugin = Get-Content -Encoding UTF8 (Join-Path $project 'BlockBrowserPlugin.cs') -Raw
+$plugin = @(
+    Get-Content -Encoding UTF8 (Join-Path $project 'BlockBrowserPlugin.cs') -Raw
+    Get-Content -Encoding UTF8 (Join-Path $project 'Library\BlockLibrary.Configuration.cs') -Raw
+) -join "`n"
 $defaultConfig = Get-Content -Encoding UTF8 (Join-Path $project 'BlockBrowser.default.ini') -Raw
 $defaultLibraryFolder = -join ([char[]](0x6211, 0x7684, 0x5E38, 0x7528, 0x5757))
 $manualFileName = -join ([char[]](0x4F7F, 0x7528, 0x624B, 0x518C)) + '.html'

@@ -1,7 +1,10 @@
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
-$pluginSource = Get-Content -Encoding UTF8 (Join-Path $root 'BlockBrowserPlugin.cs') -Raw
+$pluginSource = @(
+    Get-Content -Encoding UTF8 (Join-Path $root 'BlockBrowserPlugin.cs') -Raw
+    Get-Content -Encoding UTF8 (Join-Path $root 'Library\BlockLibrary.Configuration.cs') -Raw
+) -join "`n"
 $assemblySource = Get-Content -Encoding UTF8 (Join-Path $root 'Properties\AssemblyInfo.cs') -Raw
 $autoloadSource = Get-Content -Encoding UTF8 (Join-Path $root 'autoload.lsp') -Raw
 $manualSource = Get-Content -Encoding UTF8 (Join-Path $root 'Docs\MANUAL_TEST_CHECKLIST.md') -Raw
