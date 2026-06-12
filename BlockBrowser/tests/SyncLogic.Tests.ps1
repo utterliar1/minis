@@ -155,9 +155,23 @@ try {
     $protectedCategories = New-Object 'System.Collections.Generic.List[string]'
     $protectedCategories.Add($protectedCategoryName)
     $discovered = [BlockBrowser.LocalOnlySyncDiscovery]::Discover($scanLocal, $scanNas, $emptyJournal, 'WLUP', [datetime]'2026-06-09T08:00:00Z', $protectedCategories)
-    Assert-Equal 'local-only scan count' 1 $discovered.Count
+    Assert-Equal 'local-only scan count' 2 $discovered.Count
     Assert-Equal 'local-only scan action' ([BlockBrowser.LocalChangeAction]::Add) $discovered[0].Action
     Assert-Equal 'local-only scan path' 'Electrical\LocalOnly.dwg' $discovered[0].Path
+    Assert-Equal 'protected local-only scan action' ([BlockBrowser.LocalChangeAction]::ProtectedCategorySkip) $discovered[1].Action
+    Assert-Equal 'protected local-only scan path' ($protectedCategoryName + '\PersonalOnly.dwg') $discovered[1].Path
+
+    $scanSnapshots = New-Object 'System.Collections.Generic.List[BlockBrowser.SyncFileSnapshot]'
+    foreach ($change in $discovered) {
+        $scanSnapshot = New-Object BlockBrowser.SyncFileSnapshot
+        $scanSnapshot.Path = $change.Path
+        $scanSnapshot.LocalExists = $true
+        $scanSnapshot.NasExists = $false
+        $scanSnapshots.Add($scanSnapshot)
+    }
+    $scanPlan = [BlockBrowser.SyncPlanner]::CreatePlan($discovered, $scanSnapshots)
+    Assert-Equal 'protected local-only scan becomes whitelist skip' ([BlockBrowser.SyncDecisionKind]::ProtectedCategorySkip) $scanPlan.Decisions[1].Kind
+    Assert-Equal 'whitelist skip count' 1 $scanPlan.ProtectedCategorySkipCount
 }
 finally {
     if (Test-Path $scanTemp) {

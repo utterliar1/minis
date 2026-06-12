@@ -265,10 +265,10 @@
     <div class="step-num">2</div>
     <div class="step-text">点击「同步中心」查看明细预览，确认后执行同步；也可以点击「同步到NAS」或命令行输入 <code>BBSYNC</code>。</div>
   </div>
-  <div class="tip">💡 <code>BBSYNC</code> 会读取本地变更记录，也会扫描本地副本中 NAS 尚不存在的 <code>.dwg</code> 文件；即使某个块是手动放进本地副本的，也可以作为安全新块补传。<code>ProtectedLocalCategories</code> 中的分类不会自动同步到 NAS，默认 <code>个人块</code> 仍保留在本机。同步中心可以复制明细，并把执行记录追加到本地副本的 <code>.blockbrowser/sync-log.txt</code>。</div>
+  <div class="tip">💡 <code>BBSYNC</code> 会读取本地变更记录，也会扫描本地副本中 NAS 尚不存在的 <code>.dwg</code> 文件；即使某个块是手动放进本地副本的，也可以作为安全新块补传。<code>ProtectedLocalCategories</code> 中的分类不会自动同步到 NAS，默认 <code>个人块</code> 仍保留在本机，并会在同步预览和同步中心显示为「白名单跳过」。同步中心可以复制明细，并把执行记录追加到本地副本的 <code>.blockbrowser/sync-log.txt</code>。</div>
   <div class="step">
     <div class="step-num">3</div>
-    <div class="step-text">查看同步结果：上传、跳过重复、冲突、删除待确认、失败数量。</div>
+    <div class="step-text">查看同步结果：上传、重复跳过、白名单跳过、冲突、删除待确认、失败数量。</div>
   </div>
   <div class="warn">⚠️ 为保护 NAS，普通同事的电脑不会写入 NAS。只有指定维护人把 <code>AllowNasSync=1</code> 后，才能通过同步中心或 <code>BBSYNC</code> 把确认安全的新块同步到 NAS；删除和重命名仍需要人工确认。</div>
 

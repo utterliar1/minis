@@ -35,6 +35,9 @@ namespace BlockBrowser
             if (entry.Action == LocalChangeAction.DeleteRequest)
                 return Decision(SyncDecisionKind.DeleteReview, entry.Path, "", "Delete request requires NAS review.");
 
+            if (entry.Action == LocalChangeAction.ProtectedCategorySkip)
+                return Decision(SyncDecisionKind.ProtectedCategorySkip, entry.Path, "", "Protected category is skipped.");
+
             if (entry.Action == LocalChangeAction.Rename)
                 return Decision(SyncDecisionKind.RenameReview, entry.Path, entry.ToPath, "Rename requires confirmation.");
 
@@ -91,6 +94,8 @@ namespace BlockBrowser
                 plan.ConflictCount++;
             else if (kind == SyncDecisionKind.DeleteReview)
                 plan.DeleteReviewCount++;
+            else if (kind == SyncDecisionKind.ProtectedCategorySkip)
+                plan.ProtectedCategorySkipCount++;
             else if (kind == SyncDecisionKind.Error)
                 plan.FailedCount++;
         }

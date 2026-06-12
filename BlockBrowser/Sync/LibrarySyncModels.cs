@@ -23,7 +23,8 @@ namespace BlockBrowser
         Edit,
         Rename,
         Metadata,
-        DeleteRequest
+        DeleteRequest,
+        ProtectedCategorySkip
     }
 
     public enum SyncDecisionKind
@@ -34,6 +35,7 @@ namespace BlockBrowser
         VersionCopy,
         DeleteReview,
         RenameReview,
+        ProtectedCategorySkip,
         NoOp,
         Error
     }
@@ -114,6 +116,7 @@ namespace BlockBrowser
         public int SkippedDuplicateCount { get; set; }
         public int ConflictCount { get; set; }
         public int DeleteReviewCount { get; set; }
+        public int ProtectedCategorySkipCount { get; set; }
         public int FailedCount { get; set; }
     }
 }
