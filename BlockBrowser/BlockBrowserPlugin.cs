@@ -265,6 +265,13 @@ namespace BlockBrowser
 
         public static MirrorDirectoryResult UpdateLocalMirrorFromNas()
         {
+            var preview = PreviewLocalMirrorFromNas();
+            BlockFileOperations.ApplyMirrorDirectoryResult(NasLibraryPath, LocalMirrorPath, preview);
+            return preview;
+        }
+
+        public static MirrorDirectoryResult PreviewLocalMirrorFromNas()
+        {
             if (string.IsNullOrEmpty(NasLibraryPath) || !Directory.Exists(NasLibraryPath))
                 throw new DirectoryNotFoundException("NAS library is unavailable: " + NasLibraryPath);
             if (string.IsNullOrEmpty(LocalMirrorPath))
@@ -274,7 +281,7 @@ namespace BlockBrowser
             if (pending.Count > 0 && AllowNasSync)
                 throw new InvalidOperationException("Local changes are pending. Sync or clear local changes before updating the local mirror from NAS.");
 
-            return BlockFileOperations.MirrorDirectoryContents(NasLibraryPath, LocalMirrorPath, GetProtectedLocalPaths(pending), ProtectedLocalCategories);
+            return BlockFileOperations.PreviewMirrorDirectoryContents(NasLibraryPath, LocalMirrorPath, GetProtectedLocalPaths(pending), ProtectedLocalCategories);
         }
 
         private static IEnumerable<string> GetProtectedLocalPaths(IEnumerable<ChangeJournalEntry> entries)
@@ -1138,6 +1145,15 @@ namespace BlockBrowser
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
             try
             {
+                var preview = BlockLibrary.PreviewLocalMirrorFromNas();
+                ed.WriteMessage("\n" + MirrorSummaryMessageService.FormatPreviewCommand(preview));
+                var confirm = ed.GetString("\n确认更新本地图库? [Y/N] ");
+                if (confirm.Status != PromptStatus.OK || !string.Equals((confirm.StringResult ?? "").Trim(), "Y", StringComparison.OrdinalIgnoreCase))
+                {
+                    ed.WriteMessage("\n已取消更新本地图库。");
+                    return;
+                }
+
                 var result = BlockLibrary.UpdateLocalMirrorFromNas();
                 ed.WriteMessage("\n" + MirrorSummaryMessageService.FormatCommand(result));
             }

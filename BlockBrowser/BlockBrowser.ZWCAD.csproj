@@ -47,6 +47,8 @@
     <Compile Include="Library\BlockLibraryService.cs" />
     <Compile Include="Library\CategoryCreationService.cs" />
     <Compile Include="Library\CategorySelectionService.cs" />
+    <Compile Include="Library\MirrorDirectoryAction.cs" />
+    <Compile Include="Library\MirrorDirectoryEntry.cs" />
     <Compile Include="Library\MirrorDirectoryResult.cs" />
     <Compile Include="Library\MirrorSummaryMessageService.cs" />
     <Compile Include="Library\BlockFileOperations.cs" />

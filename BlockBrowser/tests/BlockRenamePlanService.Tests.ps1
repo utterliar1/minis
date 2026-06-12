@@ -7,6 +7,8 @@ $sourceFiles = @(
     Join-Path $root 'Config\BlockBrowserConfigStore.cs'
     Join-Path $root 'Library\BlockInfo.cs'
     Join-Path $root 'Library\LibraryNameRules.cs'
+    Join-Path $root 'Library\MirrorDirectoryAction.cs'
+    Join-Path $root 'Library\MirrorDirectoryEntry.cs'
     Join-Path $root 'Library\MirrorDirectoryResult.cs'
     Join-Path $root 'Library\BlockFileOperations.cs'
     Join-Path $root 'UI\BlockRenamePlanService.cs'
