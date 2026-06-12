@@ -2,10 +2,9 @@ $ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $pluginSource = @(
-    Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Library\BlockLibrary.Configuration.cs') -Raw
-    Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Library\BlockLibrary.Sync.cs') -Raw
-    Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Library\BlockLibrary.Catalog.cs') -Raw
-    Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Library\BlockLibrary.Operations.cs') -Raw
+    Get-ChildItem -Path (Join-Path $repo 'BlockBrowser\Library') -Filter 'BlockLibrary*.cs' |
+        Sort-Object Name |
+        ForEach-Object { Get-Content -Encoding UTF8 $_.FullName -Raw }
     Get-ChildItem -Path (Join-Path $repo 'BlockBrowser\Commands') -Filter 'BlockBrowserCommands*.cs' |
         Sort-Object Name |
         ForEach-Object { Get-Content -Encoding UTF8 $_.FullName -Raw }

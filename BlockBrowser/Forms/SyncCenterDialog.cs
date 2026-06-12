@@ -62,7 +62,7 @@ namespace BlockBrowser
                 WrapContents = false
             };
 
-            var btnClose = new Button { Text = "\u5173\u95ED", Width = 82, Height = 28 };
+            var btnClose = new Button { Text = "\u5173\u95ED", Width = 82, Height = 28, DialogResult = DialogResult.Cancel };
             btnClose.Click += (s, e) => Close();
 
             var btnCopy = new Button { Text = "\u590D\u5236", Width = 82, Height = 28 };
@@ -101,6 +101,7 @@ namespace BlockBrowser
             layout.Controls.Add(buttons, 0, 2);
             Controls.Add(layout);
 
+            CancelButton = btnClose;
             Load += (s, e) => RefreshPreview();
         }
 

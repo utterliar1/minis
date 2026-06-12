@@ -47,7 +47,7 @@ namespace BlockBrowser
                 WrapContents = false
             };
 
-            var btnClose = new Button { Text = "关闭", Width = 82, Height = 28 };
+            var btnClose = new Button { Text = "关闭", Width = 82, Height = 28, DialogResult = DialogResult.Cancel };
             btnClose.Click += (s, e) => Close();
 
             var btnCopy = new Button { Text = "复制", Width = 82, Height = 28 };
@@ -62,6 +62,8 @@ namespace BlockBrowser
             layout.Controls.Add(_txtReport, 0, 0);
             layout.Controls.Add(buttons, 0, 1);
             Controls.Add(layout);
+
+            CancelButton = btnClose;
         }
     }
 }

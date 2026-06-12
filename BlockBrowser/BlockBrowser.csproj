@@ -67,6 +67,9 @@
     <Compile Include="Library\BlockLibrary.Sync.cs" />
     <Compile Include="Library\BlockLibrary.Catalog.cs" />
     <Compile Include="Library\BlockLibrary.Operations.cs" />
+    <Compile Include="Library\BlockLibrary.Insert.cs" />
+    <Compile Include="Library\BlockLibrary.BlockWrite.cs" />
+    <Compile Include="Library\BlockLibrary.Export.cs" />
     <Compile Include="Paths\LibraryPathService.cs" />
     <Compile Include="Thumbnails\PlaceholderImageFactory.cs" />
     <Compile Include="Thumbnails\ThumbnailCacheService.cs" />
