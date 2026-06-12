@@ -23,6 +23,7 @@ $ordinaryNoNasWrite = -join ([char[]](0x666E, 0x901A, 0x540C, 0x4E8B, 0x7684, 0x
 $personalBlocksCategory = -join ([char[]](0x4E2A, 0x4EBA, 0x5757))
 $protectedMirrorKeepsLocal = -join ([char[]](0x4E0D, 0x4F1A, 0x8986, 0x76D6, 0x6216, 0x5220, 0x9664))
 $protectedCategoryNotSyncedToNas = -join ([char[]](0x4E0D, 0x4F1A, 0x81EA, 0x52A8, 0x540C, 0x6B65, 0x5230, 0x0020, 0x004E, 0x0041, 0x0053))
+$mirrorProtectedSkip = -join ([char[]](0x4FDD, 0x62A4, 0x8DF3, 0x8FC7))
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) {
@@ -50,6 +51,7 @@ Assert-Contains 'manual explains protected local categories config' $manual 'Pro
 Assert-Contains 'manual explains default personal blocks category' $manual ([regex]::Escape($personalBlocksCategory))
 Assert-Contains 'manual explains mirror keeps protected categories' $manual ([regex]::Escape($protectedMirrorKeepsLocal))
 Assert-Contains 'manual explains protected categories are not synced to NAS' $manual ([regex]::Escape($protectedCategoryNotSyncedToNas))
+Assert-Contains 'manual explains mirror result protected skip count' $manual ([regex]::Escape($mirrorProtectedSkip))
 Assert-Contains 'manual explains designated NAS maintainer' $manual $designatedMaintainer
 Assert-Contains 'manual explains NAS protection' $manual $nasProtection
 Assert-Contains 'manual explains search only matches block names' $manual ([regex]::Escape($searchBlockNameOnly))
