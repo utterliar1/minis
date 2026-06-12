@@ -34,6 +34,8 @@ $completeThumbnails = -join ([char[]](0x8865, 0x5168, 0x7F29, 0x7565, 0x56FE))
 $statusDiagnostics = -join ([char[]](0x72B6, 0x6001, 0x8BCA, 0x65AD))
 $localChangeCount = -join ([char[]](0x672C, 0x5730, 0x53D8, 0x66F4, 0x8BB0, 0x5F55))
 $thumbnailCacheCount = -join ([char[]](0x7F29, 0x7565, 0x56FE, 0x7F13, 0x5B58))
+$rightClickThumbnail = -join ([char[]](0x53F3, 0x952E, 0x7F29, 0x7565, 0x56FE))
+$openFolder = -join ([char[]](0x6253, 0x5F00, 0x6587, 0x4EF6, 0x5939))
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) {
@@ -82,6 +84,8 @@ Assert-Contains 'manual explains complete thumbnails action' $manual ([regex]::E
 Assert-Contains 'manual explains status diagnostics action' $manual ([regex]::Escape($statusDiagnostics))
 Assert-Contains 'manual explains diagnostics local change count' $manual ([regex]::Escape($localChangeCount))
 Assert-Contains 'manual explains diagnostics thumbnail cache count' $manual ([regex]::Escape($thumbnailCacheCount))
+Assert-Contains 'manual explains right click thumbnail actions' $manual ([regex]::Escape($rightClickThumbnail))
+Assert-Contains 'manual explains open folder in library menu' $manual ([regex]::Escape($openFolder))
 Assert-Contains 'manual explains search only matches block names' $manual ([regex]::Escape($searchBlockNameOnly))
 Assert-Contains 'manual explains search ignores categories' $manual ([regex]::Escape($searchIgnoresCategory))
 Assert-Contains 'manual explains space separated search keywords' $manual ([regex]::Escape($searchExample))

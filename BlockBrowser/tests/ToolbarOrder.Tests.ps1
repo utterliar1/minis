@@ -6,6 +6,8 @@ $updateLocalLibraryText = -join ([char[]](0x66F4, 0x65B0, 0x672C, 0x5730, 0x56FE
 $updateLocalMirrorText = -join ([char[]](0x66F4, 0x65B0, 0x672C, 0x5730, 0x526F, 0x672C))
 $completeThumbnailsText = -join ([char[]](0x8865, 0x5168, 0x7F29, 0x7565, 0x56FE))
 $prebuildThumbnailsText = -join ([char[]](0x9884, 0x751F, 0x6210, 0x7F29, 0x7565, 0x56FE))
+$deleteText = -join ([char[]](0x5220, 0x9664))
+$renameText = -join ([char[]](0x91CD, 0x547D, 0x540D))
 
 function Assert-True($name, $actual) {
     if (-not $actual) {
@@ -42,11 +44,11 @@ $expectedOrder = @(
     'btnExportBlock',
     'btnRefresh',
     'btnUpdateLocalLibrary',
-    'btnManage',
     'btnLibrary'
 )
 
 Assert-False 'toolbar excludes create category button' ($items.Contains('btnCreateCategory'))
+Assert-False 'toolbar excludes manage dropdown' ($items.Contains('btnManage'))
 Assert-False 'toolbar excludes direct rename button' ($items.Contains('btnRename'))
 Assert-False 'toolbar excludes direct delete button' ($items.Contains('btnDelete'))
 Assert-False 'toolbar excludes direct open folder button' ($items.Contains('btnOpenFolder'))
@@ -56,8 +58,11 @@ Assert-True 'toolbar uses user friendly local library update text' ($formSource.
 Assert-False 'toolbar does not use local mirror wording' ($formSource.Contains('new ToolStripButton("' + $updateLocalMirrorText + '")'))
 Assert-True 'library menu uses complete thumbnails wording' ($formSource.Contains('new ToolStripMenuItem("' + $completeThumbnailsText + '")'))
 Assert-False 'library menu no prebuild thumbnails wording' ($formSource.Contains('new ToolStripMenuItem("' + $prebuildThumbnailsText + '")'))
-Assert-True 'manage actions use menu items for dropdown layout' ($formSource -match 'var\s+btnRename\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnDelete\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnOpenFolder\s*=\s*new\s+ToolStripMenuItem')
-Assert-True 'library actions use menu items for dropdown layout' ($formSource -notmatch 'var\s+btnSync\s*=' -and $formSource -match 'var\s+btnSyncCenter\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnPrebuildThumbnails\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnRebuildThumbnails\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnStatusDiagnostics\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnSettings\s*=\s*new\s+ToolStripMenuItem')
+Assert-False 'form no longer declares manage dropdown' ($formSource -match 'var\s+btnManage\s*=')
+Assert-False 'form no longer declares rename toolbar menu item' ($formSource -match 'var\s+btnRename\s*=\s*new\s+ToolStripMenuItem')
+Assert-False 'form no longer declares delete toolbar menu item' ($formSource -match 'var\s+btnDelete\s*=\s*new\s+ToolStripMenuItem')
+Assert-True 'right click menu still exposes block actions' ($formSource -match ('ctx\.Items\.Add\("' + [regex]::Escape($deleteText) + '",\s*null,\s*\(s,\s*e\)\s*=>\s*DoDelete\(\)\)') -and $formSource -match ('ctx\.Items\.Add\("' + [regex]::Escape($renameText) + '",\s*null,\s*\(s,\s*e\)\s*=>\s*DoRename\(\)\)'))
+Assert-True 'library actions use menu items for dropdown layout' ($formSource -notmatch 'var\s+btnSync\s*=' -and $formSource -match 'var\s+btnSyncCenter\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnPrebuildThumbnails\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnRebuildThumbnails\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnStatusDiagnostics\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnOpenFolder\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnSettings\s*=\s*new\s+ToolStripMenuItem')
 
 $lastIndex = -1
 foreach ($item in $expectedOrder) {
@@ -67,25 +72,12 @@ foreach ($item in $expectedOrder) {
     $lastIndex = $index
 }
 
-$manageMatch = [regex]::Match($formSource, 'btnManage\.DropDownItems\.AddRange\(new\s+ToolStripItem\[\]\s*\{(?<items>[\s\S]*?)\}\);')
-Assert-True 'manage menu add range block found' $manageMatch.Success
-$manageItems = $manageMatch.Groups['items'].Value
-Assert-False 'manage menu excludes export block' ($manageItems.Contains('btnExportBlock'))
-$expectedManageOrder = @('btnRename', 'btnDelete', 'btnOpenFolder')
-$lastIndex = -1
-foreach ($item in $expectedManageOrder) {
-    $index = Find-TokenIndex $manageItems $item
-    Assert-True ("manage menu contains " + $item) ($index -ge 0)
-    Assert-True ("manage menu order after previous for " + $item) ($index -gt $lastIndex)
-    $lastIndex = $index
-}
-
 $libraryMatch = [regex]::Match($formSource, 'var\s+btnLibrary\s*=\s*new\s+ToolStripDropDownButton\("[^"]+"\);(?<items>[\s\S]*?)// Search box')
 Assert-True 'library menu block found' $libraryMatch.Success
 $libraryItems = $libraryMatch.Groups['items'].Value
 Assert-False 'library menu excludes local library update action' ($libraryItems.Contains('btnUpdateLocalLibrary') -or $libraryItems.Contains('btnUpdateMirror'))
 Assert-True 'library menu guards sync actions by permission' ($libraryItems -match 'if\s*\(BlockLibrary\.AllowNasSync\)')
-$expectedLibraryOrder = @('btnSyncCenter', 'btnPrebuildThumbnails', 'btnRebuildThumbnails', 'btnStatusDiagnostics', 'btnSettings')
+$expectedLibraryOrder = @('btnSyncCenter', 'btnPrebuildThumbnails', 'btnRebuildThumbnails', 'btnStatusDiagnostics', 'btnOpenFolder', 'btnSettings')
 $lastIndex = -1
 foreach ($item in $expectedLibraryOrder) {
     $index = Find-TokenIndex $libraryItems $item

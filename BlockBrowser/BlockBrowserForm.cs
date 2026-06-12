@@ -95,12 +95,6 @@ namespace BlockBrowser
             var btnInsertSettings = new ToolStripButton("插入设置");
             btnInsertSettings.Click += (s, e) => ShowInsertSettingsDialog();
 
-            var btnDelete = new ToolStripMenuItem("删除");
-            btnDelete.Click += (s, e) => DoDelete();
-
-            var btnRename = new ToolStripMenuItem("重命名");
-            btnRename.Click += (s, e) => DoRename();
-
             var btnRefresh = new ToolStripButton("刷新列表");
             btnRefresh.Click += (s, e) => LoadData();
 
@@ -153,14 +147,6 @@ namespace BlockBrowser
             var btnSyncCenter = new ToolStripMenuItem("同步中心");
             btnSyncCenter.Click += (s, e) => ShowSyncCenterDialog();
 
-            var btnManage = new ToolStripDropDownButton("管理");
-            btnManage.DropDownItems.AddRange(new ToolStripItem[]
-            {
-                btnRename,
-                btnDelete,
-                btnOpenFolder
-            });
-
             var btnLibrary = new ToolStripDropDownButton("图库");
             if (BlockLibrary.AllowNasSync)
             {
@@ -171,6 +157,7 @@ namespace BlockBrowser
             btnLibrary.DropDownItems.Add(btnRebuildThumbnails);
             btnLibrary.DropDownItems.Add(new ToolStripSeparator());
             btnLibrary.DropDownItems.Add(btnStatusDiagnostics);
+            btnLibrary.DropDownItems.Add(btnOpenFolder);
             btnLibrary.DropDownItems.Add(btnSettings);
 
             // Search box - wide, with explicit MinimumSize
@@ -204,7 +191,7 @@ namespace BlockBrowser
                 btnInsert, btnInsertSettings, new ToolStripSeparator(),
                 btnAddToLib, btnExportBlock, new ToolStripSeparator(),
                 btnRefresh, btnUpdateLocalLibrary, new ToolStripSeparator(),
-                btnManage, btnLibrary
+                btnLibrary
             });
 
             // Category bar - compact top panel
