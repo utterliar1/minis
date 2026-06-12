@@ -74,6 +74,7 @@
     <Compile Include="InsertSettingsDialog.cs" />
     <Compile Include="MirrorPreviewDialog.cs" />
     <Compile Include="SettingsDialog.cs" />
+    <Compile Include="StatusDiagnosticsDialog.cs" />
     <Compile Include="SyncCenterDialog.cs" />
     <Compile Include="TextPromptDialog.cs" />
     <Compile Include="BlockThumbnailCard.cs" />
@@ -88,6 +89,7 @@
     <Compile Include="UI\MirrorPreviewTreeBuilder.cs" />
     <Compile Include="UI\ResourceDisposalService.cs" />
     <Compile Include="UI\SettingsUpdateService.cs" />
+    <Compile Include="UI\StatusDiagnosticsService.cs" />
     <Compile Include="UI\SyncPlanTreeBuilder.cs" />
     <Compile Include="Sync\LibrarySyncModels.cs" />
     <Compile Include="Sync\ActiveLibraryResolver.cs" />

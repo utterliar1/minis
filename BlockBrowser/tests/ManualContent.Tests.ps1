@@ -30,6 +30,10 @@ $mirrorPreview = -join ([char[]](0x66F4, 0x65B0, 0x672C, 0x5730, 0x56FE, 0x5E93,
 $mirrorTreePreview = -join ([char[]](0x6811, 0x5F62, 0x9884, 0x89C8))
 $confirmBeforeUpdate = -join ([char[]](0x786E, 0x8BA4, 0x540E, 0x624D, 0x4F1A, 0x5F00, 0x59CB, 0x6267, 0x884C))
 $syncCommandOpensCenter = -join ([char[]](0x6253, 0x5F00, 0x540C, 0x6B65, 0x4E2D, 0x5FC3))
+$completeThumbnails = -join ([char[]](0x8865, 0x5168, 0x7F29, 0x7565, 0x56FE))
+$statusDiagnostics = -join ([char[]](0x72B6, 0x6001, 0x8BCA, 0x65AD))
+$localChangeCount = -join ([char[]](0x672C, 0x5730, 0x53D8, 0x66F4, 0x8BB0, 0x5F55))
+$thumbnailCacheCount = -join ([char[]](0x7F29, 0x7565, 0x56FE, 0x7F13, 0x5B58))
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) {
@@ -74,6 +78,10 @@ Assert-Contains 'manual explains designated NAS maintainer' $manual $designatedM
 Assert-Contains 'manual explains NAS protection' $manual $nasProtection
 Assert-Contains 'manual explains BBSYNC opens sync center' $manual ('BBSYNC[\s\S]*?' + [regex]::Escape($syncCommandOpensCenter))
 Assert-NotContains 'manual does not mention removed sync to NAS panel action' $manual '同步到NAS'
+Assert-Contains 'manual explains complete thumbnails action' $manual ([regex]::Escape($completeThumbnails))
+Assert-Contains 'manual explains status diagnostics action' $manual ([regex]::Escape($statusDiagnostics))
+Assert-Contains 'manual explains diagnostics local change count' $manual ([regex]::Escape($localChangeCount))
+Assert-Contains 'manual explains diagnostics thumbnail cache count' $manual ([regex]::Escape($thumbnailCacheCount))
 Assert-Contains 'manual explains search only matches block names' $manual ([regex]::Escape($searchBlockNameOnly))
 Assert-Contains 'manual explains search ignores categories' $manual ([regex]::Escape($searchIgnoresCategory))
 Assert-Contains 'manual explains space separated search keywords' $manual ([regex]::Escape($searchExample))

@@ -120,11 +120,14 @@ namespace BlockBrowser
             var btnSettings = new ToolStripMenuItem("设置");
             btnSettings.Click += (s, e) => ShowSettingsDialog();
 
-            var btnPrebuildThumbnails = new ToolStripMenuItem("预生成缩略图");
+            var btnPrebuildThumbnails = new ToolStripMenuItem("补全缩略图");
             btnPrebuildThumbnails.Click += (s, e) => PrebuildVisibleThumbnails();
 
             var btnRebuildThumbnails = new ToolStripMenuItem("重建缩略图");
             btnRebuildThumbnails.Click += (s, e) => RebuildThumbnails();
+
+            var btnStatusDiagnostics = new ToolStripMenuItem("状态诊断");
+            btnStatusDiagnostics.Click += (s, e) => ShowStatusDiagnosticsDialog();
 
             var btnUpdateLocalLibrary = new ToolStripButton("更新本地图库");
             btnUpdateLocalLibrary.Click += (s, e) =>
@@ -167,6 +170,7 @@ namespace BlockBrowser
             btnLibrary.DropDownItems.Add(btnPrebuildThumbnails);
             btnLibrary.DropDownItems.Add(btnRebuildThumbnails);
             btnLibrary.DropDownItems.Add(new ToolStripSeparator());
+            btnLibrary.DropDownItems.Add(btnStatusDiagnostics);
             btnLibrary.DropDownItems.Add(btnSettings);
 
             // Search box - wide, with explicit MinimumSize
@@ -687,6 +691,49 @@ namespace BlockBrowser
                 dlg.ShowDialog(this);
                 _lblStatus.Text = GetActiveLibraryStatus();
             }
+        }
+
+        private void ShowStatusDiagnosticsDialog()
+        {
+            try
+            {
+                string report = StatusDiagnosticsService.FormatReport(
+                    BlockLibrary.AppVersion,
+                    BlockLibrary.PlatformName,
+                    BlockLibrary.CurrentLibraryMode,
+                    BlockLibrary.ActiveLibrary,
+                    BlockLibrary.LibraryPath,
+                    BlockLibrary.NasLibraryPath,
+                    BlockLibrary.LocalMirrorPath,
+                    Directory.Exists(BlockLibrary.NasLibraryPath ?? ""),
+                    Directory.Exists(BlockLibrary.LocalMirrorPath ?? ""),
+                    BlockLibrary.AllowNasSync,
+                    CountLocalChanges(),
+                    CountThumbnailCacheFiles(),
+                    BlockLibrary.SyncUserName,
+                    BlockLibrary.LocalJournalPath,
+                    BlockLibrary.ThumbnailCachePath);
+                using (var dlg = new StatusDiagnosticsDialog(report))
+                {
+                    dlg.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("状态诊断失败: " + ex.Message, "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private int CountLocalChanges()
+        {
+            return ChangeJournal.Load(BlockLibrary.LocalJournalPath).Count;
+        }
+
+        private int CountThumbnailCacheFiles()
+        {
+            string cachePath = BlockLibrary.ThumbnailCachePath;
+            if (string.IsNullOrEmpty(cachePath) || !Directory.Exists(cachePath)) return 0;
+            return Directory.GetFiles(cachePath, "*.png", SearchOption.AllDirectories).Length;
         }
 
         private void DoInsert()

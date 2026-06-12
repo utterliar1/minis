@@ -295,6 +295,8 @@
     <tr><td><code>BBMIRROR</code></td><td>从 NAS 更新本地图库，普通同事日常主要使用这个入口；受保护分类会被跳过</td></tr>
     <tr><td><code>BBSYNC</code></td><td>打开同步中心，由指定维护人查看预览后安全同步到 NAS；受保护分类不会自动上传</td></tr>
     <tr><td>同步中心</td><td>仅在 <code>AllowNasSync=1</code> 时显示，供指定维护人使用；同步前查看明细，执行后复制结果或打开 <code>sync-log.txt</code></td></tr>
+    <tr><td>补全缩略图</td><td>为当前列表中缺失缓存的块生成缩略图，不修改 DWG 文件</td></tr>
+    <tr><td>状态诊断</td><td>查看当前模式、图库路径、NAS/本地副本可访问性、本地变更记录和缩略图缓存数量，可复制给维护人排查</td></tr>
     <tr><td><code>BBTHUMB</code></td><td>清除所有缩略图缓存</td></tr>
     <tr><td><code>BBINFO</code></td><td>显示插件版本信息</td></tr>
   </table>
@@ -321,7 +323,10 @@
   <div class="a">A：确认命令行显示了「已就绪」。如果没有，尝试手动加载 DLL：<br>输入 <code>NETLOAD</code>，选择对应平台文件夹下的 <code>BlockBrowser.dll</code>。</div>
 
   <div class="q">Q：缩略图不显示？</div>
-  <div class="a">A：① 首次加载需要时间，等状态栏显示「就绪」<br>② 输入 <code>BBTHUMB</code> 清除缓存后重新打开<br>③ 确认DWG文件能正常用CAD打开</div>
+  <div class="a">A：① 首次加载需要时间，等状态栏显示「就绪」<br>② 在「图库」里点击「补全缩略图」补齐当前列表缓存<br>③ 输入 <code>BBTHUMB</code> 清除缓存后重新打开<br>④ 确认DWG文件能正常用CAD打开</div>
+
+  <div class="q">Q：同事机器上 NAS、同步或缩略图状态不确定怎么办？</div>
+  <div class="a">A：在「图库」里打开「状态诊断」，复制当前模式、路径可访问性、本地变更记录和缩略图缓存数量，发给维护人排查。</div>
 
   <div class="q">Q：插入块时提示「导入失败」？</div>
   <div class="a">A：① 确认DWG文件是有效格式<br>② 检查文件是否被其他程序占用<br>③ 同名块会自动重命名（如 door_2），不会冲突</div>
