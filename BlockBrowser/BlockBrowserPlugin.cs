@@ -263,7 +263,7 @@ namespace BlockBrowser
             BlockFileOperations.CopyDirectoryContents(sourceDir, targetDir);
         }
 
-        public static void UpdateLocalMirrorFromNas()
+        public static MirrorDirectoryResult UpdateLocalMirrorFromNas()
         {
             if (string.IsNullOrEmpty(NasLibraryPath) || !Directory.Exists(NasLibraryPath))
                 throw new DirectoryNotFoundException("NAS library is unavailable: " + NasLibraryPath);
@@ -274,7 +274,7 @@ namespace BlockBrowser
             if (pending.Count > 0 && AllowNasSync)
                 throw new InvalidOperationException("Local changes are pending. Sync or clear local changes before updating the local mirror from NAS.");
 
-            BlockFileOperations.MirrorDirectoryContents(NasLibraryPath, LocalMirrorPath, GetProtectedLocalPaths(pending), ProtectedLocalCategories);
+            return BlockFileOperations.MirrorDirectoryContents(NasLibraryPath, LocalMirrorPath, GetProtectedLocalPaths(pending), ProtectedLocalCategories);
         }
 
         private static IEnumerable<string> GetProtectedLocalPaths(IEnumerable<ChangeJournalEntry> entries)
@@ -1138,8 +1138,8 @@ namespace BlockBrowser
             var ed = CadApp.DocumentManager.MdiActiveDocument.Editor;
             try
             {
-                BlockLibrary.UpdateLocalMirrorFromNas();
-                ed.WriteMessage("\n本地图库已从 NAS 更新。");
+                var result = BlockLibrary.UpdateLocalMirrorFromNas();
+                ed.WriteMessage("\n" + MirrorSummaryMessageService.FormatCommand(result));
             }
             catch (System.Exception ex)
             {

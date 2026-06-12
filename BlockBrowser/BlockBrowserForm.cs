@@ -131,8 +131,8 @@ namespace BlockBrowser
             {
                 try
                 {
-                    BlockLibrary.UpdateLocalMirrorFromNas();
-                    MessageBox.Show("本地图库已更新。", "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    var result = BlockLibrary.UpdateLocalMirrorFromNas();
+                    MessageBox.Show(MirrorSummaryMessageService.FormatDialog(result), "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     LoadData();
                 }
                 catch (Exception ex)

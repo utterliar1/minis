@@ -35,12 +35,12 @@ namespace BlockBrowser
             }
         }
 
-        public static void MirrorDirectoryContents(string sourceDir, string targetDir, IEnumerable<string> protectedRelativePaths)
+        public static MirrorDirectoryResult MirrorDirectoryContents(string sourceDir, string targetDir, IEnumerable<string> protectedRelativePaths)
         {
-            MirrorDirectoryContents(sourceDir, targetDir, protectedRelativePaths, null);
+            return MirrorDirectoryContents(sourceDir, targetDir, protectedRelativePaths, null);
         }
 
-        public static void MirrorDirectoryContents(string sourceDir, string targetDir, IEnumerable<string> protectedRelativePaths, IEnumerable<string> protectedCategoryNames)
+        public static MirrorDirectoryResult MirrorDirectoryContents(string sourceDir, string targetDir, IEnumerable<string> protectedRelativePaths, IEnumerable<string> protectedCategoryNames)
         {
             if (string.IsNullOrEmpty(sourceDir) || !Directory.Exists(sourceDir))
                 throw new DirectoryNotFoundException(sourceDir);
@@ -53,6 +53,7 @@ namespace BlockBrowser
             var sourcePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var protectedPaths = BuildProtectedPathSet(protectedRelativePaths);
             var protectedCategories = BuildProtectedPathSet(protectedCategoryNames);
+            var result = new MirrorDirectoryResult();
 
             foreach (string dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
             {
@@ -66,28 +67,53 @@ namespace BlockBrowser
             {
                 string rel = file.Substring(sourceRoot.Length);
                 if (IsInternalLibraryPath(rel)) continue;
-                if (IsProtectedCategoryPath(rel, protectedCategories)) continue;
+                if (IsProtectedCategoryPath(rel, protectedCategories))
+                {
+                    result.ProtectedSkipCount++;
+                    continue;
+                }
 
                 string key = NormalizeRelativePath(rel);
                 sourcePaths.Add(key);
-                if (protectedPaths.Contains(key)) continue;
+                if (protectedPaths.Contains(key))
+                {
+                    result.ProtectedSkipCount++;
+                    continue;
+                }
 
                 string dest = Path.Combine(targetDir, rel);
                 string destDir = Path.GetDirectoryName(dest);
                 if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
+                bool existed = File.Exists(dest);
                 File.Copy(file, dest, true);
+                if (existed)
+                    result.OverwrittenCount++;
+                else
+                    result.CopiedNewCount++;
             }
 
             foreach (string file in Directory.GetFiles(targetDir, "*", SearchOption.AllDirectories))
             {
                 string rel = file.Substring(targetRoot.Length);
                 if (IsInternalLibraryPath(rel)) continue;
-                if (IsProtectedCategoryPath(rel, protectedCategories)) continue;
+                if (IsProtectedCategoryPath(rel, protectedCategories))
+                {
+                    result.ProtectedSkipCount++;
+                    continue;
+                }
 
                 string key = NormalizeRelativePath(rel);
-                if (sourcePaths.Contains(key) || protectedPaths.Contains(key)) continue;
+                if (sourcePaths.Contains(key)) continue;
+                if (protectedPaths.Contains(key))
+                {
+                    result.ProtectedSkipCount++;
+                    continue;
+                }
                 File.Delete(file);
+                result.DeletedCount++;
             }
+
+            return result;
         }
 
         public static bool CanRenameBlock(BlockInfo block, string newName, bool checkCollision)

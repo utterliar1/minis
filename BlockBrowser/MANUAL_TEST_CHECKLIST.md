@@ -78,6 +78,7 @@
 
 - [ ] 面板上的“更新本地图库”可以从 NAS 更新本地图库，并同步 NAS 上的新增、修改和删除。
 - [ ] `BBMIRROR` 可以从 NAS 更新本地图库，并保留有本地变更记录的文件。
+- [ ] “更新本地图库”和 `BBMIRROR` 完成后显示新增、覆盖、删除、保护跳过数量。
 - [ ] `ProtectedLocalCategories=个人块` 时，`BBMIRROR` 不覆盖、不删除本地 `个人块` 分类里的 DWG。
 - [ ] `AllowNasSync=0` 时，BB 面板不显示“同步中心”和“同步到NAS”，`BBSYNC` 会提示联系指定维护人。
 - [ ] `AllowNasSync=0` 且 `CurrentLibraryMode=Auto` 时，如果本地副本存在，优先使用本地副本；如果只临时浏览 NAS，新增、删除、重命名等写入 NAS 的操作会被拦截。

@@ -5,6 +5,7 @@ $sourceFiles = @(
     Join-Path $root 'Config\BlockBrowserConfig.cs'
     Join-Path $root 'Config\BlockBrowserConfigStore.cs'
     Join-Path $root 'Sync\LibrarySyncModels.cs'
+    Join-Path $root 'Library\MirrorDirectoryResult.cs'
     Join-Path $root 'Library\BlockInfo.cs'
     Join-Path $root 'Library\LibraryNameRules.cs'
     Join-Path $root 'Library\BlockLibraryService.cs'
@@ -138,6 +139,7 @@ try {
     New-Item -ItemType Directory -Force -Path (Join-Path $mirrorSource 'A'), (Join-Path $mirrorTarget 'A'), (Join-Path $mirrorTarget '.blockbrowser'), (Join-Path $mirrorTarget '.thumbs') | Out-Null
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorSource 'A\Keep.dwg') -Value 'nas keep'
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorSource 'A\Changed.dwg') -Value 'nas changed'
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorSource 'A\NewOnNas.dwg') -Value 'nas new'
     New-Item -ItemType Directory -Force -Path (Join-Path $mirrorSource '个人块'), (Join-Path $mirrorTarget '个人块') | Out-Null
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorSource '个人块\NasPersonal.dwg') -Value 'nas personal'
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\Keep.dwg') -Value 'local keep'
@@ -153,9 +155,10 @@ try {
     $protectedPaths.Add('A\LocalOnly.dwg')
     $protectedCategories = New-Object 'System.Collections.Generic.List[string]'
     $protectedCategories.Add('个人块')
-    [BlockBrowser.BlockFileOperations]::MirrorDirectoryContents($mirrorSource, $mirrorTarget, $protectedPaths, $protectedCategories)
+    $mirrorResult = [BlockBrowser.BlockFileOperations]::MirrorDirectoryContents($mirrorSource, $mirrorTarget, $protectedPaths, $protectedCategories)
     Assert-True 'mirror keeps NAS file' (Test-Path (Join-Path $mirrorTarget 'A\Keep.dwg'))
     Assert-Equal 'mirror overwrites changed file' 'nas changed' (Get-Content -Raw -Path (Join-Path $mirrorTarget 'A\Changed.dwg')).Trim()
+    Assert-True 'mirror copies new NAS file' (Test-Path (Join-Path $mirrorTarget 'A\NewOnNas.dwg'))
     Assert-False 'mirror removes file deleted on NAS' (Test-Path (Join-Path $mirrorTarget 'A\DeletedOnNas.dwg'))
     Assert-True 'mirror preserves protected local-only file' (Test-Path (Join-Path $mirrorTarget 'A\LocalOnly.dwg'))
     Assert-True 'mirror preserves protected category local file' (Test-Path (Join-Path $mirrorTarget '个人块\LocalPersonal.dwg'))
@@ -163,6 +166,10 @@ try {
     Assert-Equal 'mirror does not overwrite protected category file' 'local same' (Get-Content -Raw -Path (Join-Path $mirrorTarget '个人块\SameName.dwg')).Trim()
     Assert-True 'mirror keeps journal directory' (Test-Path (Join-Path $mirrorTarget '.blockbrowser\local-changes.json'))
     Assert-True 'mirror keeps thumbnail directory' (Test-Path (Join-Path $mirrorTarget '.thumbs\Keep.png'))
+    Assert-Equal 'mirror result new count' 1 $mirrorResult.CopiedNewCount
+    Assert-Equal 'mirror result overwritten count' 2 $mirrorResult.OverwrittenCount
+    Assert-Equal 'mirror result deleted count' 1 $mirrorResult.DeletedCount
+    Assert-True 'mirror result protected skip count' ($mirrorResult.ProtectedSkipCount -ge 1)
 }
 finally {
     if (Test-Path $tempRoot) {
