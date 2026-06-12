@@ -6,13 +6,14 @@ OT.token = localStorage.getItem('ot_token') || null;
 OT.currentUser = JSON.parse(localStorage.getItem('ot_user') || 'null');
 OT.settings = {};
 OT.allRecords = [];
+OT.recordsLoaded = false;
 OT.currentPos = null;
 OT.calMonth = new Date().getMonth();
 OT.calYear = new Date().getFullYear();
 OT.clockIntervalId = null;
 
 Object.defineProperties(window, Object.fromEntries([
-  'API_BASE','token','currentUser','settings','allRecords','currentPos','calMonth','calYear','clockIntervalId'
+  'API_BASE','token','currentUser','settings','allRecords','recordsLoaded','currentPos','calMonth','calYear','clockIntervalId'
 ].map((key) => [key, {
   configurable: true,
   get(){ return OT[key]; },

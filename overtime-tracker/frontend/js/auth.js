@@ -24,7 +24,7 @@ OT.enterApp = async function enterApp(){
   applyRoleAccess();
   try{const d=await api('/settings');settings=d.settings||{}}catch(e){settings={}}
   if(currentUser.role==='admin'){showPage('dashboard');loadDashboard()}
-  else{showPage('clock');startGeoWatch();updateClock();loadAllRecords().then(()=>{renderCalendar();renderStats();updateHeaderStats()});if(clockIntervalId)clearInterval(clockIntervalId);clockIntervalId=setInterval(updateClock,1000)}
+  else{showPage('clock');startGeoWatch();updateClock();loadAllRecords().then(()=>{updateClockButton();renderCalendar();renderStats();updateHeaderStats()}).catch(()=>{showToast('记录加载失败，请刷新后重试');updateClockButton()});if(clockIntervalId)clearInterval(clockIntervalId);clockIntervalId=setInterval(updateClock,1000)}
   renderSettings();
 };
 
