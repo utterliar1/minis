@@ -5,6 +5,8 @@ $sourceFiles = @(
     Join-Path $root 'Config\BlockBrowserConfig.cs'
     Join-Path $root 'Config\BlockBrowserConfigStore.cs'
     Join-Path $root 'Sync\LibrarySyncModels.cs'
+    Join-Path $root 'Library\MirrorDirectoryAction.cs'
+    Join-Path $root 'Library\MirrorDirectoryEntry.cs'
     Join-Path $root 'Library\MirrorDirectoryResult.cs'
     Join-Path $root 'Library\BlockInfo.cs'
     Join-Path $root 'Library\LibraryNameRules.cs'
@@ -170,6 +172,29 @@ try {
     Assert-Equal 'mirror result overwritten count' 2 $mirrorResult.OverwrittenCount
     Assert-Equal 'mirror result deleted count' 1 $mirrorResult.DeletedCount
     Assert-True 'mirror result protected skip count' ($mirrorResult.ProtectedSkipCount -ge 1)
+
+    $previewSource = Join-Path $tempRoot 'PreviewSource'
+    $previewTarget = Join-Path $tempRoot 'PreviewTarget'
+    New-Item -ItemType Directory -Force -Path (Join-Path $previewSource 'A'), (Join-Path $previewTarget 'A'), (Join-Path $previewSource '个人块'), (Join-Path $previewTarget '个人块') | Out-Null
+    Set-Content -Encoding ASCII -Path (Join-Path $previewSource 'A\New.dwg') -Value 'new'
+    Set-Content -Encoding ASCII -Path (Join-Path $previewSource 'A\Changed.dwg') -Value 'nas changed'
+    Set-Content -Encoding ASCII -Path (Join-Path $previewTarget 'A\Changed.dwg') -Value 'local old'
+    Set-Content -Encoding ASCII -Path (Join-Path $previewTarget 'A\Deleted.dwg') -Value 'delete'
+    Set-Content -Encoding ASCII -Path (Join-Path $previewTarget 'A\Protected.dwg') -Value 'protected'
+    Set-Content -Encoding ASCII -Path (Join-Path $previewSource '个人块\NasPersonal.dwg') -Value 'nas personal'
+    Set-Content -Encoding ASCII -Path (Join-Path $previewTarget '个人块\LocalPersonal.dwg') -Value 'local personal'
+    $previewProtectedPaths = New-Object 'System.Collections.Generic.List[string]'
+    $previewProtectedPaths.Add('A\Protected.dwg')
+    $previewProtectedCategories = New-Object 'System.Collections.Generic.List[string]'
+    $previewProtectedCategories.Add('个人块')
+    $previewResult = [BlockBrowser.BlockFileOperations]::PreviewMirrorDirectoryContents($previewSource, $previewTarget, $previewProtectedPaths, $previewProtectedCategories)
+    Assert-Equal 'mirror preview new count' 1 $previewResult.CopiedNewCount
+    Assert-Equal 'mirror preview overwritten count' 1 $previewResult.OverwrittenCount
+    Assert-Equal 'mirror preview deleted count' 1 $previewResult.DeletedCount
+    Assert-True 'mirror preview protected skip count' ($previewResult.ProtectedSkipCount -ge 1)
+    Assert-False 'mirror preview does not copy new file' (Test-Path (Join-Path $previewTarget 'A\New.dwg'))
+    Assert-True 'mirror preview keeps delete candidate' (Test-Path (Join-Path $previewTarget 'A\Deleted.dwg'))
+    Assert-True 'mirror preview includes action details' ($previewResult.Entries.Count -ge 4)
 }
 finally {
     if (Test-Path $tempRoot) {

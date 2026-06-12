@@ -42,12 +42,18 @@ namespace BlockBrowser
 
         public static MirrorDirectoryResult MirrorDirectoryContents(string sourceDir, string targetDir, IEnumerable<string> protectedRelativePaths, IEnumerable<string> protectedCategoryNames)
         {
+            var result = PreviewMirrorDirectoryContents(sourceDir, targetDir, protectedRelativePaths, protectedCategoryNames);
+            ApplyMirrorDirectoryResult(sourceDir, targetDir, result);
+            return result;
+        }
+
+        public static MirrorDirectoryResult PreviewMirrorDirectoryContents(string sourceDir, string targetDir, IEnumerable<string> protectedRelativePaths, IEnumerable<string> protectedCategoryNames)
+        {
             if (string.IsNullOrEmpty(sourceDir) || !Directory.Exists(sourceDir))
                 throw new DirectoryNotFoundException(sourceDir);
             if (string.IsNullOrEmpty(targetDir))
                 throw new ArgumentException("Target directory is required.", "targetDir");
 
-            Directory.CreateDirectory(targetDir);
             string sourceRoot = BlockBrowserConfigStore.EnsureTrailingSeparator(sourceDir);
             string targetRoot = BlockBrowserConfigStore.EnsureTrailingSeparator(targetDir);
             var sourcePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -60,7 +66,6 @@ namespace BlockBrowser
                 string rel = dir.Substring(sourceRoot.Length);
                 if (IsInternalLibraryPath(rel)) continue;
                 if (IsProtectedCategoryPath(rel, protectedCategories)) continue;
-                Directory.CreateDirectory(Path.Combine(targetDir, rel));
             }
 
             foreach (string file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
@@ -70,6 +75,7 @@ namespace BlockBrowser
                 if (IsProtectedCategoryPath(rel, protectedCategories))
                 {
                     result.ProtectedSkipCount++;
+                    AddEntry(result, MirrorDirectoryAction.ProtectedSkip, rel);
                     continue;
                 }
 
@@ -78,42 +84,97 @@ namespace BlockBrowser
                 if (protectedPaths.Contains(key))
                 {
                     result.ProtectedSkipCount++;
+                    AddEntry(result, MirrorDirectoryAction.ProtectedSkip, rel);
                     continue;
                 }
 
                 string dest = Path.Combine(targetDir, rel);
-                string destDir = Path.GetDirectoryName(dest);
-                if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
                 bool existed = File.Exists(dest);
-                File.Copy(file, dest, true);
                 if (existed)
+                {
                     result.OverwrittenCount++;
+                    AddEntry(result, MirrorDirectoryAction.Overwrite, rel);
+                }
                 else
+                {
                     result.CopiedNewCount++;
+                    AddEntry(result, MirrorDirectoryAction.CopyNew, rel);
+                }
             }
 
-            foreach (string file in Directory.GetFiles(targetDir, "*", SearchOption.AllDirectories))
+            if (Directory.Exists(targetDir))
             {
-                string rel = file.Substring(targetRoot.Length);
-                if (IsInternalLibraryPath(rel)) continue;
-                if (IsProtectedCategoryPath(rel, protectedCategories))
+                foreach (string file in Directory.GetFiles(targetDir, "*", SearchOption.AllDirectories))
                 {
-                    result.ProtectedSkipCount++;
-                    continue;
-                }
+                    string rel = file.Substring(targetRoot.Length);
+                    if (IsInternalLibraryPath(rel)) continue;
+                    if (IsProtectedCategoryPath(rel, protectedCategories))
+                    {
+                        result.ProtectedSkipCount++;
+                        AddEntry(result, MirrorDirectoryAction.ProtectedSkip, rel);
+                        continue;
+                    }
 
-                string key = NormalizeRelativePath(rel);
-                if (sourcePaths.Contains(key)) continue;
-                if (protectedPaths.Contains(key))
-                {
-                    result.ProtectedSkipCount++;
-                    continue;
+                    string key = NormalizeRelativePath(rel);
+                    if (sourcePaths.Contains(key)) continue;
+                    if (protectedPaths.Contains(key))
+                    {
+                        result.ProtectedSkipCount++;
+                        AddEntry(result, MirrorDirectoryAction.ProtectedSkip, rel);
+                        continue;
+                    }
+
+                    result.DeletedCount++;
+                    AddEntry(result, MirrorDirectoryAction.Delete, rel);
                 }
-                File.Delete(file);
-                result.DeletedCount++;
             }
 
             return result;
+        }
+
+        public static void ApplyMirrorDirectoryResult(string sourceDir, string targetDir, MirrorDirectoryResult result)
+        {
+            if (result == null) return;
+            if (string.IsNullOrEmpty(sourceDir) || !Directory.Exists(sourceDir))
+                throw new DirectoryNotFoundException(sourceDir);
+            if (string.IsNullOrEmpty(targetDir))
+                throw new ArgumentException("Target directory is required.", "targetDir");
+
+            Directory.CreateDirectory(targetDir);
+            string sourceRoot = BlockBrowserConfigStore.EnsureTrailingSeparator(sourceDir);
+
+            foreach (string dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
+            {
+                string rel = dir.Substring(sourceRoot.Length);
+                if (IsInternalLibraryPath(rel)) continue;
+                Directory.CreateDirectory(Path.Combine(targetDir, rel));
+            }
+
+            foreach (var entry in result.Entries)
+            {
+                if (entry == null || string.IsNullOrEmpty(entry.RelativePath)) continue;
+                string target = Path.Combine(targetDir, entry.RelativePath);
+                if (entry.Action == MirrorDirectoryAction.CopyNew || entry.Action == MirrorDirectoryAction.Overwrite)
+                {
+                    string source = Path.Combine(sourceDir, entry.RelativePath);
+                    string destDir = Path.GetDirectoryName(target);
+                    if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
+                    File.Copy(source, target, true);
+                }
+                else if (entry.Action == MirrorDirectoryAction.Delete)
+                {
+                    if (File.Exists(target)) File.Delete(target);
+                }
+            }
+        }
+
+        private static void AddEntry(MirrorDirectoryResult result, MirrorDirectoryAction action, string relativePath)
+        {
+            result.Entries.Add(new MirrorDirectoryEntry
+            {
+                Action = action,
+                RelativePath = NormalizeRelativePath(relativePath)
+            });
         }
 
         public static bool CanRenameBlock(BlockInfo block, string newName, bool checkCollision)

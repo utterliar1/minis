@@ -2,6 +2,8 @@ $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
 $sourceFiles = @(
+    Join-Path $root 'Library\MirrorDirectoryAction.cs'
+    Join-Path $root 'Library\MirrorDirectoryEntry.cs'
     Join-Path $root 'Library\MirrorDirectoryResult.cs'
     Join-Path $root 'Library\MirrorSummaryMessageService.cs'
 )
@@ -57,6 +59,20 @@ Assert-True 'command includes deleted count' ($command.Contains('3'))
 Assert-True 'command includes protected count' ($command.Contains('4'))
 Assert-False 'command message is single line' ($command.Contains("`n"))
 
+$entry = New-Object BlockBrowser.MirrorDirectoryEntry
+$entry.Action = [BlockBrowser.MirrorDirectoryAction]::CopyNew
+$entry.RelativePath = 'A\New.dwg'
+$result.Entries.Add($entry)
+$previewTitle = -join ([char[]](0x9884, 0x89C8))
+$previewConfirm = -join ([char[]](0x662F, 0x5426, 0x7EE7, 0x7EED))
+$previewDialog = [BlockBrowser.MirrorSummaryMessageService]::FormatPreviewDialog($result)
+Assert-True 'preview dialog includes preview title' ($previewDialog.Contains($previewTitle))
+Assert-True 'preview dialog includes path sample' ($previewDialog.Contains('A\New.dwg'))
+Assert-True 'preview dialog asks for confirmation' ($previewDialog.Contains($previewConfirm))
+$previewCommand = [BlockBrowser.MirrorSummaryMessageService]::FormatPreviewCommand($result)
+Assert-True 'preview command includes preview title' ($previewCommand.Contains($previewTitle))
+Assert-True 'preview command includes path sample' ($previewCommand.Contains('A\New.dwg'))
+
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $pluginSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowserPlugin.cs') -Raw
 $formSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowserForm.cs') -Raw
@@ -64,12 +80,24 @@ $mainProject = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBr
 $acadProject = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.AutoCAD.csproj') -Raw
 $zwcadProject = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.ZWCAD.csproj') -Raw
 
+Assert-Contains 'BlockLibrary exposes mirror preview' $pluginSource 'public\s+static\s+MirrorDirectoryResult\s+PreviewLocalMirrorFromNas\(\)'
 Assert-Contains 'BlockLibrary returns mirror result' $pluginSource 'public\s+static\s+MirrorDirectoryResult\s+UpdateLocalMirrorFromNas\(\)'
+Assert-Contains 'BlockLibrary uses mirror preview for update' $pluginSource 'PreviewLocalMirrorFromNas\(\)[\s\S]*?BlockFileOperations\.ApplyMirrorDirectoryResult'
 Assert-Contains 'BBMIRROR writes mirror summary' $pluginSource 'MirrorSummaryMessageService\.FormatCommand\(result\)'
+Assert-Contains 'BBMIRROR writes mirror preview' $pluginSource 'MirrorSummaryMessageService\.FormatPreviewCommand\(preview\)'
+Assert-Contains 'BBMIRROR asks for confirmation' $pluginSource 'GetString\([\s\S]*?\[Y/N\]'
+Assert-Contains 'panel shows mirror preview before update' $formSource 'MirrorSummaryMessageService\.FormatPreviewDialog\(preview\)'
+Assert-Contains 'panel confirms before update' $formSource 'MessageBoxButtons\.YesNo'
 Assert-Contains 'panel shows mirror summary' $formSource 'MirrorSummaryMessageService\.FormatDialog\(result\)'
+Assert-Contains 'main project compiles mirror action' $mainProject 'Library\\MirrorDirectoryAction\.cs'
+Assert-Contains 'main project compiles mirror entry' $mainProject 'Library\\MirrorDirectoryEntry\.cs'
 Assert-Contains 'main project compiles mirror result' $mainProject 'Library\\MirrorDirectoryResult\.cs'
 Assert-Contains 'main project compiles mirror summary service' $mainProject 'Library\\MirrorSummaryMessageService\.cs'
+Assert-Contains 'AutoCAD project compiles mirror action' $acadProject 'Library\\MirrorDirectoryAction\.cs'
+Assert-Contains 'AutoCAD project compiles mirror entry' $acadProject 'Library\\MirrorDirectoryEntry\.cs'
 Assert-Contains 'AutoCAD project compiles mirror result' $acadProject 'Library\\MirrorDirectoryResult\.cs'
+Assert-Contains 'ZWCAD project compiles mirror action' $zwcadProject 'Library\\MirrorDirectoryAction\.cs'
+Assert-Contains 'ZWCAD project compiles mirror entry' $zwcadProject 'Library\\MirrorDirectoryEntry\.cs'
 Assert-Contains 'ZWCAD project compiles mirror result' $zwcadProject 'Library\\MirrorDirectoryResult\.cs'
 
 Write-Host 'MirrorFeedback.Tests.ps1 passed'
