@@ -12,6 +12,8 @@ namespace BlockBrowser
             MirrorDirectoryAction.Delete,
             MirrorDirectoryAction.Overwrite,
             MirrorDirectoryAction.CopyNew,
+            MirrorDirectoryAction.ProtectedCategorySkip,
+            MirrorDirectoryAction.ProtectedLocalChangeSkip,
             MirrorDirectoryAction.ProtectedSkip
         };
 
@@ -126,6 +128,10 @@ namespace BlockBrowser
                     return "\u65B0\u589E";
                 case MirrorDirectoryAction.ProtectedSkip:
                     return "\u4FDD\u62A4\u8DF3\u8FC7";
+                case MirrorDirectoryAction.ProtectedCategorySkip:
+                    return "\u767D\u540D\u5355\u8DF3\u8FC7";
+                case MirrorDirectoryAction.ProtectedLocalChangeSkip:
+                    return "\u672C\u5730\u53D8\u66F4\u8DF3\u8FC7";
                 default:
                     return "\u5176\u4ED6";
             }

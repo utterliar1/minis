@@ -172,6 +172,8 @@ try {
     Assert-Equal 'mirror result overwritten count' 2 $mirrorResult.OverwrittenCount
     Assert-Equal 'mirror result deleted count' 1 $mirrorResult.DeletedCount
     Assert-True 'mirror result protected skip count' ($mirrorResult.ProtectedSkipCount -ge 1)
+    Assert-True 'mirror result records local change protected skip' ($mirrorResult.Entries | Where-Object { $_.Action -eq [BlockBrowser.MirrorDirectoryAction]::ProtectedLocalChangeSkip -and $_.RelativePath -eq 'A\LocalOnly.dwg' })
+    Assert-True 'mirror result records category protected skip' ($mirrorResult.Entries | Where-Object { $_.Action -eq [BlockBrowser.MirrorDirectoryAction]::ProtectedCategorySkip -and $_.RelativePath -like '个人块\*' })
 
     $previewSource = Join-Path $tempRoot 'PreviewSource'
     $previewTarget = Join-Path $tempRoot 'PreviewTarget'
@@ -192,6 +194,8 @@ try {
     Assert-Equal 'mirror preview overwritten count' 1 $previewResult.OverwrittenCount
     Assert-Equal 'mirror preview deleted count' 1 $previewResult.DeletedCount
     Assert-True 'mirror preview protected skip count' ($previewResult.ProtectedSkipCount -ge 1)
+    Assert-True 'mirror preview records local change protected skip' ($previewResult.Entries | Where-Object { $_.Action -eq [BlockBrowser.MirrorDirectoryAction]::ProtectedLocalChangeSkip -and $_.RelativePath -eq 'A\Protected.dwg' })
+    Assert-True 'mirror preview records category protected skip' ($previewResult.Entries | Where-Object { $_.Action -eq [BlockBrowser.MirrorDirectoryAction]::ProtectedCategorySkip -and $_.RelativePath -like '个人块\*' })
     Assert-False 'mirror preview does not copy new file' (Test-Path (Join-Path $previewTarget 'A\New.dwg'))
     Assert-True 'mirror preview keeps delete candidate' (Test-Path (Join-Path $previewTarget 'A\Deleted.dwg'))
     Assert-True 'mirror preview includes action details' ($previewResult.Entries.Count -ge 4)
