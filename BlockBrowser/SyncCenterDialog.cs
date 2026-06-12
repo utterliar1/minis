@@ -126,8 +126,11 @@ namespace BlockBrowser
             try
             {
                 var preview = _previewProvider == null ? null : _previewProvider();
+                _lastPlan = preview;
+                SyncPlanTreeBuilder.Populate(_treeDetails, preview);
+
                 var confirm = MessageBox.Show(
-                    SyncSummaryMessageService.FormatPreviewDialog(preview),
+                    "确定按当前同步中心预览执行同步到 NAS？",
                     "\u540C\u6B65\u5230 NAS",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question);

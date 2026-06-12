@@ -147,34 +147,6 @@ namespace BlockBrowser
                 }
             };
 
-            var btnSync = new ToolStripMenuItem("同步到NAS");
-            btnSync.Click += (s, e) =>
-            {
-                try
-                {
-                    var preview = BlockLibrary.PreviewLocalSync();
-                    var confirm = MessageBox.Show(
-                        SyncSummaryMessageService.FormatPreviewDialog(preview),
-                        "同步到 NAS",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Question);
-                    if (confirm != DialogResult.Yes) return;
-
-                    var plan = BlockLibrary.SyncSafeUploadsToNas();
-                    SyncSummaryMessageService.AppendLog(BlockLibrary.SyncLogPath, plan);
-                    MessageBox.Show(
-                        SyncSummaryMessageService.FormatDialog(plan),
-                        "块浏览器",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                    _lblStatus.Text = GetActiveLibraryStatus();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("同步失败: " + ex.Message, "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            };
-
             var btnSyncCenter = new ToolStripMenuItem("同步中心");
             btnSyncCenter.Click += (s, e) => ShowSyncCenterDialog();
 
@@ -190,7 +162,6 @@ namespace BlockBrowser
             if (BlockLibrary.AllowNasSync)
             {
                 btnLibrary.DropDownItems.Add(btnSyncCenter);
-                btnLibrary.DropDownItems.Add(btnSync);
                 btnLibrary.DropDownItems.Add(new ToolStripSeparator());
             }
             btnLibrary.DropDownItems.Add(btnPrebuildThumbnails);

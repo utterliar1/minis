@@ -263,9 +263,9 @@
   </div>
   <div class="step">
     <div class="step-num">2</div>
-    <div class="step-text">点击「同步中心」查看树形明细预览，确认后执行同步；也可以点击「同步到NAS」或命令行输入 <code>BBSYNC</code>。</div>
+    <div class="step-text">点击「同步中心」查看树形明细预览，确认后执行同步；命令行输入 <code>BBSYNC</code> 也会打开同步中心。</div>
   </div>
-  <div class="tip">💡 <code>BBSYNC</code> 会读取本地变更记录，也会扫描本地副本中 NAS 尚不存在的 <code>.dwg</code> 文件；即使某个块是手动放进本地副本的，也可以作为安全新块补传。<code>ProtectedLocalCategories</code> 中的分类不会自动同步到 NAS，默认 <code>个人块</code> 仍保留在本机，并会在同步预览和同步中心显示为「白名单跳过」。同步中心可以复制明细，并把执行记录追加到本地副本的 <code>.blockbrowser/sync-log.txt</code>。</div>
+  <div class="tip">💡 <code>BBSYNC</code> 会打开同步中心。同步中心会读取本地变更记录，也会扫描本地副本中 NAS 尚不存在的 <code>.dwg</code> 文件；即使某个块是手动放进本地副本的，也可以作为安全新块补传。<code>ProtectedLocalCategories</code> 中的分类不会自动同步到 NAS，默认 <code>个人块</code> 仍保留在本机，并会在同步预览和同步中心显示为「白名单跳过」。同步中心可以复制明细，并把执行记录追加到本地副本的 <code>.blockbrowser/sync-log.txt</code>。</div>
   <div class="step">
     <div class="step-num">3</div>
     <div class="step-text">查看同步结果：上传、重复跳过、白名单跳过、冲突、删除待确认、失败数量。</div>
@@ -293,7 +293,7 @@
     <tr><td><code>BBADD</code></td><td>命令行方式添加到库</td></tr>
     <tr><td><code>BBEXPORT</code></td><td>命令行方式导出块</td></tr>
     <tr><td><code>BBMIRROR</code></td><td>从 NAS 更新本地图库，普通同事日常主要使用这个入口；受保护分类会被跳过</td></tr>
-    <tr><td><code>BBSYNC</code></td><td>将本地新增块安全同步到 NAS，并报告冲突；受保护分类不会自动上传</td></tr>
+    <tr><td><code>BBSYNC</code></td><td>打开同步中心，由指定维护人查看预览后安全同步到 NAS；受保护分类不会自动上传</td></tr>
     <tr><td>同步中心</td><td>仅在 <code>AllowNasSync=1</code> 时显示，供指定维护人使用；同步前查看明细，执行后复制结果或打开 <code>sync-log.txt</code></td></tr>
     <tr><td><code>BBTHUMB</code></td><td>清除所有缩略图缓存</td></tr>
     <tr><td><code>BBINFO</code></td><td>显示插件版本信息</td></tr>

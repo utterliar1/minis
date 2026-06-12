@@ -29,10 +29,18 @@ $mirrorProtectedSkip = -join ([char[]](0x4FDD, 0x62A4, 0x8DF3, 0x8FC7))
 $mirrorPreview = -join ([char[]](0x66F4, 0x65B0, 0x672C, 0x5730, 0x56FE, 0x5E93, 0x6811, 0x5F62, 0x9884, 0x89C8))
 $mirrorTreePreview = -join ([char[]](0x6811, 0x5F62, 0x9884, 0x89C8))
 $confirmBeforeUpdate = -join ([char[]](0x786E, 0x8BA4, 0x540E, 0x624D, 0x4F1A, 0x5F00, 0x59CB, 0x6267, 0x884C))
+$syncCommandOpensCenter = -join ([char[]](0x6253, 0x5F00, 0x540C, 0x6B65, 0x4E2D, 0x5FC3))
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) {
         throw "$name did not find pattern: $pattern"
+    }
+    Write-Host "PASS $name"
+}
+
+function Assert-NotContains($name, $text, $pattern) {
+    if ($text -match $pattern) {
+        throw "$name found forbidden pattern: $pattern"
     }
     Write-Host "PASS $name"
 }
@@ -64,6 +72,8 @@ Assert-Contains 'manual explains mirror tree preview' $manual ([regex]::Escape($
 Assert-Contains 'manual explains mirror waits for confirmation' $manual ([regex]::Escape($confirmBeforeUpdate))
 Assert-Contains 'manual explains designated NAS maintainer' $manual $designatedMaintainer
 Assert-Contains 'manual explains NAS protection' $manual $nasProtection
+Assert-Contains 'manual explains BBSYNC opens sync center' $manual ('BBSYNC[\s\S]*?' + [regex]::Escape($syncCommandOpensCenter))
+Assert-NotContains 'manual does not mention removed sync to NAS panel action' $manual '同步到NAS'
 Assert-Contains 'manual explains search only matches block names' $manual ([regex]::Escape($searchBlockNameOnly))
 Assert-Contains 'manual explains search ignores categories' $manual ([regex]::Escape($searchIgnoresCategory))
 Assert-Contains 'manual explains space separated search keywords' $manual ([regex]::Escape($searchExample))

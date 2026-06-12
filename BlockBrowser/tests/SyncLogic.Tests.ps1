@@ -190,7 +190,7 @@ Assert-True 'metadata note conflict' $merged.HasNoteConflict
 
 $formSource = Get-Content -Encoding UTF8 (Join-Path $root 'BlockBrowserForm.cs') -Raw
 $pluginSource = Get-Content -Encoding UTF8 (Join-Path $root 'BlockBrowserPlugin.cs') -Raw
-Assert-True 'panel sync previews before executing' ($formSource -match 'PreviewLocalSync\(\)[\s\S]*?FormatPreviewDialog[\s\S]*?MessageBoxButtons\.YesNo[\s\S]*?SyncSafeUploadsToNas\(\)')
-Assert-True 'command sync previews before executing' ($pluginSource -match 'PreviewLocalSync\(\)[\s\S]*?FormatPreviewCommand[\s\S]*?GetString[\s\S]*?SyncSafeUploadsToNas\(\)')
+Assert-True 'panel uses sync center instead of direct sync flow' ($formSource -match 'ShowSyncCenterDialog\(\)[\s\S]*?new\s+SyncCenterDialog\(' -and $formSource -notmatch 'new\s+ToolStripMenuItem\("同步到NAS"\)|FormatPreviewDialog\(preview\)[\s\S]*?SyncSafeUploadsToNas\(\)')
+Assert-True 'command sync opens sync center instead of command preview flow' ($pluginSource -match 'SyncLocalChanges\(\)[\s\S]*?OpenSyncCenterDialog\(\)' -and $pluginSource -notmatch 'FormatPreviewCommand\(preview\)[\s\S]*?GetString[\s\S]*?SyncSafeUploadsToNas\(\)')
 
 Write-Host 'SyncLogic.Tests.ps1 passed'

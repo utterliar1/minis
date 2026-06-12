@@ -1121,24 +1121,25 @@ namespace BlockBrowser
                     return;
                 }
 
-                var preview = BlockLibrary.PreviewLocalSync();
-                ed.WriteMessage("\n" + SyncSummaryMessageService.FormatPreviewCommand(preview));
-                var confirm = ed.GetString("\n继续同步到 NAS? [Y/N] <N>: ");
-                if (confirm.Status != PromptStatus.OK || !string.Equals((confirm.StringResult ?? "").Trim(), "Y", StringComparison.OrdinalIgnoreCase))
-                {
-                    ed.WriteMessage("\n已取消同步。");
-                    return;
-                }
-
-                var plan = BlockLibrary.SyncSafeUploadsToNas();
-                SyncSummaryMessageService.AppendLog(BlockLibrary.SyncLogPath, plan);
-                ed.WriteMessage("\n" + SyncSummaryMessageService.FormatCommand(plan));
+                OpenSyncCenterDialog();
             }
             catch (System.Exception ex)
             {
                 ed.WriteMessage("\n同步失败: " + ex.Message);
             }
         }
+
+        private void OpenSyncCenterDialog()
+        {
+            using (var dlg = new SyncCenterDialog(
+                () => BlockLibrary.PreviewLocalSync(),
+                () => BlockLibrary.SyncSafeUploadsToNas(),
+                BlockLibrary.SyncLogPath))
+            {
+                CadApp.ShowModalDialog(dlg);
+            }
+        }
+
         [CommandMethod("BBMIRROR", CommandFlags.Session)]
         public void UpdateLocalMirror()
         {

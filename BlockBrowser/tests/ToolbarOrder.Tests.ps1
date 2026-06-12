@@ -53,7 +53,7 @@ Assert-False 'toolbar excludes direct settings button' ($items.Contains('btnSett
 Assert-True 'toolbar uses user friendly local library update text' ($formSource.Contains('new ToolStripButton("' + $updateLocalLibraryText + '")'))
 Assert-False 'toolbar does not use local mirror wording' ($formSource.Contains('new ToolStripButton("' + $updateLocalMirrorText + '")'))
 Assert-True 'manage actions use menu items for dropdown layout' ($formSource -match 'var\s+btnRename\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnDelete\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnOpenFolder\s*=\s*new\s+ToolStripMenuItem')
-Assert-True 'library actions use menu items for dropdown layout' ($formSource -match 'var\s+btnSync\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnSyncCenter\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnPrebuildThumbnails\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnRebuildThumbnails\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnSettings\s*=\s*new\s+ToolStripMenuItem')
+Assert-True 'library actions use menu items for dropdown layout' ($formSource -notmatch 'var\s+btnSync\s*=' -and $formSource -match 'var\s+btnSyncCenter\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnPrebuildThumbnails\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnRebuildThumbnails\s*=\s*new\s+ToolStripMenuItem' -and $formSource -match 'var\s+btnSettings\s*=\s*new\s+ToolStripMenuItem')
 
 $lastIndex = -1
 foreach ($item in $expectedOrder) {
@@ -81,7 +81,7 @@ Assert-True 'library menu block found' $libraryMatch.Success
 $libraryItems = $libraryMatch.Groups['items'].Value
 Assert-False 'library menu excludes local library update action' ($libraryItems.Contains('btnUpdateLocalLibrary') -or $libraryItems.Contains('btnUpdateMirror'))
 Assert-True 'library menu guards sync actions by permission' ($libraryItems -match 'if\s*\(BlockLibrary\.AllowNasSync\)')
-$expectedLibraryOrder = @('btnSyncCenter', 'btnSync', 'btnPrebuildThumbnails', 'btnRebuildThumbnails', 'btnSettings')
+$expectedLibraryOrder = @('btnSyncCenter', 'btnPrebuildThumbnails', 'btnRebuildThumbnails', 'btnSettings')
 $lastIndex = -1
 foreach ($item in $expectedLibraryOrder) {
     $index = Find-TokenIndex $libraryItems $item

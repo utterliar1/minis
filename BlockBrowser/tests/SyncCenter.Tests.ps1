@@ -9,9 +9,15 @@ $pluginSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockB
 $csprojSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.csproj') -Raw
 $acadSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.AutoCAD.csproj') -Raw
 $zwcadSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.ZWCAD.csproj') -Raw
+$simpleSyncConfirm = -join ([char[]](0x786E, 0x5B9A, 0x6309, 0x5F53, 0x524D, 0x540C, 0x6B65, 0x4E2D, 0x5FC3, 0x9884, 0x89C8, 0x6267, 0x884C, 0x540C, 0x6B65, 0x5230, 0x0020, 0x004E, 0x0041, 0x0053))
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) { throw "$name did not find pattern: $pattern" }
+    Write-Host "PASS $name"
+}
+
+function Assert-NotContains($name, $text, $pattern) {
+    if ($text -match $pattern) { throw "$name found forbidden pattern: $pattern" }
     Write-Host "PASS $name"
 }
 
@@ -22,10 +28,14 @@ Assert-Contains 'sync tree builder exists' $syncTreeSource 'public\s+static\s+cl
 Assert-Contains 'sync center uses a tree view' $syncCenterSource 'private\s+readonly\s+TreeView\s+_treeDetails'
 Assert-Contains 'sync center populates tree preview' $syncCenterSource 'SyncPlanTreeBuilder\.Populate\(_treeDetails,\s*plan\)'
 Assert-Contains 'sync center keeps copy text report' $syncCenterSource 'SyncSummaryMessageService\.FormatDetailedReport\(_lastPlan\)'
+Assert-Contains 'sync center appends log after execution' $syncCenterSource '_syncRunner\(\)[\s\S]*?SyncSummaryMessageService\.AppendLog'
+Assert-Contains 'sync center refreshes tree before simple execution confirmation' $syncCenterSource ('_previewProvider\(\)[\s\S]*?SyncPlanTreeBuilder\.Populate\(_treeDetails,\s*preview\)[\s\S]*?' + [regex]::Escape($simpleSyncConfirm))
+Assert-NotContains 'sync center execution confirm does not repeat full text preview' $syncCenterSource 'RunSync\(\)[\s\S]*?SyncSummaryMessageService\.FormatPreviewDialog'
 Assert-Contains 'sync center dialog exists' $formSource 'new\s+SyncCenterDialog\('
-Assert-Contains 'library menu contains sync center before sync action' $formSource 'if\s*\(BlockLibrary\.AllowNasSync\)[\s\S]*?DropDownItems\.Add\(btnSyncCenter\);[\s\S]*?DropDownItems\.Add\(btnSync\);'
-Assert-Contains 'panel sync appends log after execution' $formSource 'SyncSafeUploadsToNas\(\)[\s\S]*?SyncSummaryMessageService\.AppendLog'
-Assert-Contains 'command sync appends log after execution' $pluginSource 'SyncSafeUploadsToNas\(\)[\s\S]*?SyncSummaryMessageService\.AppendLog'
+Assert-Contains 'library menu contains sync center when allowed' $formSource 'if\s*\(BlockLibrary\.AllowNasSync\)[\s\S]*?DropDownItems\.Add\(btnSyncCenter\);'
+Assert-NotContains 'library menu does not contain separate sync action' $formSource 'new\s+ToolStripMenuItem\("同步到NAS"\)|DropDownItems\.Add\(btnSync\)'
+Assert-Contains 'BBSYNC opens sync center dialog' $pluginSource 'SyncLocalChanges\(\)[\s\S]*?OpenSyncCenterDialog\(\)'
+Assert-Contains 'command helper creates sync center dialog' $pluginSource 'OpenSyncCenterDialog\(\)[\s\S]*?new\s+SyncCenterDialog\('
 Assert-Contains 'main project compiles sync center dialog' $csprojSource 'Compile Include="SyncCenterDialog\.cs"'
 Assert-Contains 'main project compiles sync plan tree builder' $csprojSource 'Compile Include="UI\\SyncPlanTreeBuilder\.cs"'
 Assert-Contains 'AutoCAD project compiles sync center dialog' $acadSource 'Compile Include="SyncCenterDialog\.cs"'
