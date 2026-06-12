@@ -76,6 +76,9 @@
     <Compile Include="Thumbnails\BlockLibrary.Thumbnails.cs" />
     <Compile Include="BlockBrowserPlugin.cs" />
     <Compile Include="Commands\BlockBrowserCommands.cs" />
+    <Compile Include="Commands\BlockBrowserCommands.BlockActions.cs" />
+    <Compile Include="Commands\BlockBrowserCommands.Sync.cs" />
+    <Compile Include="Commands\BlockBrowserCommands.Utilities.cs" />
     <Compile Include="Forms\BlockBrowserForm.cs" />
     <Compile Include="Forms\BlockBrowserForm.Layout.cs" />
     <Compile Include="Forms\BlockBrowserForm.CategoryBar.cs" />

@@ -9,7 +9,11 @@ $formSource = @(
         Sort-Object Name |
         ForEach-Object { Get-Content -Encoding UTF8 $_.FullName -Raw }
 ) -join "`n"
-$pluginSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\Commands\BlockBrowserCommands.cs') -Raw
+$pluginSource = @(
+    Get-ChildItem -Path (Join-Path $repo 'BlockBrowser\Commands') -Filter 'BlockBrowserCommands*.cs' |
+        Sort-Object Name |
+        ForEach-Object { Get-Content -Encoding UTF8 $_.FullName -Raw }
+) -join "`n"
 $csprojSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.csproj') -Raw
 $acadSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.AutoCAD.csproj') -Raw
 $zwcadSource = Get-Content -Encoding UTF8 (Join-Path $repo 'BlockBrowser\BlockBrowser.ZWCAD.csproj') -Raw

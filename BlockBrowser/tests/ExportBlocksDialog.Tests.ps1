@@ -2,14 +2,17 @@ $ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $dialogPath = Join-Path $repo 'BlockBrowser\Forms\ExportBlocksDialog.cs'
-$pluginPath = Join-Path $repo 'BlockBrowser\Commands\BlockBrowserCommands.cs'
 
 if (-not (Test-Path $dialogPath)) {
     throw "Missing dialog source file: $dialogPath"
 }
 
 $dialogSource = Get-Content -Encoding UTF8 $dialogPath -Raw
-$pluginSource = Get-Content -Encoding UTF8 $pluginPath -Raw
+$pluginSource = @(
+    Get-ChildItem -Path (Join-Path $repo 'BlockBrowser\Commands') -Filter 'BlockBrowserCommands*.cs' |
+        Sort-Object Name |
+        ForEach-Object { Get-Content -Encoding UTF8 $_.FullName -Raw }
+) -join "`n"
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) { throw "$name did not find pattern: $pattern" }

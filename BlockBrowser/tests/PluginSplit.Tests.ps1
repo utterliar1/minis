@@ -43,7 +43,7 @@ foreach ($file in $splitFiles) {
     Assert-Contains ("ZWCAD project references " + $file) $zwcadSource ('Compile Include="' + [regex]::Escape($file) + '"')
 }
 
-Assert-Contains 'commands class moved to commands folder' (Get-Content -Encoding UTF8 (Join-Path $project 'Commands\BlockBrowserCommands.cs') -Raw) 'public\s+class\s+BlockBrowserCommands'
+Assert-Contains 'commands class moved to commands folder' (Get-Content -Encoding UTF8 (Join-Path $project 'Commands\BlockBrowserCommands.cs') -Raw) 'public\s+(partial\s+)?class\s+BlockBrowserCommands'
 Assert-Contains 'root keeps extension plugin class' $rootSource 'public\s+class\s+BlockBrowserPlugin\s*:\s*IExtensionApplication'
 Assert-False 'root no longer contains BlockLibrary implementation' ($rootSource -match 'public\s+static\s+(partial\s+)?class\s+BlockLibrary')
 Assert-False 'root no longer contains command implementation' ($rootSource -match 'public\s+class\s+BlockBrowserCommands')
