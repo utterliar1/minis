@@ -5,6 +5,98 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_new_day_after_completed_record_starts_with_clock_in_button():
+    script = r"""
+const fs = require('fs');
+const vm = require('vm');
+
+const elements = {};
+function element(id) {
+  if (!elements[id]) {
+    elements[id] = {
+      id,
+      textContent: '',
+      innerHTML: '',
+      className: '',
+      style: {},
+      classList: { contains(cls) { return (this.owner?.className || '').includes(cls); } },
+    };
+    elements[id].classList.owner = elements[id];
+  }
+  return elements[id];
+}
+
+const sandbox = {
+  console,
+  location: { origin: 'http://127.0.0.1' },
+  localStorage: { getItem() { return null; } },
+  navigator: {},
+  setTimeout() {},
+  document: {
+    getElementById: element,
+    createElement() { return { click() {} }; },
+  },
+  URL: { createObjectURL() { return 'blob:'; }, revokeObjectURL() {} },
+};
+sandbox.window = sandbox;
+vm.createContext(sandbox);
+for (const file of ['frontend/js/utils.js', 'frontend/js/stats.js', 'frontend/js/clock.js']) {
+  vm.runInContext(fs.readFileSync(file, 'utf8'), sandbox, { filename: file });
+}
+for (const key of Object.keys(sandbox.OT)) sandbox[key] = sandbox.OT[key];
+
+sandbox.OT.settings = sandbox.settings = {
+  lat: 31.23,
+  lng: 121.47,
+  radius: 500,
+  gpsAccuracy: 100,
+  workStart: '08:30',
+  workEnd: '17:30',
+  weekdays: [1, 2, 3, 4, 5],
+  holidays: [],
+  workdays: [],
+};
+sandbox.OT.currentUser = sandbox.currentUser = { username: 'u1', displayName: 'Alice', role: 'user' };
+sandbox.OT.currentPos = sandbox.currentPos = { lat: 31.23, lng: 121.47, accuracy: 10 };
+sandbox.OT.recordsLoaded = sandbox.recordsLoaded = true;
+sandbox.OT.allRecords = sandbox.allRecords = [
+  { user_id: 'u1', date: '2026-06-09', time_str: '08:30:00', ts: Date.parse('2026-06-09T08:30:00+08:00'), type: 'in' },
+  { user_id: 'u1', date: '2026-06-09', time_str: '17:30:00', ts: Date.parse('2026-06-09T17:30:00+08:00'), type: 'out' },
+];
+
+const realDate = Date;
+class FakeDate extends realDate {
+  constructor(...args) {
+    if (args.length === 0) return new realDate('2026-06-10T08:00:00+08:00');
+    return new realDate(...args);
+  }
+  static now() { return new realDate('2026-06-10T08:00:00+08:00').getTime(); }
+  static parse(value) { return realDate.parse(value); }
+  static UTC(...args) { return realDate.UTC(...args); }
+}
+sandbox.Date = FakeDate;
+
+sandbox.OT.updateClockButton();
+
+if (element('clock-btn-text').textContent !== '打卡上班') {
+  throw new Error(`Expected a new day to start with clock in, got ${element('clock-btn-text').textContent}`);
+}
+if (!element('clock-btn').className.includes('check-in')) {
+  throw new Error(`Expected check-in class, got ${element('clock-btn').className}`);
+}
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_cross_day_open_record_keeps_next_action_as_clock_out():
     script = r"""
 const fs = require('fs');

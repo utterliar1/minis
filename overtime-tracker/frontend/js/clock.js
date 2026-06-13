@@ -27,7 +27,7 @@ OT.updateGeoStatus = function updateGeoStatus(){
 };
 
 OT.updateClockButton = function updateClockButton(){
-  const btn=document.getElementById('clock-btn'),txt=document.getElementById('clock-btn-text'),last=OT.getLastClockRecord();
+  const btn=document.getElementById('clock-btn'),txt=document.getElementById('clock-btn-text'),last=OT.getNextClockActionRecord();
   if((settings.lat==null||settings.lng==null)&&!currentPos){btn.className='clock-btn disabled';txt.textContent='请等待管理员配置';return}
   if(!recordsLoaded){btn.className='clock-btn disabled';txt.textContent='加载记录中';return}
   if(!currentPos){btn.className='clock-btn disabled';txt.textContent=OT.lastGeoErrorMessage?'定位未开启':'获取位置中';return}
@@ -42,6 +42,14 @@ OT.getLastTodayRecord = function getLastTodayRecord(){const t=dateKey(new Date()
 OT.getLastClockRecord = function getLastClockRecord(){
   const recs=(allRecords||[]).filter(r=>!currentUser||!r.user_id||r.user_id===currentUser.username).sort((a,b)=>a.ts-b.ts);
   return recs.length?recs[recs.length-1]:null;
+};
+
+OT.getNextClockActionRecord = function getNextClockActionRecord(){
+  const userRecs=(allRecords||[]).filter(r=>!currentUser||!r.user_id||r.user_id===currentUser.username).sort((a,b)=>a.ts-b.ts);
+  const today=OT.getLastTodayRecord();
+  if(today)return today;
+  const last=userRecs.length?userRecs[userRecs.length-1]:null;
+  return last&&last.type==='in'?last:null;
 };
 
 OT.showLastClockResult = function showLastClockResult(record,durationText){
