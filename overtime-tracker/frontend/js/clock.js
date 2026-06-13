@@ -158,7 +158,7 @@ OT.doClock = async function doClock(type,outOfRange,note){
 };
 
 OT.updateTodayTimeline = function updateTodayTimeline(){
-  const t=dateKey(new Date()),recs=allRecords.filter(r=>r.date===t).sort((a,b)=>a.ts-b.ts),card=document.getElementById('today-card'),tl=document.getElementById('today-timeline');
+  const t=dateKey(new Date()),touching=OT.recordsGroupedTouchingDate(allRecords,t),fallback=allRecords.filter(r=>r.date===t),recs=(Object.values(touching)[0]||fallback).sort((a,b)=>a.ts-b.ts),card=document.getElementById('today-card'),tl=document.getElementById('today-timeline');
   if(!recs.length){card.style.display='none';return}
   card.style.display='block';
   const last=recs[recs.length-1];

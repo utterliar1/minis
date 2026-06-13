@@ -170,7 +170,7 @@ OT.exportSummaryLine = function exportSummaryLine(label, rows, typeLabel){
   const remoteDays=rows.filter(r=>r.remote).length;
   return [
     OT.csvCell(label),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(typeLabel||''),
-    OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(`远程 ${remoteDays} 天`),OT.csvCell(''),OT.csvCell(''),
+    OT.csvCell(''),OT.csvCell(''),OT.csvCell(''),OT.csvCell(`范围外 ${remoteDays} 天`),OT.csvCell(''),OT.csvCell(''),
     totalMinutes,OT.csvCell(OT.csvHourText(totalMinutes))
   ].join(',');
 };
@@ -197,7 +197,7 @@ OT.buildExportCsv = function buildExportCsv(records, options={}){
     rows.forEach(r=>lines.push(OT.exportDetailLine(r)));
   }
   lines.push(OT.exportSummaryLine('汇总',rows,'总计'));
-  return '姓名,日期,星期,上班,下班,类型,工作类别,事由,下班说明,远程,实际位置,复核标记,工时(分),工时(h)\n'+lines.join('\n');
+  return '姓名,日期,星期,上班,下班,类型,工作类别,事由,下班说明,范围外,实际位置,复核标记,工时(分),工时(h)\n'+lines.join('\n');
 };
 
 OT.geoErrorMessage = function geoErrorMessage(err){

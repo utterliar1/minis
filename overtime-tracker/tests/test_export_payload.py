@@ -46,7 +46,7 @@ def test_export_records_include_remote_marker_and_note(monkeypatch, tmp_path):
                 user_id, date, time_str, ts, type, lat, lng, accuracy, out_of_range, note
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            ("u1", "2026-06-08", "09:00", 1780870800000, "in", None, None, None, 1, "远程说明"),
+            ("u1", "2026-06-08", "09:00", 1780870800000, "in", None, None, None, 1, "范围外说明"),
         )
         conn.commit()
         conn.close()
@@ -64,4 +64,4 @@ def test_export_records_include_remote_marker_and_note(monkeypatch, tmp_path):
         assert response.status_code == 200
         record = response.get_json()["records"][0]
         assert record["out_of_range"] == 1
-        assert record["note"] == "远程说明"
+        assert record["note"] == "范围外说明"

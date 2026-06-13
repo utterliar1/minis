@@ -27,14 +27,20 @@ OT.loadDashboard = async function loadDashboard(){
     const records=recsData.records||[];
     const users=usersData.users||[];
     const range=OT.getAdminPeriod();
-    const scopedRecords=records.filter(r=>OT.inAdminPeriod(r,range));
+    const scopedGroups=OT.recordsGroupedByStartDateInRange(records,range.from,range.to);
     const today=dateKey(new Date());
-    const todayObj=new Date(today+'T12:00:00');
+    const todayGroups=OT.recordsGroupedTouchingDate(records,today);
     const todayRecs=records.filter(r=>r.date===today);
-    const sumRecords=function(recs){
-      const dg=OT.groupRecordsByStartDate(recs);
-      let total=0;Object.entries(dg).forEach(([d,dayRecs])=>{total+=calcTodayOT(dayRecs,new Date(d+'T12:00:00'))});
-      return total;
+    const recordsFromGroups=function(groups){
+      return Object.values(groups||{}).flat();
+    };
+    const filterGroupsByUser=function(groups,username){
+      const result={};
+      Object.entries(groups||{}).forEach(([date,recs])=>{
+        const userRecs=recs.filter(r=>r.user_id===username);
+        if(userRecs.length)result[date]=userRecs;
+      });
+      return result;
     };
     
     // Build table
@@ -42,15 +48,16 @@ OT.loadDashboard = async function loadDashboard(){
     let rows='';
     for(const u of uList){
       const uToday=todayRecs.filter(r=>r.user_id===u.username);
-      const uScoped=scopedRecords.filter(r=>r.user_id===u.username);
+      const uTodayGroups=filterGroupsByUser(todayGroups,u.username);
+      const uScopedGroups=filterGroupsByUser(scopedGroups,u.username);
       const lastRec=[...uToday].sort((a,b)=>a.ts-b.ts).pop();
       let statusText='<span class="status-dot status-none"></span>未打卡';
       if(lastRec){
         if(lastRec.type==='in')statusText='<span class="status-dot status-in"></span>上班中';
         else statusText='<span class="status-dot status-out"></span>已下班';
       }
-      const todayOT=calcTodayOT(uToday,todayObj);
-      const rangeOT=sumRecords(uScoped);
+      const todayOT=OT.sumGroupedWorkMinutes(uTodayGroups);
+      const rangeOT=OT.sumGroupedWorkMinutes(uScopedGroups);
       rows+=`<tr><td style="font-weight:600">${escapeHtml(u.display_name)}</td><td>${statusText}</td><td class="${todayOT>0?'ot-positive':'ot-zero'}">${fmtMin(todayOT)}</td><td class="${rangeOT>0?'ot-positive':'ot-zero'}" style="font-weight:600">${fmtMin(rangeOT)}</td></tr>`;
     }
     if(!rows)rows='<tr><td colspan="4" style="text-align:center;color:var(--text-sec);padding:20px">暂无成员</td></tr>';
@@ -58,10 +65,10 @@ OT.loadDashboard = async function loadDashboard(){
     // Summary
     let totalTodayOT=0,totalRangeOT=0;
     uList.forEach(u=>{
-      const uToday=todayRecs.filter(r=>r.user_id===u.username);
-      const uScoped=scopedRecords.filter(r=>r.user_id===u.username);
-      totalTodayOT+=calcTodayOT(uToday,todayObj);
-      totalRangeOT+=sumRecords(uScoped);
+      const uTodayGroups=filterGroupsByUser(todayGroups,u.username);
+      const uScopedGroups=filterGroupsByUser(scopedGroups,u.username);
+      totalTodayOT+=OT.sumGroupedWorkMinutes(uTodayGroups);
+      totalRangeOT+=OT.sumGroupedWorkMinutes(uScopedGroups);
     });
     document.getElementById('header-stats').innerHTML=`
       <div class="stat-item"><div class="stat-value">${uList.length}</div><div class="stat-label">成员数</div></div>
@@ -72,9 +79,8 @@ OT.loadDashboard = async function loadDashboard(){
     for(let i=29;i>=0;i--){
       const dd=new Date(todayDate);dd.setDate(dd.getDate()-i);
       const dk=dateKey(dd);
-      const dayRecs=records.filter(r=>r.date===dk);
-      const dg2=OT.groupRecordsByStartDate(dayRecs);
-      let dayOT=0;Object.entries(dg2).forEach(([d,recs])=>{dayOT+=calcTodayOT(recs,new Date(d+'T12:00:00'))});
+      const dg2=OT.recordsGroupedByStartDateInRange(records,dk,dk);
+      const dayOT=OT.sumGroupedWorkMinutes(dg2);
       trendData.push({date:dk,label:`${dd.getMonth()+1}/${dd.getDate()}`,ot:dayOT});
     }
     const maxOT=Math.max(...trendData.map(d=>d.ot),1);
@@ -86,8 +92,8 @@ OT.loadDashboard = async function loadDashboard(){
       </div></div></div>`;
     // Ranking
     const rankData=uList.map(u=>{
-      const uScoped=scopedRecords.filter(r=>r.user_id===u.username);
-      return{name:u.display_name,ot:sumRecords(uScoped)}
+      const uScopedGroups=filterGroupsByUser(scopedGroups,u.username);
+      return{name:u.display_name,ot:OT.sumGroupedWorkMinutes(uScopedGroups)}
     }).sort((a,b)=>b.ot-a.ot);
     const avgOT=rankData.length?Math.round(rankData.reduce((s,r)=>s+r.ot,0)/rankData.length):0;
     const rankHTML=`<div class="card" style="margin-top:16px"><div class="card-title">🏆 ${range.label}工时排行</div>
@@ -243,7 +249,7 @@ OT.resetPwd = function resetPwd(name,username){
   showConfirmModal('重置密码',`确认将「${name}」的密码重置？`,async()=>{try{await api(`/users/${username}/password`,{method:'PUT',body:JSON.stringify({password:newPwd})});showToast(`✅ 「${name}」密码已重置`)}catch(e){showToast('❌ '+e.message)}})
 };
 
-OT.delUser = async function delUser(u){showConfirmModal('删除用户',`确认删除「${u}」及其记录？`,async()=>{try{await api(`/users/${u}`,{method:'DELETE'});loadUserList();showToast('已删除')}catch(e){showToast('❌ '+e.message)}})};
+OT.delUser = async function delUser(u){showConfirmModal('删除用户',`确认删除「${u}」？已有原始记录的成员不能删除。`,async()=>{try{await api(`/users/${u}`,{method:'DELETE'});loadUserList();showToast('已删除')}catch(e){showToast('❌ '+e.message)}})};
 
 OT.loadEmailConfig = async function loadEmailConfig(){try{const d=await api('/email-config');const c=d.config||{};document.getElementById('email-host').value=c.smtp_host||'';document.getElementById('email-port').value=c.smtp_port||465;document.getElementById('email-user').value=c.smtp_user||'';document.getElementById('email-pass').value='';document.getElementById('email-sender').value=c.sender_name||'\u8003\u52e4\u52a9\u624b';document.getElementById('email-recipients').value=(c.recipients||[]).join('\n');document.getElementById('email-hour').value=c.schedule_hour??9;document.getElementById('email-min').value=c.schedule_minute??0;document.getElementById('set-email-enabled').className='toggle'+(c.enabled?' on':'');document.getElementById('email-frequency').value=c.schedule_frequency||'daily';document.getElementById('email-weekday').value=String(c.schedule_weekday||1);document.getElementById('email-month-day').value=String(c.schedule_month_day||'last');document.getElementById('email-report-period').value=c.report_period||'this_month';document.getElementById('email-report-content').value=c.report_content||'summary';document.getElementById('email-member-filter').value=c.member_filter||'all';document.getElementById('email-include-out-of-range').className='toggle'+(c.include_out_of_range?' on':'');document.getElementById('email-next-send-at').textContent=c.next_schedule_text||'\u672a\u5f00\u542f';OT.toggleEmailScheduleMode()}catch(e){}};
 

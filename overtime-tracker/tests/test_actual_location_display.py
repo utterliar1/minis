@@ -54,7 +54,7 @@ const record = {
   lng: 121.48,
   accuracy: 42,
   out_of_range: 1,
-  note: '远程说明',
+  note: '范围外说明',
 };
 
 sandbox.OT.showLastClockResult(record, '2 小时');
@@ -117,7 +117,7 @@ sandbox.OT.settings = sandbox.settings = {
 };
 
 const dayRecords = [
-  { date: '2026-06-09', time_str: '07:30:00', ts: 1, type: 'in', out_of_range: 1, note: '远程说明' },
+  { date: '2026-06-09', time_str: '07:30:00', ts: 1, type: 'in', out_of_range: 1, note: '范围外说明' },
   { date: '2026-06-09', time_str: '18:30:00', ts: 2, type: 'out', out_of_range: 1, note: '' },
 ];
 

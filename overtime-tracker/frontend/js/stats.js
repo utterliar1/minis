@@ -16,6 +16,32 @@ OT.calcTodayOT = function calcTodayOT(recs,date){
   else{return Math.round(recordPairs(recs).reduce((sum,[i,o])=>sum+Math.max(0,o.ts-i.ts),0)/60000)}
 };
 
+OT.recordsGroupedByStartDateInRange = function recordsGroupedByStartDateInRange(records, from='', to=''){
+  const grouped=OT.groupRecordsByStartDate(records||[]);
+  const result={};
+  Object.entries(grouped).forEach(([date,recs])=>{
+    if((!from||date>=from)&&(!to||date<=to))result[date]=recs;
+  });
+  return result;
+};
+
+OT.sumGroupedWorkMinutes = function sumGroupedWorkMinutes(grouped){
+  let total=0;
+  Object.entries(grouped||{}).forEach(([date,recs])=>{total+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
+  return total;
+};
+
+OT.recordsGroupedTouchingDate = function recordsGroupedTouchingDate(records, date){
+  const grouped=OT.groupRecordsByStartDate(records||[]);
+  const result={};
+  Object.entries(grouped).forEach(([startDate,recs])=>{
+    if(recs.some(r=>r.date===date)){
+      result[startDate]=recs;
+    }
+  });
+  return result;
+};
+
 OT.isWorkingDay = function isWorkingDay(d){const dk=calendarKey(d);if((settings.holidays||[]).includes(dk))return false;if((settings.workdays||[]).includes(dk))return true;return(settings.weekdays||[1,2,3,4,5]).includes(d.getDay())};
 
 OT.overlapMinutes = function overlapMinutes(start,end,rangeStart,rangeEnd){return Math.max(0,Math.min(end,rangeEnd)-Math.max(start,rangeStart))};
@@ -23,11 +49,12 @@ OT.overlapMinutes = function overlapMinutes(start,end,rangeStart,rangeEnd){retur
 OT.getWorkMinutes = function getWorkMinutes(){return timeToMin(settings.workEnd||'17:30')-timeToMin(settings.workStart||'08:30')};
 
 OT.renderStats = function renderStats(){
-  const dg=OT.groupRecordsByStartDate(allRecords);
+  const tk=dateKey(new Date()),thisMonth=tk.slice(0,7);
+  const dg=OT.recordsGroupedByStartDateInRange(allRecords,thisMonth+'-01',thisMonth+'-31');
   let totalOT=0,wkOT=0,hdOT=0;
   Object.entries(dg).forEach(([date,recs])=>{const ot=calcTodayOT(recs,new Date(date+'T12:00:00'));totalOT+=ot;isWorkingDay(new Date(date+'T12:00:00'))?wkOT+=ot:hdOT+=ot});
   const days=Object.keys(dg).length;
-  const tk=dateKey(new Date()),ws2=new Date(tk+'T12:00:00');ws2.setDate(ws2.getDate()-ws2.getDay()+1);const weekStart=calendarKey(ws2);
+  const ws2=new Date(tk+'T12:00:00');ws2.setDate(ws2.getDate()-ws2.getDay()+1);const weekStart=calendarKey(ws2);
   let weekTotal=0,weekDays=0;
   Object.entries(dg).forEach(([date,recs])=>{const d=new Date(date+'T12:00:00');if(date>=weekStart&&date<=tk){const ot=calcTodayOT(recs,d);weekTotal+=ot;weekDays++}});
   document.getElementById('stats-content').innerHTML=`
@@ -37,8 +64,8 @@ OT.renderStats = function renderStats(){
     <div class="summary-row"><span class="label">休息日工时</span><span class="value">${formatMinutes(hdOT)}</span></div>
     <div class="summary-row"><span class="label">日均工时</span><span class="value">${days?formatMinutes(Math.round(totalOT/days)):'0 分钟'}</span></div>`;
   // Monthly bar
-  const mn={};allRecords.forEach(r=>{if(!r.date)return;const k=r.date.slice(0,7);if(!mn[k])mn[k]={s:new Set(),m:0};mn[k].s.add(r.date)});
-  Object.keys(mn).forEach(k=>{let ot=0;const[y,m]=k.split('-').map(Number);Object.entries(dg).forEach(([date,recs])=>{const d=new Date(date+'T12:00:00');if(d.getFullYear()===y&&d.getMonth()===m-1)ot+=calcTodayOT(recs,d)});mn[k].m=ot});
+  const allGrouped=OT.groupRecordsByStartDate(allRecords);
+  const mn={};Object.entries(allGrouped).forEach(([date,recs])=>{const k=date.slice(0,7);if(!mn[k])mn[k]={s:new Set(),m:0};mn[k].s.add(date);mn[k].m+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
   const sm=Object.keys(mn).sort().reverse().slice(0,6);
   if(sm.length){const mx=Math.max(...sm.map(k=>mn[k].m),1);document.getElementById('stats-bar-chart').innerHTML=sm.map(m=>`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${m}（${mn[m].s.size}天）</span><span style="font-weight:600;color:var(--accent)">${formatMinutes(mn[m].m)}</span></div><div style="height:20px;background:#F1F5F9;border-radius:4px;overflow:hidden"><div style="height:100%;width:${(mn[m].m/mx*100).toFixed(1)}%;background:linear-gradient(90deg,var(--primary),var(--primary-light));border-radius:4px"></div></div></div>`).join('')}
   else document.getElementById('stats-bar-chart').innerHTML='<div class="empty-state"><div class="text">暂无数据</div></div>';
@@ -47,18 +74,14 @@ OT.renderStats = function renderStats(){
 OT.updateHeaderStats = function updateHeaderStats(){
   if(currentUser.role==='admin')return;
   const now=new Date(),tk=dateKey(now);
-  const tr=allRecords.filter(r=>r.date===tk),tot=calcTodayOT(tr,new Date(tk+'T12:00:00'));
+  const todayGroup=OT.recordsGroupedByStartDateInRange(allRecords,tk,tk),tot=OT.sumGroupedWorkMinutes(todayGroup);
   const thisMonth=tk.slice(0,7);
-  const mr=allRecords.filter(r=>r.date&&r.date.startsWith(thisMonth));
-  const mdg=OT.groupRecordsByStartDate(mr);
-  let mot=0;Object.entries(mdg).forEach(([date,recs])=>{mot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
-  const adg=OT.groupRecordsByStartDate(allRecords);
-  let ttot=0;Object.entries(adg).forEach(([date,recs])=>{ttot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
+  const mdg=OT.recordsGroupedByStartDateInRange(allRecords,thisMonth+'-01',thisMonth+'-31');
+  const mot=OT.sumGroupedWorkMinutes(mdg);
   const todayObj=new Date(tk+'T12:00:00');todayObj.setDate(todayObj.getDate()-todayObj.getDay()+1);
   const weekStart=calendarKey(todayObj);
-  const wRecs=allRecords.filter(r=>r.date>=weekStart&&r.date<=tk);
-  const wdg=OT.groupRecordsByStartDate(wRecs);
-  let wot=0;Object.entries(wdg).forEach(([date,recs])=>{wot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
+  const wdg=OT.recordsGroupedByStartDateInRange(allRecords,weekStart,tk);
+  const wot=OT.sumGroupedWorkMinutes(wdg);
   document.getElementById('header-stats').innerHTML=`
     <div class="stat-item"><div class="stat-value">${fmtMin(tot)}</div><div class="stat-label">今日</div></div>
     <div class="stat-item"><div class="stat-value">${fmtMin(wot)}</div><div class="stat-label">本周</div></div>

@@ -417,14 +417,6 @@ def api_records_all():
     conn.close()
     return jsonify(records=[dict(r) for r in rows])
 
-@app.route('/api/records/all', methods=['DELETE'])
-@admin_required
-def api_delete_all_records():
-    conn = get_db()
-    conn.execute("DELETE FROM records")
-    conn.commit(); conn.close()
-    return jsonify(ok=True)
-
 # ==================== Admin API ====================
 @app.route('/api/users')
 @admin_required
@@ -498,11 +490,13 @@ def api_delete_user(username):
     if username == request.user['username']: return jsonify(error="不能删除自己"), 400
     if username == 'admin': return jsonify(error="不能删除主管理员"), 400
     conn = get_db()
-    # 获取用户显示名用于重置白名单
     u = conn.execute("SELECT display_name FROM users WHERE username=?", (username,)).fetchone()
+    has_records = conn.execute("SELECT 1 FROM records WHERE user_id=? LIMIT 1", (username,)).fetchone()
+    if has_records:
+        conn.close()
+        return jsonify(error="该成员已有原始记录，不能删除；如有问题请线下沟通"), 400
     if u:
         conn.execute("UPDATE whitelist SET used=0, used_by=NULL WHERE name=?", (u['display_name'],))
-    conn.execute("DELETE FROM records WHERE user_id=?", (username,))
     conn.execute("DELETE FROM users WHERE username=?", (username,))
     conn.commit(); conn.close()
     return jsonify(ok=True)
@@ -870,9 +864,7 @@ def email_next_schedule_display(cfg, now=None):
 
 def calc_records_minutes(records, settings):
     if not records: return 0
-    date_groups = {}
-    for r in records:
-        date_groups.setdefault(r['date'], []).append(r)
+    date_groups = group_paired_records_by_start_date(records)
     total = 0
     for date, recs in date_groups.items():
         dt = datetime.strptime(date, '%Y-%m-%d')
@@ -1039,7 +1031,7 @@ def build_email_export_csv(records, settings, include_person_subtotals=True):
     def summary_line(label, summary_rows, type_label):
         total = sum(r['minutes'] for r in summary_rows)
         remote_days = sum(1 for r in summary_rows if r['remote'])
-        return ','.join([csv_cell(label),'""','""','""','""',csv_cell(type_label),'""','""','""',csv_cell(f"远程 {remote_days} 天"),'""','""',str(total),csv_cell(csv_hour_text(total))])
+        return ','.join([csv_cell(label),'""','""','""','""',csv_cell(type_label),'""','""','""',csv_cell(f"范围外 {remote_days} 天"),'""','""',str(total),csv_cell(csv_hour_text(total))])
     lines = []
     if include_person_subtotals:
         people = {}
@@ -1052,7 +1044,7 @@ def build_email_export_csv(records, settings, include_person_subtotals=True):
     else:
         lines.extend(detail_line(r) for r in rows)
     lines.append(summary_line('汇总', rows, '总计'))
-    return '姓名,日期,星期,上班,下班,类型,工作类别,事由,下班说明,远程,实际位置,复核标记,工时(分),工时(h)\n' + '\n'.join(lines)
+    return '姓名,日期,星期,上班,下班,类型,工作类别,事由,下班说明,范围外,实际位置,复核标记,工时(分),工时(h)\n' + '\n'.join(lines)
 
 
 def build_email_summary_html(users, records, settings, cfg, from_date, to_date, now):
