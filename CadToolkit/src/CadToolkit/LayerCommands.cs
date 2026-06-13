@@ -90,44 +90,15 @@ namespace CadToolkit
             bool setByLayer = true;
             bool deleteEmpty = false;
             bool fallbackTo0 = Config.LayerStandardFallbackTo0;
-            var f = new Form();
-            f.Text = "\u56fe\u5c42\u89c4\u8303\u5316";
-            f.StartPosition = FormStartPosition.CenterScreen;
-            f.FormBorderStyle = FormBorderStyle.FixedDialog;
-            f.MaximizeBox = false; f.MinimizeBox = false; f.ShowInTaskbar = false;
+            var f = CreateStandardPreviewForm("\u56fe\u5c42\u89c4\u8303\u5316");
             LayerPlanTreeFilter previewFilter = LayerPlanTreeFilter.All;
-            f.AutoScaleMode = AutoScaleMode.None; f.AutoScroll = true; f.ClientSize = new Size(UiScale(620), UiScale(540));
-
-            var rbAll = new RadioButton();
-            rbAll.Text = "\u5168\u90e8"; rbAll.Left = UiScale(12); rbAll.Top = UiScale(12); rbAll.Width = UiScale(70); rbAll.Height = UiScale(24); rbAll.Checked = true;
-            rbAll.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-
-            var rbUnknown = new RadioButton();
-            rbUnknown.Text = "\u672a\u8bc6\u522b"; rbUnknown.Left = UiScale(88); rbUnknown.Top = UiScale(12); rbUnknown.Width = UiScale(86); rbUnknown.Height = UiScale(24);
-            rbUnknown.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-
-            var rbMigration = new RadioButton();
-            rbMigration.Text = "\u5c06\u8fc1\u79fb"; rbMigration.Left = UiScale(180); rbMigration.Top = UiScale(12); rbMigration.Width = UiScale(86); rbMigration.Height = UiScale(24);
-            rbMigration.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-
-            var rbWhitelist = new RadioButton();
-            rbWhitelist.Text = "\u767d\u540d\u5355"; rbWhitelist.Left = UiScale(272); rbWhitelist.Top = UiScale(12); rbWhitelist.Width = UiScale(86); rbWhitelist.Height = UiScale(24);
-            rbWhitelist.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-
-            var lblSearch = new Label();
-            lblSearch.Text = "\u641c\u7d22"; lblSearch.Left = UiScale(382); lblSearch.Top = UiScale(15); lblSearch.Width = UiScale(40); lblSearch.Height = UiScale(20);
-            lblSearch.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-
-            var search = new TextBox();
-            search.Left = UiScale(428); search.Top = UiScale(12); search.Width = UiScale(180); search.Height = UiScale(24);
-            search.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-
-            var tree = new TreeView();
-            tree.HideSelection = false;
-            tree.FullRowSelect = true;
-            tree.ShowNodeToolTips = true;
-            tree.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            tree.Left = UiScale(12); tree.Top = UiScale(42); tree.Width = UiScale(596); tree.Height = UiScale(340);
+            var filters = CreateStandardPreviewFilterControls("\u5168\u90e8", "\u672a\u8bc6\u522b", "\u5c06\u8fc1\u79fb", "\u767d\u540d\u5355", "\u641c\u7d22");
+            var rbAll = filters.All;
+            var rbUnknown = filters.Unknown;
+            var rbMigration = filters.Migration;
+            var rbWhitelist = filters.Whitelist;
+            var search = filters.Search;
+            var tree = CreateStandardPreviewTree(340);
             BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, fallbackTo0, previewFilter, search.Text);
 
             var chkByLayer = new CheckBox();
@@ -160,9 +131,7 @@ namespace CadToolkit
             rbWhitelist.CheckedChanged += filterChanged;
             search.TextChanged += delegate { BuildLayerPlanTreePreview(tree, plans, fallbackPlans, whitelistPlans, rules, chkFallback.Checked, previewFilter, search.Text); };
 
-            var copy = new Button();
-            copy.Text = "\u590d\u5236\u5f53\u524d";
-            copy.Left = UiScale(336); copy.Top = UiScale(500); copy.Width = UiScale(88); copy.Height = UiScale(28); copy.FlatStyle = FlatStyle.System;
+            var copy = CreateStandardPreviewButton("\u590d\u5236\u5f53\u524d", 336, 88, DialogResult.None);
             copy.Click += delegate
             {
                 try
@@ -176,15 +145,10 @@ namespace CadToolkit
                 }
             };
 
-            var ok = new Button();
-            ok.Text = "\u6267\u884c"; ok.DialogResult = DialogResult.OK;
-            ok.Left = UiScale(432); ok.Top = UiScale(500); ok.Width = UiScale(80); ok.Height = UiScale(28); ok.FlatStyle = FlatStyle.System;
+            var ok = CreateStandardPreviewButton("\u6267\u884c", 432, 80, DialogResult.OK);
+            var cancel = CreateStandardPreviewButton("\u53d6\u6d88", 528, 80, DialogResult.Cancel);
 
-            var cancel = new Button();
-            cancel.Text = "\u53d6\u6d88"; cancel.DialogResult = DialogResult.Cancel;
-            cancel.Left = UiScale(528); cancel.Top = UiScale(500); cancel.Width = UiScale(80); cancel.Height = UiScale(28); cancel.FlatStyle = FlatStyle.System;
-
-            f.Controls.AddRange(new Control[] { rbAll, rbUnknown, rbMigration, rbWhitelist, lblSearch, search, tree, chkByLayer, chkDelete, chkFallback, copy, ok, cancel });
+            f.Controls.AddRange(new Control[] { rbAll, rbUnknown, rbMigration, rbWhitelist, filters.SearchLabel, search, tree, chkByLayer, chkDelete, chkFallback, copy, ok, cancel });
             f.AcceptButton = ok; f.CancelButton = cancel;
             if (f.ShowDialog() != DialogResult.OK) { f.Dispose(); return; }
             setByLayer = chkByLayer.Checked;
@@ -396,18 +360,7 @@ namespace CadToolkit
 
         static void BuildLayerPlanTreePreview(TreeView tree, List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0, LayerPlanTreeFilter filter, string searchText)
         {
-            tree.BeginUpdate();
-            try
-            {
-                tree.Nodes.Clear();
-                tree.Nodes.AddRange(BuildSearchedLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0, filter, searchText));
-                if (filter != LayerPlanTreeFilter.All || SafeStr(searchText).Trim().Length > 0)
-                    tree.ExpandAll();
-            }
-            finally
-            {
-                tree.EndUpdate();
-            }
+            UpdateStandardPreviewTree(tree, BuildSearchedLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0, filter, searchText), filter != LayerPlanTreeFilter.All || SafeStr(searchText).Trim().Length > 0);
         }
 
 [CommandMethod("CT_SETLAYER0")]

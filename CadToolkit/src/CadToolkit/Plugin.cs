@@ -558,50 +558,12 @@ namespace CadToolkit
         static TreeNode[] BuildSearchedLayerPlanTreeNodes(List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0, LayerPlanTreeFilter filter, string searchText)
         {
             var filtered = BuildFilteredLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0, filter);
-            string needle = SafeStr(searchText).Trim();
-            if (needle.Length == 0) return filtered;
-
-            var nodes = new List<TreeNode>();
-            if (filtered.Length > 0) nodes.Add((TreeNode)filtered[0].Clone());
-            for (int i = 1; i < filtered.Length; i++)
-            {
-                var matched = CloneLayerPlanNodeMatches(filtered[i], needle);
-                if (matched != null) nodes.Add(matched);
-            }
-            if (nodes.Count == 1) nodes.Add(new TreeNode("无匹配结果"));
-            return nodes.ToArray();
+            return FilterStandardPreviewNodes(filtered, searchText);
         }
 
         static string FormatLayerPlanTreeReport(TreeNode[] nodes)
         {
-            var sb = new StringBuilder();
-            if (nodes == null) return "";
-            foreach (TreeNode node in nodes)
-                AppendLayerPlanTreeReportNode(sb, node, 0);
-            return sb.ToString();
-        }
-
-        static void AppendLayerPlanTreeReportNode(StringBuilder sb, TreeNode node, int depth)
-        {
-            if (sb == null || node == null) return;
-            if (depth > 0) sb.Append(new string(' ', depth * 2));
-            sb.AppendLine(SafeStr(node.Text));
-            foreach (TreeNode child in node.Nodes)
-                AppendLayerPlanTreeReportNode(sb, child, depth + 1);
-        }
-
-        static TreeNode CloneLayerPlanNodeMatches(TreeNode node, string needle)
-        {
-            bool selfMatches = NodeTextContains(node, needle);
-            var clone = new TreeNode(node.Text);
-            clone.ToolTipText = node.ToolTipText;
-            foreach (TreeNode child in node.Nodes)
-            {
-                var childClone = CloneLayerPlanNodeMatches(child, needle);
-                if (childClone != null) clone.Nodes.Add(childClone);
-            }
-            if (selfMatches || clone.Nodes.Count > 0) return clone;
-            return null;
+            return FormatStandardPreviewTreeReport(nodes);
         }
 
         static bool NodeTextContains(TreeNode node, string needle)

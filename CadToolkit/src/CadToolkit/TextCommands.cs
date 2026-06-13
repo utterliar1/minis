@@ -254,17 +254,13 @@ namespace CadToolkit
         {
             ObjectId[] selectedIds = GetSelectionOrAbort();
             if (selectedIds == null) return;
-            string prefix;
-            string suffix;
             int startNum;
-            bool replaceOriginal;
+            TextNumberMode mode;
             using (var dlg = new TextNumberDialog())
             {
                 if (dlg.ShowDialog() != DialogResult.OK) return;
-                prefix = dlg.Prefix;
-                suffix = dlg.Suffix;
                 startNum = dlg.StartNumber;
-                replaceOriginal = dlg.ReplaceOriginal;
+                mode = dlg.Mode;
             }
             var items = new List<KeyValuePair<Point3d, ObjectId>>();
             using (var tr = Db.TransactionManager.StartTransaction())
@@ -292,16 +288,28 @@ namespace CadToolkit
                 for (int i = 0; i < items.Count; i++)
                 {
                     var ent = tr.GetObject(items[i].Value, OpenMode.ForWrite);
-                    string numStr = prefix + (startNum + i).ToString() + suffix;
-                    if (replaceOriginal)
+                    string numStr = (startNum + i).ToString();
+                    if (mode == TextNumberMode.Replace)
                     {
                         if (ent is DBText) { var _dt = (DBText)ent; _dt.TextString = numStr; count++; }
                         else if (ent is MText) { var _mt = (MText)ent; _mt.Contents = numStr; count++; }
                     }
                     else
                     {
-                        if (ent is DBText) { var _dt2 = (DBText)ent; _dt2.TextString = numStr + _dt2.TextString; count++; }
-                        else if (ent is MText) { var _mt2 = (MText)ent; _mt2.Contents = numStr + _mt2.Contents; count++; }
+                        if (ent is DBText)
+                        {
+                            var _dt2 = (DBText)ent;
+                            if (mode == TextNumberMode.Prefix) _dt2.TextString = numStr + _dt2.TextString;
+                            else if (mode == TextNumberMode.Suffix) _dt2.TextString = _dt2.TextString + numStr;
+                            count++;
+                        }
+                        else if (ent is MText)
+                        {
+                            var _mt2 = (MText)ent;
+                            if (mode == TextNumberMode.Prefix) _mt2.Contents = numStr + _mt2.Contents;
+                            else if (mode == TextNumberMode.Suffix) _mt2.Contents = _mt2.Contents + numStr;
+                            count++;
+                        }
                     }
                 }
                 tr.Commit();

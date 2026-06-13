@@ -210,47 +210,47 @@ namespace CadToolkit.UI
         }
     }
 
+    public enum TextNumberMode
+    {
+        Prefix,
+        Suffix,
+        Replace
+    }
+
     public class TextNumberDialog : Form
     {
-        public string Prefix;
-        public string Suffix;
         public int StartNumber;
-        public bool ReplaceOriginal;
+        public TextNumberMode Mode;
 
         public TextNumberDialog()
         {
-            Prefix = "";
-            Suffix = "";
             StartNumber = 1;
-            ReplaceOriginal = false;
+            Mode = TextNumberMode.Suffix;
             Text = "\u6587\u5B57\u7F16\u53F7";
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
-            AutoScaleMode = AutoScaleMode.None; AutoScroll = true; ClientSize = new Size(460, 132);
+            AutoScaleMode = AutoScaleMode.None; AutoScroll = true; ClientSize = new Size(340, 112);
 
-            var l1 = new Label(); l1.Text = "\u524D\u7F00\uFF1A"; l1.Left = 16; l1.Top = 16; l1.AutoSize = true; l1.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
-            var t1 = new TextBox(); t1.Left = 76; t1.Top = 12; t1.Width = 110; t1.Text = ""; t1.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            var l2 = new Label(); l2.Text = "\u540E\u7F00\uFF1A"; l2.Left = 220; l2.Top = 16; l2.AutoSize = true; l2.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
-            var t2 = new TextBox(); t2.Left = 280; t2.Top = 12; t2.Width = 110; t2.Text = ""; t2.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            var l3 = new Label(); l3.Text = "\u8D77\u59CB\u53F7\uFF1A"; l3.Left = 16; l3.Top = 52; l3.AutoSize = true; l3.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
-            var t3 = new TextBox(); t3.Left = 76; t3.Top = 48; t3.Width = 110; t3.Text = "1"; t3.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            var chkReplace = new CheckBox(); chkReplace.Text = "\u66FF\u6362\uFF08\u7528\u7F16\u53F7\u66FF\u6362\u539F\u6587\uFF09"; chkReplace.Left = 220; chkReplace.Top = 50; chkReplace.Width = 220; chkReplace.Height = 24; chkReplace.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            var ok = new Button(); ok.Text = "\u786E\u5B9A"; ok.DialogResult = DialogResult.OK; ok.Left = 260; ok.Top = 92; ok.Width = 84; ok.Height = 28; ok.FlatStyle = FlatStyle.System;
-            var cancel = new Button(); cancel.Text = "\u53D6\u6D88"; cancel.DialogResult = DialogResult.Cancel; cancel.Left = 356; cancel.Top = 92; cancel.Width = 84; cancel.Height = 28; cancel.FlatStyle = FlatStyle.System;
+            var l3 = new Label(); l3.Text = "\u8D77\u59CB\u53F7\uFF1A"; l3.Left = 16; l3.Top = 16; l3.AutoSize = true; l3.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var t3 = new TextBox(); t3.Left = 86; t3.Top = 12; t3.Width = 90; t3.Text = "1"; t3.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
+            var lMode = new Label(); lMode.Text = "\u7F16\u53F7\u4F4D\u7F6E\uFF1A"; lMode.Left = 16; lMode.Top = 48; lMode.AutoSize = true; lMode.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var rbPrefix = new RadioButton(); rbPrefix.Text = "\u524D\u7F00"; rbPrefix.Left = 96; rbPrefix.Top = 46; rbPrefix.Width = 64; rbPrefix.Height = 24; rbPrefix.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            var rbSuffix = new RadioButton(); rbSuffix.Text = "\u540E\u7F00"; rbSuffix.Left = 164; rbSuffix.Top = 46; rbSuffix.Width = 64; rbSuffix.Height = 24; rbSuffix.Checked = true; rbSuffix.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            var rbReplace = new RadioButton(); rbReplace.Text = "\u66FF\u6362"; rbReplace.Left = 232; rbReplace.Top = 46; rbReplace.Width = 64; rbReplace.Height = 24; rbReplace.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            var ok = new Button(); ok.Text = "\u786E\u5B9A"; ok.DialogResult = DialogResult.OK; ok.Left = 156; ok.Top = 78; ok.Width = 78; ok.Height = 26; ok.FlatStyle = FlatStyle.System;
+            var cancel = new Button(); cancel.Text = "\u53D6\u6D88"; cancel.DialogResult = DialogResult.Cancel; cancel.Left = 246; cancel.Top = 78; cancel.Width = 78; cancel.Height = 26; cancel.FlatStyle = FlatStyle.System;
 
             ok.Click += delegate
             {
-                Prefix = t1.Text.Trim();
-                Suffix = t2.Text.Trim();
                 int n;
                 StartNumber = int.TryParse(t3.Text.Trim(), out n) ? n : 1;
-                ReplaceOriginal = chkReplace.Checked;
+                Mode = rbReplace.Checked ? TextNumberMode.Replace : (rbPrefix.Checked ? TextNumberMode.Prefix : TextNumberMode.Suffix);
             };
 
-            Controls.AddRange(new Control[] { l1, t1, l2, t2, l3, t3, chkReplace, ok, cancel });
+            Controls.AddRange(new Control[] { l3, t3, lMode, rbPrefix, rbSuffix, rbReplace, ok, cancel });
             AcceptButton = ok; CancelButton = cancel;
-            Shown += delegate { t1.Focus(); };
+            Shown += delegate { t3.Focus(); t3.SelectAll(); };
             DpiUtil.Apply(this);
         }
     }
