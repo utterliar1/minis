@@ -146,7 +146,8 @@ Write-Host '  GstarCAD: OK'
 $version = Get-CadToolkitVersion
 $autoload = Get-Content -Encoding UTF8 (Join-Path $Base 'autoload.lsp') -Raw
 $autoload = $autoload -replace 'CadToolkit v[0-9.]+ ready', "CadToolkit $version ready"
-Set-Content -Encoding UTF8 -Path (Join-Path $DeployRoot 'autoload.lsp') -Value $autoload
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText((Join-Path $DeployRoot 'autoload.lsp'), $autoload, $utf8NoBom)
 
 Copy-DeployItem -Source $DefaultConfigPath -Destination (Join-Path $DeployRoot 'CadToolkit.default.ini')
 if (-not $hadUserConfig) {
