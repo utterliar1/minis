@@ -54,7 +54,7 @@ namespace BlockBrowser
                         card.LoadThumbnail(new Bitmap(_thumbCache[ck]));
                     }
                 }
-                catch { _failCount++; }
+                catch { card.SetThumbnailFailed(true); _failCount++; }
             }
             if (!ThumbnailLoadProgressService.IsComplete(_thumbIndex, _pendingThumbCards.Count))
                 _lblStatus.Text = ThumbnailLoadProgressService.FormatLoadingStatus(_thumbIndex, _pendingThumbCards.Count);

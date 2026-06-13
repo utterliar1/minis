@@ -72,8 +72,8 @@ namespace BlockBrowser
                     string ck = ThumbnailMemoryCacheService.GetKey(block.FilePath, _thumbSize);
                     if (_thumbCache.ContainsKey(ck) && _thumbCache[ck] != null)
                     {
-                        try { card.LoadThumbnail(_thumbCache[ck]); }
-                        catch { _thumbCache.Remove(ck); }
+                        try { card.LoadThumbnail(new Bitmap(_thumbCache[ck])); }
+                        catch { ResourceDisposalService.DisposeQuietly(_thumbCache[ck]); _thumbCache.Remove(ck); }
                     }
                     newCards.Add(card);
                 }

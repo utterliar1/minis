@@ -9,9 +9,9 @@ namespace BlockBrowser
     class StableFlowPanel : FlowLayoutPanel
     {
         public StableFlowPanel() { DoubleBuffered = true; }
-        public new void ScrollControlIntoView(Control activeControl)
+        protected override Point ScrollToControl(Control activeControl)
         {
-            // 不执行自动滚动，保持当前位置
+            return DisplayRectangle.Location;
         }
     }
 
