@@ -15,6 +15,27 @@ OT.showPage = function showPage(name){
 
 OT.showSettingsTab = function showSettingsTab(n){};
 
+OT.confirmClearAppCache = function confirmClearAppCache(){
+  showConfirmModal('刷新应用缓存','将清理本应用缓存并刷新页面，不会删除服务器记录，也不会主动退出登录。',OT.clearAppCache);
+};
+
+OT.clearAppCache = async function clearAppCache(){
+  try{
+    if(window.caches){
+      const keys=await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+    if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+    }
+    showToast('缓存已清理，正在刷新...');
+    setTimeout(()=>location.reload(),300);
+  }catch(e){
+    showToast('缓存清理失败，请手动刷新');
+  }
+};
+
 Object.assign(window, {
   addHolidayManual: OT.addHolidayManual,
   addWhitelist: OT.addWhitelist,
@@ -34,6 +55,7 @@ Object.assign(window, {
   changeMyPassword: OT.changeMyPassword,
   closeModal: OT.closeModal,
   closeModalDirect: OT.closeModalDirect,
+  clearAppCache: OT.confirmClearAppCache,
   confirmLoc: OT.confirmLoc,
   csvCell: OT.csvCell,
   csvHourText: OT.csvHourText,
