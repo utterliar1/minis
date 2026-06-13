@@ -230,16 +230,16 @@ namespace CadToolkit.UI
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
-            AutoScaleMode = AutoScaleMode.None; AutoScroll = true; ClientSize = new Size(460, 132);
+            AutoScaleMode = AutoScaleMode.None; AutoScroll = true; ClientSize = new Size(340, 112);
 
             var l3 = new Label(); l3.Text = "\u8D77\u59CB\u53F7\uFF1A"; l3.Left = 16; l3.Top = 16; l3.AutoSize = true; l3.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
-            var t3 = new TextBox(); t3.Left = 86; t3.Top = 12; t3.Width = 110; t3.Text = "1"; t3.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
-            var lMode = new Label(); lMode.Text = "\u7F16\u53F7\u4F4D\u7F6E\uFF1A"; lMode.Left = 16; lMode.Top = 52; lMode.AutoSize = true; lMode.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
-            var rbPrefix = new RadioButton(); rbPrefix.Text = "\u524D\u7F00"; rbPrefix.Left = 96; rbPrefix.Top = 50; rbPrefix.Width = 70; rbPrefix.Height = 24; rbPrefix.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            var rbSuffix = new RadioButton(); rbSuffix.Text = "\u540E\u7F00"; rbSuffix.Left = 172; rbSuffix.Top = 50; rbSuffix.Width = 70; rbSuffix.Height = 24; rbSuffix.Checked = true; rbSuffix.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            var rbReplace = new RadioButton(); rbReplace.Text = "\u66FF\u6362"; rbReplace.Left = 248; rbReplace.Top = 50; rbReplace.Width = 70; rbReplace.Height = 24; rbReplace.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
-            var ok = new Button(); ok.Text = "\u786E\u5B9A"; ok.DialogResult = DialogResult.OK; ok.Left = 260; ok.Top = 92; ok.Width = 84; ok.Height = 28; ok.FlatStyle = FlatStyle.System;
-            var cancel = new Button(); cancel.Text = "\u53D6\u6D88"; cancel.DialogResult = DialogResult.Cancel; cancel.Left = 356; cancel.Top = 92; cancel.Width = 84; cancel.Height = 28; cancel.FlatStyle = FlatStyle.System;
+            var t3 = new TextBox(); t3.Left = 86; t3.Top = 12; t3.Width = 90; t3.Text = "1"; t3.Font = new System.Drawing.Font("Microsoft YaHei", 10f);
+            var lMode = new Label(); lMode.Text = "\u7F16\u53F7\u4F4D\u7F6E\uFF1A"; lMode.Left = 16; lMode.Top = 48; lMode.AutoSize = true; lMode.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var rbPrefix = new RadioButton(); rbPrefix.Text = "\u524D\u7F00"; rbPrefix.Left = 96; rbPrefix.Top = 46; rbPrefix.Width = 64; rbPrefix.Height = 24; rbPrefix.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            var rbSuffix = new RadioButton(); rbSuffix.Text = "\u540E\u7F00"; rbSuffix.Left = 164; rbSuffix.Top = 46; rbSuffix.Width = 64; rbSuffix.Height = 24; rbSuffix.Checked = true; rbSuffix.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            var rbReplace = new RadioButton(); rbReplace.Text = "\u66FF\u6362"; rbReplace.Left = 232; rbReplace.Top = 46; rbReplace.Width = 64; rbReplace.Height = 24; rbReplace.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            var ok = new Button(); ok.Text = "\u786E\u5B9A"; ok.DialogResult = DialogResult.OK; ok.Left = 156; ok.Top = 78; ok.Width = 78; ok.Height = 26; ok.FlatStyle = FlatStyle.System;
+            var cancel = new Button(); cancel.Text = "\u53D6\u6D88"; cancel.DialogResult = DialogResult.Cancel; cancel.Left = 246; cancel.Top = 78; cancel.Width = 78; cancel.Height = 26; cancel.FlatStyle = FlatStyle.System;
 
             ok.Click += delegate
             {

@@ -25,13 +25,22 @@ function Assert-NumberAtLeast($name, $actual, $minimum) {
     Write-Host "PASS $name"
 }
 
+function Assert-NumberAtMost($name, $actual, $maximum) {
+    if ([int]$actual -gt [int]$maximum) {
+        throw "$name expected at most $maximum but got $actual"
+    }
+    Write-Host "PASS $name"
+}
+
 $dialogMatch = [regex]::Match($dialogs, 'public class TextNumberDialog : Form(?<body>[\s\S]*?)public class ManageCommandsDialog')
 if (!$dialogMatch.Success) { throw 'TextNumberDialog source block not found' }
 $body = $dialogMatch.Groups['body'].Value
 
 $sizeMatch = [regex]::Match($body, 'ClientSize\s*=\s*new Size\((?<width>\d+),\s*(?<height>\d+)\)')
 if (!$sizeMatch.Success) { throw 'TextNumberDialog ClientSize not found' }
-Assert-NumberAtLeast 'text number dialog width leaves room for Chinese labels' $sizeMatch.Groups['width'].Value 420
+Assert-NumberAtLeast 'text number dialog width leaves room for Chinese labels' $sizeMatch.Groups['width'].Value 320
+Assert-NumberAtMost 'text number dialog avoids old wide empty layout' $sizeMatch.Groups['width'].Value 360
+Assert-NumberAtMost 'text number dialog avoids tall empty layout' $sizeMatch.Groups['height'].Value 120
 
 Assert-Match 'text number dialog exposes numbering mode enum' $dialogs 'enum\s+TextNumberMode'
 Assert-Match 'text number dialog has prefix option' $body 'rbPrefix\.Text\s*=\s*"\\u524D\\u7F00"'
