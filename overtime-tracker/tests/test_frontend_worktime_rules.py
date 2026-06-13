@@ -101,3 +101,75 @@ if (minutes !== 60) throw new Error(`Expected cross-day group to count 60 minute
     )
 
     assert result.returncode == 0, result.stderr
+
+
+def test_records_page_groups_cross_day_records_by_clock_in_date():
+    script = r"""
+const fs = require('fs');
+const vm = require('vm');
+
+const elements = {};
+let modalHtml = '';
+const sandbox = {
+  console,
+  location: { origin: 'http://127.0.0.1' },
+  localStorage: { getItem() { return null; } },
+  setTimeout() {},
+  document: {
+    getElementById(id) {
+      if (!elements[id]) elements[id] = { textContent: '', innerHTML: '', style: {}, classList: { add() {}, remove() {} } };
+      return elements[id];
+    },
+    createElement() { return { click() {} }; },
+  },
+  URL: { createObjectURL() { return 'blob:'; }, revokeObjectURL() {} },
+};
+sandbox.window = sandbox;
+vm.createContext(sandbox);
+for (const file of ['frontend/js/utils.js', 'frontend/js/stats.js', 'frontend/js/records.js']) {
+  vm.runInContext(fs.readFileSync(file, 'utf8'), sandbox, { filename: file });
+}
+for (const key of Object.keys(sandbox.OT)) sandbox[key] = sandbox.OT[key];
+
+sandbox.OT.settings = sandbox.settings = {
+  workStart: '08:30',
+  workEnd: '17:30',
+  weekdays: [1, 2, 3, 4, 5],
+  holidays: [],
+  workdays: [],
+};
+sandbox.OT.showModal = sandbox.showModal = function(html) { modalHtml = html; };
+sandbox.OT.calYear = sandbox.calYear = 2026;
+sandbox.OT.calMonth = sandbox.calMonth = 5;
+sandbox.OT.allRecords = sandbox.allRecords = [
+  { user_id: 'u1', date: '2026-06-11', time_str: '22:26:00', ts: Date.parse('2026-06-11T22:26:00+08:00'), type: 'in', note: '设计：方案调整' },
+  { user_id: 'u1', date: '2026-06-12', time_str: '09:26:00', ts: Date.parse('2026-06-12T09:26:00+08:00'), type: 'out', note: '忘记下班打卡，当前补记：晚上12点下班的' },
+];
+
+sandbox.OT.renderCalendar();
+const listHtml = elements['records-list'].innerHTML;
+if (!listHtml.includes('11 小时')) {
+  throw new Error(`Expected records list to show cross-day duration, got ${listHtml}`);
+}
+if (listHtml.includes('+0 分钟')) {
+  throw new Error(`Expected records list not to show zero duration, got ${listHtml}`);
+}
+
+sandbox.OT.showDayDetail(2026, 5, 11);
+if (!modalHtml.includes('11 小时')) {
+  throw new Error(`Expected day detail to show cross-day duration, got ${modalHtml}`);
+}
+if (modalHtml.includes('0 分钟')) {
+  throw new Error(`Expected day detail not to show zero duration, got ${modalHtml}`);
+}
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+
+    assert result.returncode == 0, result.stderr
