@@ -60,7 +60,7 @@ $active.Message = 'Using local mirror.'
 $active.IsAvailable = $true
 
 $report = [BlockBrowser.StatusDiagnosticsService]::FormatReport(
-    '1.3.1',
+    '1.3.2',
     'AutoCAD',
     [BlockBrowser.LibraryMode]::Auto,
     $active,
@@ -77,7 +77,7 @@ $report = [BlockBrowser.StatusDiagnosticsService]::FormatReport(
     'D:\Blocks\Mirror\.thumbs')
 
 Assert-Contains 'report includes title' $report $title
-Assert-Contains 'report includes version' $report ($versionLabel + ': 1.3.1')
+Assert-Contains 'report includes version' $report ($versionLabel + ': 1.3.2')
 Assert-Contains 'report includes platform' $report ($platformLabel + ': AutoCAD')
 Assert-Contains 'report includes current mode' $report ($modeLabel + ': Auto')
 Assert-Contains 'report includes active kind' $report ($activeLabel + ': LocalMirror')
@@ -96,7 +96,7 @@ Assert-Contains 'report includes journal path' $report ($journalPathLabel + ': D
 Assert-Contains 'report includes thumbnail path' $report ($thumbnailPathLabel + ': D:\Blocks\Mirror\.thumbs')
 
 $emptyActiveReport = [BlockBrowser.StatusDiagnosticsService]::FormatReport(
-    '1.3.1',
+    '1.3.2',
     'GstarCAD',
     [BlockBrowser.LibraryMode]::Local,
     $null,
