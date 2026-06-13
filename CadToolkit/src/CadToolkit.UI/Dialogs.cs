@@ -250,7 +250,7 @@ namespace CadToolkit.UI
 
             Controls.AddRange(new Control[] { l1, t1, l2, t2, l3, t3, chkReplace, ok, cancel });
             AcceptButton = ok; CancelButton = cancel;
-            Shown += delegate { t1.Focus(); };
+            Shown += delegate { t3.Focus(); t3.SelectAll(); };
             DpiUtil.Apply(this);
         }
     }

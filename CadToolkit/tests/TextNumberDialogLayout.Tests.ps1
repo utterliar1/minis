@@ -10,6 +10,13 @@ function Assert-Match($name, $text, $pattern) {
     Write-Host "PASS $name"
 }
 
+function Assert-NotMatch($name, $text, $pattern) {
+    if ($text -match $pattern) {
+        throw "$name found forbidden pattern: $pattern"
+    }
+    Write-Host "PASS $name"
+}
+
 function Assert-NumberAtLeast($name, $actual, $minimum) {
     if ([int]$actual -lt [int]$minimum) {
         throw "$name expected at least $minimum but got $actual"
@@ -30,3 +37,5 @@ if (!$replaceMatch.Success) { throw 'TextNumberDialog replace checkbox width not
 Assert-NumberAtLeast 'text number replace checkbox avoids wrapping' $replaceMatch.Groups['width'].Value 220
 
 Assert-Match 'text number dialog keeps replace text on one row' $body 'chkReplace\.Height\s*=\s*24'
+Assert-Match 'text number dialog defaults focus to start number' $body 'Shown\s*\+=\s*delegate\s*\{\s*t3\.Focus\(\);\s*t3\.SelectAll\(\);\s*\};'
+Assert-NotMatch 'text number dialog no longer defaults focus to prefix' $body 'Shown\s*\+=\s*delegate\s*\{\s*t1\.Focus\(\);\s*\};'
