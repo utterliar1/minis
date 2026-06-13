@@ -108,7 +108,9 @@ def test_static_asset_cache_version_is_current_and_consistent():
     assert "ot-tracker-v15" not in sw
     assert "v=16" not in index + app + sw
     assert "ot-tracker-v16" not in sw
-    assert "ot-tracker-v17" in sw
+    assert "v=17" not in index + app + sw
+    assert "ot-tracker-v17" not in sw
+    assert "ot-tracker-v18" in sw
     for asset in [
         "/css/style.css",
         "/js/utils.js",
@@ -121,4 +123,4 @@ def test_static_asset_cache_version_is_current_and_consistent():
         "/\u4f7f\u7528\u6307\u5357.html",
         "/\u7ba1\u7406\u5458\u4f7f\u7528\u6307\u5357.html",
     ]:
-        assert f"{asset}?v=17" in index + app + sw
+        assert f"{asset}?v=18" in index + app + sw

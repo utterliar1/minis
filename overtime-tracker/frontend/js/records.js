@@ -19,12 +19,13 @@ OT.renderCalendar = function renderCalendar(){
   label.textContent=`${calYear}年${calMonth+1}月`;
   const fd=new Date(calYear,calMonth,1).getDay(),dim=new Date(calYear,calMonth+1,0).getDate(),today=new Date();
   let html=['日','一','二','三','四','五','六'].map(d=>`<div class="cal-header">${d}</div>`).join('');
-  const rd=new Set();allRecords.forEach(r=>{if(!r.date)return;const [y,m,d]=r.date.split('-').map(Number);if(m-1===calMonth&&y===calYear)rd.add(d)});
+  const grouped=OT.groupRecordsByStartDate(allRecords);
+  const rd=new Set();Object.keys(grouped).forEach(date=>{const [y,m,d]=date.split('-').map(Number);if(m-1===calMonth&&y===calYear)rd.add(d)});
   for(let i=0;i<fd;i++)html+=`<div class="cal-day" style="visibility:hidden"></div>`;
   for(let d=1;d<=dim;d++){const it=d===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear();html+=`<div class="cal-day ${it?'today':''} ${rd.has(d)?'has-record':''}" onclick="event.stopPropagation();showDayDetail(${calYear},${calMonth},${d})">${d}</div>`}
   grid.innerHTML=html;
   // Month summary
-  const dg={};allRecords.forEach(r=>{if(!r.date)return;const [y,m]=r.date.split('-').map(Number);if(m-1===calMonth&&y===calYear){if(!dg[r.date])dg[r.date]=[];dg[r.date].push(r)}});
+  const dg={};Object.entries(grouped).forEach(([date,recs])=>{const [y,m]=date.split('-').map(Number);if(m-1===calMonth&&y===calYear)dg[date]=recs});
   let ot=0;Object.entries(dg).forEach(([date,recs])=>{ot+=calcTodayOT(recs,new Date(date+'T12:00:00'))});
   document.getElementById('summary-month-info').textContent=`${Object.keys(dg).length} 天打卡，工时 ${formatMinutes(ot)}`;
   renderRecordsList(dg);
@@ -54,7 +55,7 @@ OT.exportMyRecords = async function exportMyRecords(){
 
 OT.showDayDetail = function showDayDetail(y,m,d){
   const dateStr=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-  const dayRecs=allRecords.filter(r=>r.date===dateStr).sort((a,b)=>a.ts-b.ts);
+  const dayRecs=(OT.groupRecordsByStartDate(allRecords)[dateStr]||[]).sort((a,b)=>a.ts-b.ts);
   const dt=new Date(dateStr+'T12:00:00');
   const wd=['周日','周一','周二','周三','周四','周五','周六'][dt.getDay()];
   const isWk=isWorkingDay(dt),ot=calcTodayOT(dayRecs,dt);
