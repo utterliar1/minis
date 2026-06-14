@@ -214,6 +214,12 @@ Assert-TextNotContains 'repair removes old text style command label' $repairedTe
 Assert-TextContains 'repair adds config check command' $repairedText ($configCheckLabel + '=CT_CONFIGCHECK')
 Assert-TextNotContains 'repair removes known equals command doc comment' $repairedText $formatComment
 
+$aliasCollisionFixture = $repairFixture -replace '\[Commands\]', "[Commands]`r`nCustomConfigCheck=CT_CONFIGCHECK"
+$aliasCollisionRepair = Invoke-Repair $aliasCollisionFixture
+$aliasCollisionText = [string]$aliasCollisionRepair.RepairedText
+Assert-TextContains 'repair adds official command even when command value is used by custom alias' $aliasCollisionText ($configCheckLabel + '=CT_CONFIGCHECK')
+Assert-TextContains 'repair preserves custom command alias with same command value' $aliasCollisionText 'CustomConfigCheck=CT_CONFIGCHECK'
+
 $missingRootFixture = @"
 QuickBlockPrefix=USER
 

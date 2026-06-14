@@ -392,22 +392,24 @@ namespace CadToolkit.Core
             if (commandsEnd < 0)
                 commandsEnd = lines.Count;
 
+            var commandPairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             for (int i = commandsStart + 1; i < commandsEnd; i++)
             {
                 string key;
                 string value;
                 if (TrySplitKeyValue(lines[i].Trim(), out key, out value))
-                    commandValues.Add(value);
+                    commandPairs.Add(key + "=" + value);
             }
 
             foreach (KeyValuePair<string, string> command in OfficialCommands)
             {
-                if (commandValues.Contains(command.Value))
+                string officialPair = command.Key + "=" + command.Value;
+                if (commandPairs.Contains(officialPair))
                     continue;
 
                 int insertIndex = FindCommandInsertIndex(lines, commandsStart, commandsEnd, command);
                 lines.Insert(insertIndex, command.Key + "=" + command.Value);
-                commandValues.Add(command.Value);
+                commandPairs.Add(officialPair);
                 commandsEnd++;
             }
         }
