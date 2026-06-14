@@ -58,7 +58,7 @@
   <p>AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱</p>
   <div class="tags">
     <span class="tag">v1.25</span>
-    <span class="tag">18 个内置命令</span>
+    <span class="tag">20 个内置命令</span>
     <span class="tag">无限自定义</span>
   </div>
 </div>
@@ -250,6 +250,12 @@
 打印=PLOT
 图层管理=LAYMCOL</pre>
   <p>也可以通过面板底部 <code>+</code> / <code>-</code> 按钮添加和管理。</p>
+
+  <h3>配置体检 <span class="cmd-tag">CT_CONFIGCHECK</span></h3>
+  <p>运行 <code>CT_CONFIGCHECK</code> 或面板中的“配置体检”，可以检查 <code>CadToolkit.ini</code> 的基础项、官方命令、必要分组、图层映射和文字样式映射。</p>
+  <p>自动修复只处理安全项：补缺失基础项、补官方命令、重命名旧官方命令和清理已知错误注释；不会覆盖用户自定义的图层标准、图层映射、文字样式标准或文字样式映射。</p>
+  <pre>powershell -NoProfile -ExecutionPolicy Bypass -File C:\CadToolkit\tools\check-config.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\CadToolkit\tools\check-config.ps1 -Fix</pre>
 
   <h3>图层规范</h3>
   <p>图层规范由 <code>CadToolkit.ini</code> 控制。三端共用 <code>C:\CadToolkit\CadToolkit.ini</code>，修改后下一次执行 <code>CT_LAYERSTANDARD</code> 即可读取新配置。</p>

@@ -2,7 +2,7 @@
 
 AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱。
 
-一个命令 `CC` 呼出分组面板，19 个内置工具 + 无限自定义扩展，配置文件随插件一起迁移。
+一个命令 `CC` 呼出分组面板，20 个内置工具 + 无限自定义扩展，配置文件随插件一起迁移。
 
 ## 支持平台
 
@@ -23,7 +23,7 @@ AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱。
 
 > 建议将 `autoload.lsp` 添加到 CAD 启动组，实现开机自动加载。
 
-## 内置功能（19 个）
+## 内置功能（20 个）
 
 ### 文字编辑（7 个）
 
@@ -129,6 +129,19 @@ IsoLayerKeepLayer0=false
 ...
 ```
 
+### 配置体检
+
+运行 `CT_CONFIGCHECK` 或面板里的 `配置体检` 可以检查 `CadToolkit.ini` 是否缺少基础项、官方命令、必要 section，是否存在映射目标缺失或标准行格式错误。
+
+自动修复只会补缺失基础项、补官方命令、重命名旧官方命令和清理已知错误注释；不会覆盖图层标准、图层映射、文字样式标准或文字样式映射。
+
+也可以在 PowerShell 中运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\CadToolkit\tools\check-config.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\CadToolkit\tools\check-config.ps1 -Fix
+```
+
 ### 图层规范配置
 
 图层规范由 `CadToolkit.ini` 控制。三端共用 `C:\CadToolkit\CadToolkit.ini`，修改后下一次执行 `CT_LAYERSTANDARD` 即可读取新配置。
@@ -219,6 +232,8 @@ CadToolkit/
 ├── CadToolkit.ini          # 用户配置文件（共享，升级时保留）
 ├── CadToolkit.default.ini  # 默认配置模板
 ├── build-all.bat           # 编译部署脚本
+├── tools/
+│   └── check-config.ps1    # 配置体检脚本
 ├── acad/                   # AutoCAD 专用 DLL
 │   ├── CadToolkit.dll
 │   ├── CadToolkit.Core.dll

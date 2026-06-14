@@ -325,3 +325,14 @@ Assert-Contains 'check-config supports Fix switch' $toolText '\[switch\]\s*\$Fix
 Assert-Contains 'check-config calls AnalyzeFile' $toolText 'AnalyzeFile'
 Assert-Contains 'check-config calls RepairFile' $toolText 'RepairFile'
 Assert-Contains 'check-config prints formatted report' $toolText 'FormatReport'
+
+$readme = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\README.md') -Raw
+$manualFileName = 'CadToolkit' + (-join ([char[]](0x4F7F,0x7528,0x624B,0x518C))) + '.html'
+$manual = Get-Content -Encoding UTF8 (Join-Path (Join-Path $repo 'CadToolkit') $manualFileName) -Raw
+$configCheckLabel = -join ([char[]](0x914D,0x7F6E,0x4F53,0x68C0))
+Assert-TextContains 'readme documents config check command' $readme $configCheckLabel
+Assert-TextContains 'readme documents CT_CONFIGCHECK' $readme 'CT_CONFIGCHECK'
+Assert-TextContains 'readme documents check-config script' $readme 'check-config.ps1'
+Assert-TextContains 'manual documents config check command' $manual $configCheckLabel
+Assert-TextContains 'manual documents CT_CONFIGCHECK' $manual 'CT_CONFIGCHECK'
+Assert-TextContains 'manual documents check-config script' $manual 'check-config.ps1'
