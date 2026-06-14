@@ -110,7 +110,9 @@ def test_static_asset_cache_version_is_current_and_consistent():
     assert "ot-tracker-v16" not in sw
     assert "v=17" not in index + app + sw
     assert "ot-tracker-v17" not in sw
-    assert "ot-tracker-v18" in sw
+    assert "v=18" not in index + app + sw
+    assert "ot-tracker-v18" not in sw
+    assert "ot-tracker-v19" in sw
     for asset in [
         "/css/style.css",
         "/js/utils.js",
@@ -123,4 +125,15 @@ def test_static_asset_cache_version_is_current_and_consistent():
         "/\u4f7f\u7528\u6307\u5357.html",
         "/\u7ba1\u7406\u5458\u4f7f\u7528\u6307\u5357.html",
     ]:
-        assert f"{asset}?v=18" in index + app + sw
+        assert f"{asset}?v=19" in index + app + sw
+
+
+def test_members_page_exposes_bulk_whitelist_addition():
+    index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+    guide = (ROOT / "管理员使用指南.html").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert "批量添加" in index
+    assert "一行一个姓名" in guide
+    assert "重复姓名会自动跳过" in guide
+    assert "批量添加成员白名单" in readme

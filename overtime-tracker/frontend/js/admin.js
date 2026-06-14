@@ -227,6 +227,36 @@ OT.addWhitelist = async function addWhitelist(){
   try{await api('/whitelist',{method:'POST',body:JSON.stringify({name:n})});document.getElementById('wl-name-input').value='';loadWhitelist();showToast(`✅ 已添加「${n}」`)}catch(e){showToast('❌ '+e.message)}
 };
 
+OT.parseBulkWhitelistNames = function parseBulkWhitelistNames(text){
+  return String(text||'').split(/[\r\n、,;；]+/).map(n=>n.trim()).filter(Boolean);
+};
+
+OT.showBulkWhitelistModal = function showBulkWhitelistModal(){
+  showModal(`<div class="modal-title">批量添加成员</div>
+    <div class="export-modal-field"><label class="export-modal-label">成员名单</label><textarea id="wl-bulk-input" class="export-modal-select" rows="8" placeholder="一行一个姓名，也可用顿号、逗号或分号分隔"></textarea></div>
+    <div class="note-text">重复姓名会自动跳过；这里只加入白名单，成员仍需自行注册。</div>
+    <div class="btn-group"><button class="btn btn-outline" onclick="closeModalDirect()">取消</button><button class="btn btn-primary" id="wl-bulk-submit">确认添加</button></div>`);
+  document.getElementById('wl-bulk-submit').onclick=OT.submitBulkWhitelist;
+};
+
+OT.submitBulkWhitelist = async function submitBulkWhitelist(){
+  const input=document.getElementById('wl-bulk-input');
+  const names=OT.parseBulkWhitelistNames(input&&input.value);
+  if(!names.length){showToast('请输入成员姓名');return}
+  try{
+    const d=await api('/whitelist/bulk',{method:'POST',body:JSON.stringify({names})});
+    closeModalDirect();
+    await OT.loadWhitelist();
+    const counts=d.counts||{};
+    const added=Number(counts.added)||0;
+    const skipped=Number(counts.skipped)||0;
+    const invalid=Number(counts.invalid)||0;
+    let msg=added?`已添加 ${added} 人`:'没有新增成员';
+    if(skipped||invalid)msg+=`，跳过 ${skipped+invalid} 人`;
+    showToast(msg);
+  }catch(e){showToast('❌ '+e.message)}
+};
+
 OT.deleteWL = async function deleteWL(n){showConfirmModal('移除成员',`确认移除「${n}」？`,async()=>{try{await api('/whitelist/'+encodeURIComponent(n),{method:'DELETE'});loadWhitelist();showToast('已移除')}catch(e){showToast('❌ '+e.message)}})};
 
 OT.loadUserList = async function loadUserList(){

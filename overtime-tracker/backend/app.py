@@ -524,6 +524,58 @@ def api_add_whitelist():
     conn.commit(); conn.close()
     return jsonify(ok=True)
 
+@app.route('/api/whitelist/bulk', methods=['POST'])
+@admin_required
+def api_add_whitelist_bulk():
+    d = request.json or {}
+    raw_names = d.get('names')
+    if not isinstance(raw_names, list) or not raw_names:
+        return jsonify(error="请输入成员姓名"), 400
+
+    added = []
+    skipped_existing = []
+    skipped_duplicate = []
+    invalid = []
+    seen = set()
+    conn = get_db()
+    try:
+        now = int(time.time() * 1000)
+        for raw in raw_names:
+            name = str(raw or '').strip()
+            if not name:
+                invalid.append("")
+                continue
+            if name in seen:
+                skipped_duplicate.append(name)
+                continue
+            seen.add(name)
+            if conn.execute("SELECT 1 FROM whitelist WHERE name=?", (name,)).fetchone():
+                skipped_existing.append(name)
+                continue
+            conn.execute(
+                "INSERT INTO whitelist (name,used,created_at) VALUES (?,0,?)",
+                (name, now),
+            )
+            added.append(name)
+        conn.commit()
+        return jsonify(
+            ok=True,
+            added=added,
+            skippedExisting=skipped_existing,
+            skippedDuplicate=skipped_duplicate,
+            invalid=invalid,
+            counts={
+                "added": len(added),
+                "skipped": len(skipped_existing) + len(skipped_duplicate),
+                "invalid": len(invalid),
+            },
+        )
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 @app.route('/api/whitelist/<path:name>', methods=['DELETE'])
 @admin_required
 def api_delete_whitelist(name):
