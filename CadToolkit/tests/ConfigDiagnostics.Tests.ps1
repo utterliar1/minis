@@ -15,8 +15,22 @@ function Assert-Contains($name, $text, $pattern) {
     Write-Host "PASS $name"
 }
 
+function Assert-TextContains($name, $text, $literal) {
+    if (-not $text.Contains($literal)) { throw "$name missing literal: $literal" }
+    Write-Host "PASS $name"
+}
+
+function Assert-TextNotContains($name, $text, $literal) {
+    if ($text.Contains($literal)) { throw "$name found forbidden literal: $literal" }
+    Write-Host "PASS $name"
+}
+
 function Invoke-Analyze($text) {
     return $diagnosticsType.GetMethod('Analyze', [Reflection.BindingFlags]'Public, Static').Invoke($null, [object[]]@($text, 'test.ini'))
+}
+
+function Invoke-Repair($text, $path = 'test.ini') {
+    return $diagnosticsType.GetMethod('Repair', [Reflection.BindingFlags]'Public, Static').Invoke($null, [object[]]@($text, $path))
 }
 
 function Get-Issues($result) {
@@ -92,6 +106,53 @@ STANDARD-TEXT=Standard
 '@
 }
 
+function New-RepairFixture {
+    $oldTextStyleLabel = -join ([char[]](0x6587,0x5B57,0x6837,0x5F0F,0x89C4,0x8303))
+    $quickBlockLabel = -join ([char[]](0x5FEB,0x6377,0x5EFA,0x5757))
+    $formatComment = '# ' + (-join ([char[]](0x683C,0x5F0F,0xFF1A,0x663E,0x793A,0x540D,0x79F0))) + '=CAD' + (-join ([char[]](0x547D,0x4EE4)))
+    $sampleComment = '# ' + (-join ([char[]](0x793A,0x4F8B))) + '=CAD'
+
+    return @"
+QuickBlockPrefix=USER
+DeleteOriginal=false
+KeepOriginal=false
+AlignHorizontal=0
+AlignUseFirstBase=true
+AlignLineSpacing=0
+IsoLayerKeepLayer0=false
+LayerStandardFallbackTo0=false
+LayerStandardWhitelist=0,Defpoints
+TextStyleFallbackToStandard=false
+TextStyleFallbackStyle=STANDARD-TEXT
+TextStyleWhitelist=Standard
+TextStyleNormalizeHeight=false
+TextStyleNormalizeWidthFactor=false
+TextStyleNormalizeOblique=false
+TextStyleNormalizeColorByLayer=false
+TextStyleDeleteUnusedOldStyles=false
+
+[Commands]
+$formatComment
+$oldTextStyleLabel=CT_TEXTSTYLESTANDARD
+$quickBlockLabel=CT_QUICKBLOCK
+$sampleComment
+
+[LayerStandard]
+LAYER-EQUIPMENT=4|CONTINUOUS|Default|true
+
+[LayerMap]
+LAYER-EQUIPMENT=EQUIPMENT
+BROKEN-TARGET=UNKNOWN-LAYER
+
+[TextStyleStandard]
+STANDARD-TEXT=gbenor.shx|gbcbig.shx|0|1.0|0
+
+[TextStyleMap]
+STANDARD-TEXT=Standard
+EXTRA-TEXT=MissingTarget
+"@
+}
+
 & $msbuild $coreProject /p:Configuration=Release /p:Platform=x64 /t:Rebuild /v:minimal | Out-Host
 if ($LASTEXITCODE -ne 0) { throw 'CadToolkit.Core build failed' }
 
@@ -135,6 +196,56 @@ Assert-Issue 'malformed layer standard is an error' $badLayerStandard 'Malformed
 
 $badTextStyleStandard = Invoke-Analyze ($minimalConfig -replace 'STANDARD-TEXT=gbenor\.shx\|gbcbig\.shx\|0\|1\.0\|0', 'STANDARD-TEXT=gbenor.shx|gbcbig.shx|tall|1.0|0')
 Assert-Issue 'malformed text style standard is an error' $badTextStyleStandard 'MalformedTextStyleStandard' 'Error' $false
+
+$oldTextStyleLabel = -join ([char[]](0x6587,0x5B57,0x6837,0x5F0F,0x89C4,0x8303))
+$newTextStyleLabel = -join ([char[]](0x6587,0x5B57,0x89C4,0x8303))
+$configCheckLabel = -join ([char[]](0x914D,0x7F6E,0x4F53,0x68C0))
+$formatComment = '# ' + (-join ([char[]](0x683C,0x5F0F,0xFF1A,0x663E,0x793A,0x540D,0x79F0))) + '=CAD' + (-join ([char[]](0x547D,0x4EE4)))
+
+$repairFixture = New-RepairFixture
+$repairResult = Invoke-Repair $repairFixture
+$repairedText = [string]$repairResult.RepairedText
+if (-not $repairResult.HasChanges) { throw 'repair should report HasChanges=true when text changes' }
+Write-Host 'PASS repair reports changes'
+Assert-TextContains 'repair preserves existing root value' $repairedText 'QuickBlockPrefix=USER'
+Assert-TextContains 'repair preserves unfixable layer map target' $repairedText 'BROKEN-TARGET=UNKNOWN-LAYER'
+Assert-TextContains 'repair renames old text style command' $repairedText ($newTextStyleLabel + '=CT_TEXTSTYLESTANDARD')
+Assert-TextNotContains 'repair removes old text style command label' $repairedText ($oldTextStyleLabel + '=CT_TEXTSTYLESTANDARD')
+Assert-TextContains 'repair adds config check command' $repairedText ($configCheckLabel + '=CT_CONFIGCHECK')
+Assert-TextNotContains 'repair removes known equals command doc comment' $repairedText $formatComment
+
+$missingRootFixture = @"
+QuickBlockPrefix=USER
+
+[Commands]
+$newTextStyleLabel=CT_TEXTSTYLESTANDARD
+"@
+$missingRootRepair = Invoke-Repair $missingRootFixture
+$missingRootText = [string]$missingRootRepair.RepairedText
+$firstSectionIndex = $missingRootText.IndexOf('[Commands]')
+$deleteOriginalIndex = $missingRootText.IndexOf('DeleteOriginal=true')
+if ($deleteOriginalIndex -lt 0 -or $deleteOriginalIndex -gt $firstSectionIndex) { throw 'repair should add missing root setting before first section' }
+Write-Host 'PASS repair adds missing root setting before first section'
+
+$textStyleMapCount = ([regex]::Matches($repairedText, '\[TextStyleMap\]')).Count
+if ($textStyleMapCount -ne 1) { throw "repair should not duplicate TextStyleMap; found $textStyleMapCount" }
+Write-Host 'PASS repair does not duplicate TextStyleMap'
+Assert-TextNotContains 'repair does not add default text style standard section rows' $repairedText 'STANDARD-TEXT=txt.shx'
+Assert-TextNotContains 'repair does not add default text style map rows' $repairedText 'STANDARD-TEXT=StandardText'
+
+$repairDir = Join-Path ([IO.Path]::GetTempPath()) ('CadToolkitRepairTests-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $repairDir | Out-Null
+$repairPath = Join-Path $repairDir 'CadToolkit.ini'
+[IO.File]::WriteAllText($repairPath, $repairFixture, [Text.Encoding]::UTF8)
+$repairFileResult = $diagnosticsType.GetMethod('RepairFile', [Reflection.BindingFlags]'Public, Static').Invoke($null, [object[]]@([string]$repairPath))
+$backupPath = [string]$repairFileResult.BackupPath
+if ([string]::IsNullOrEmpty($backupPath)) { throw 'RepairFile should preserve BackupPath in returned result' }
+if (-not (Test-Path $backupPath)) { throw "RepairFile backup was not created: $backupPath" }
+if (-not ($backupPath.StartsWith($repairPath + '.bak-'))) { throw "RepairFile backup path was not timestamped next to config: $backupPath" }
+$writtenText = [IO.File]::ReadAllText($repairPath, [Text.Encoding]::UTF8)
+Assert-TextContains 'RepairFile writes repaired text' $writtenText ($configCheckLabel + '=CT_CONFIGCHECK')
+Assert-TextContains 'RepairFile backup preserves original text' ([IO.File]::ReadAllText($backupPath, [Text.Encoding]::UTF8)) ($oldTextStyleLabel + '=CT_TEXTSTYLESTANDARD')
+Remove-Item -Recurse -Force $repairDir
 
 $projectConfig = Join-Path $repo 'CadToolkit\CadToolkit.default.ini'
 if (Test-Path $projectConfig) {

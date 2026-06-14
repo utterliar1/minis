@@ -220,7 +220,74 @@ namespace CadToolkit.Core
 
         public static ConfigDiagnosticResult Repair(string text, string path)
         {
-            return Analyze(text, path);
+            string source = text ?? "";
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                string defaultText = BuildMinimalDefaultConfig();
+                var emptyResult = Analyze(defaultText, path);
+                emptyResult.RepairedText = defaultText;
+                emptyResult.HasChanges = true;
+                return emptyResult;
+            }
+
+            var output = new List<string>();
+            string[] rawLines = source.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            var rootKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var sections = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool insertedRootSettings = false;
+            string currentSection = null;
+
+            foreach (string rawLine in rawLines)
+            {
+                string trimmed = rawLine.Trim();
+                bool isSection = IsSectionHeader(trimmed);
+
+                if (!insertedRootSettings && isSection)
+                {
+                    AddMissingRootSettings(output, rootKeys);
+                    insertedRootSettings = true;
+                }
+
+                if (isSection)
+                {
+                    currentSection = trimmed.Substring(1, trimmed.Length - 2).Trim();
+                    sections.Add(currentSection);
+                }
+                else if (currentSection == null && !IsComment(trimmed))
+                {
+                    string key;
+                    string value;
+                    if (TrySplitKeyValue(trimmed, out key, out value))
+                        rootKeys.Add(key);
+                }
+
+                output.Add(rawLine);
+            }
+
+            if (!insertedRootSettings)
+                AddMissingRootSettings(output, rootKeys);
+
+            if (!sections.Contains("Commands"))
+            {
+                int layerStandardIndex = FindSectionIndex(output, "LayerStandard");
+                var commandsSection = new List<string>();
+                commandsSection.Add("[Commands]");
+                foreach (KeyValuePair<string, string> command in OfficialCommands)
+                    commandsSection.Add(command.Key + "=" + command.Value);
+
+                if (layerStandardIndex >= 0)
+                    output.InsertRange(layerStandardIndex, commandsSection);
+                else
+                    output.AddRange(commandsSection);
+            }
+
+            RepairCommandsSection(output);
+
+            string repaired = JoinCrLf(output);
+            var result = Analyze(repaired, path);
+            result.RepairedText = repaired;
+            result.HasChanges = !string.Equals(NormalizeLineEndings(source), repaired, StringComparison.Ordinal);
+            return result;
         }
 
         public static ConfigDiagnosticResult AnalyzeFile(string path)
@@ -233,7 +300,227 @@ namespace CadToolkit.Core
         {
             string text = File.Exists(path) ? File.ReadAllText(path, Encoding.UTF8) : "";
             var result = Repair(text, path);
-            return result;
+            if (!result.HasChanges)
+                return AnalyzeFile(path);
+
+            string directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(directory))
+                Directory.CreateDirectory(directory);
+
+            string backupPath = null;
+            if (File.Exists(path))
+            {
+                backupPath = path + ".bak-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+                File.Copy(path, backupPath);
+            }
+
+            File.WriteAllText(path, result.RepairedText ?? "", Encoding.UTF8);
+            var fresh = AnalyzeFile(path);
+            fresh.BackupPath = backupPath;
+            fresh.HasChanges = true;
+            fresh.RepairedText = result.RepairedText;
+            return fresh;
+        }
+
+        static void AddMissingRootSettings(List<string> lines, HashSet<string> rootKeys)
+        {
+            foreach (KeyValuePair<string, string> setting in RootSettings)
+            {
+                if (rootKeys.Contains(setting.Key))
+                    continue;
+
+                lines.Add(setting.Key + "=" + setting.Value);
+                rootKeys.Add(setting.Key);
+            }
+        }
+
+        static void RepairCommandsSection(List<string> lines)
+        {
+            int commandsStart = FindSectionIndex(lines, "Commands");
+            if (commandsStart < 0)
+                return;
+
+            int commandsEnd = FindNextSectionIndex(lines, commandsStart + 1);
+            if (commandsEnd < 0)
+                commandsEnd = lines.Count;
+
+            var commandValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool hasNewTextStyleCommand = false;
+            for (int i = commandsStart + 1; i < commandsEnd; i++)
+            {
+                string key;
+                string value;
+                if (!TrySplitKeyValue(lines[i].Trim(), out key, out value))
+                    continue;
+
+                if (value.Equals("CT_TEXTSTYLESTANDARD", StringComparison.OrdinalIgnoreCase) && key.Equals("文字规范", StringComparison.OrdinalIgnoreCase))
+                    hasNewTextStyleCommand = true;
+            }
+
+            for (int i = commandsEnd - 1; i > commandsStart; i--)
+            {
+                string trimmed = lines[i].Trim();
+                string key;
+                string value;
+
+                if (IsComment(trimmed) && IsKnownCommandDocComment(trimmed))
+                {
+                    lines.RemoveAt(i);
+                    commandsEnd--;
+                    continue;
+                }
+
+                if (!TrySplitKeyValue(trimmed, out key, out value))
+                    continue;
+
+                if (value.Equals("CT_TEXTSTYLESTANDARD", StringComparison.OrdinalIgnoreCase) && key.Equals("文字样式规范", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (hasNewTextStyleCommand)
+                    {
+                        lines.RemoveAt(i);
+                        commandsEnd--;
+                    }
+                    else
+                    {
+                        lines[i] = "文字规范=CT_TEXTSTYLESTANDARD";
+                        hasNewTextStyleCommand = true;
+                    }
+                }
+            }
+
+            commandsEnd = FindNextSectionIndex(lines, commandsStart + 1);
+            if (commandsEnd < 0)
+                commandsEnd = lines.Count;
+
+            for (int i = commandsStart + 1; i < commandsEnd; i++)
+            {
+                string key;
+                string value;
+                if (TrySplitKeyValue(lines[i].Trim(), out key, out value))
+                    commandValues.Add(value);
+            }
+
+            foreach (KeyValuePair<string, string> command in OfficialCommands)
+            {
+                if (commandValues.Contains(command.Value))
+                    continue;
+
+                int insertIndex = FindCommandInsertIndex(lines, commandsStart, commandsEnd, command);
+                lines.Insert(insertIndex, command.Key + "=" + command.Value);
+                commandValues.Add(command.Value);
+                commandsEnd++;
+            }
+        }
+
+        static int FindCommandInsertIndex(List<string> lines, int commandsStart, int commandsEnd, KeyValuePair<string, string> command)
+        {
+            string anchorValue = null;
+            if (command.Value.Equals("CT_CONFIGCHECK", StringComparison.OrdinalIgnoreCase))
+                anchorValue = "CT_TEXTSTYLESTANDARD";
+            else if (command.Value.Equals("CT_CHANGEBASEPOINT", StringComparison.OrdinalIgnoreCase))
+                anchorValue = "CT_QUICKBLOCK";
+
+            if (anchorValue != null)
+            {
+                for (int i = commandsStart + 1; i < commandsEnd; i++)
+                {
+                    string key;
+                    string value;
+                    if (TrySplitKeyValue(lines[i].Trim(), out key, out value) && value.Equals(anchorValue, StringComparison.OrdinalIgnoreCase))
+                        return i + 1;
+                }
+            }
+
+            return commandsEnd;
+        }
+
+        static string BuildMinimalDefaultConfig()
+        {
+            var lines = new List<string>();
+            foreach (KeyValuePair<string, string> setting in RootSettings)
+                lines.Add(setting.Key + "=" + setting.Value);
+
+            lines.Add("");
+            lines.Add("[Commands]");
+            foreach (KeyValuePair<string, string> command in OfficialCommands)
+                lines.Add(command.Key + "=" + command.Value);
+
+            lines.Add("");
+            lines.Add("[LayerStandard]");
+            lines.Add("");
+            lines.Add("[LayerMap]");
+            lines.Add("");
+            lines.Add("[TextStyleStandard]");
+            lines.Add("");
+            lines.Add("[TextStyleMap]");
+            return JoinCrLf(lines);
+        }
+
+        static int FindSectionIndex(List<string> lines, string section)
+        {
+            for (int i = 0; i < lines.Count; i++)
+            {
+                string trimmed = lines[i].Trim();
+                if (IsSectionHeader(trimmed) && EqualsSection(trimmed.Substring(1, trimmed.Length - 2).Trim(), section))
+                    return i;
+            }
+
+            return -1;
+        }
+
+        static int FindNextSectionIndex(List<string> lines, int startIndex)
+        {
+            for (int i = startIndex; i < lines.Count; i++)
+            {
+                if (IsSectionHeader(lines[i].Trim()))
+                    return i;
+            }
+
+            return -1;
+        }
+
+        static bool TrySplitKeyValue(string trimmed, out string key, out string value)
+        {
+            key = null;
+            value = null;
+            int equals = trimmed.IndexOf('=');
+            if (equals < 0)
+                return false;
+
+            key = trimmed.Substring(0, equals).Trim();
+            value = trimmed.Substring(equals + 1).Trim();
+            return key.Length > 0;
+        }
+
+        static bool IsSectionHeader(string trimmed)
+        {
+            return trimmed.Length >= 2 && trimmed.StartsWith("[") && trimmed.EndsWith("]");
+        }
+
+        static bool IsComment(string trimmed)
+        {
+            return trimmed.StartsWith("#") || trimmed.StartsWith(";");
+        }
+
+        static bool IsKnownCommandDocComment(string trimmed)
+        {
+            if (trimmed.IndexOf('=') < 0)
+                return false;
+
+            return trimmed.StartsWith("# 格式", StringComparison.Ordinal)
+                || trimmed.StartsWith("# 示例", StringComparison.Ordinal)
+                || trimmed.StartsWith("# 标准图层", StringComparison.Ordinal)
+                || trimmed.StartsWith("# 标准样式", StringComparison.Ordinal);
+        }
+
+        static string NormalizeLineEndings(string text)
+        {
+            return JoinCrLf(new List<string>((text ?? "").Replace("\r\n", "\n").Replace('\r', '\n').Split('\n')));
+        }
+
+        static string JoinCrLf(List<string> lines)
+        {
+            return string.Join("\r\n", lines.ToArray());
         }
 
         static List<IniLine> Parse(string text)
