@@ -167,6 +167,13 @@ if (Test-Path -LiteralPath $manualPath) {
     Copy-DeployItem -Source $manualPath -Destination (Join-Path $DeployRoot $ManualFileName)
 }
 
+$ToolsSource = Join-Path $Base 'tools'
+$ToolsTarget = Join-Path $DeployRoot 'tools'
+if (Test-Path -LiteralPath $ToolsSource) {
+    New-Item -ItemType Directory -Path $ToolsTarget -Force | Out-Null
+    Copy-DeployItem -Source (Join-Path $ToolsSource 'check-config.ps1') -Destination (Join-Path $ToolsTarget 'check-config.ps1')
+}
+
 Write-Host '========================================'
 Write-Host "  Done! Output: $DeployRoot"
 Write-Host '========================================'

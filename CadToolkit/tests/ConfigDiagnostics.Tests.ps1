@@ -312,3 +312,16 @@ foreach ($projectName in @('CadToolkit.AutoCAD.csproj', 'CadToolkit.ZWCAD.csproj
     $projectText = Get-Content -Encoding UTF8 (Join-Path $repo "CadToolkit\src\CadToolkit\$projectName") -Raw
     Assert-Contains "$projectName compiles config commands" $projectText 'Compile Include="ConfigCommands\.cs"'
 }
+
+$toolPath = Join-Path $repo 'CadToolkit\tools\check-config.ps1'
+if (-not (Test-Path $toolPath)) { throw 'check-config.ps1 is missing' }
+$toolText = Get-Content -Encoding UTF8 $toolPath -Raw
+$toolParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile($toolPath, [ref]$null, [ref]$toolParseErrors) | Out-Null
+if ($toolParseErrors.Count -gt 0) { throw "check-config.ps1 parse error: $($toolParseErrors[0].Message)" }
+Write-Host 'PASS check-config script parses'
+Assert-Contains 'check-config supports Path parameter' $toolText 'param\s*\([^)]*\$Path'
+Assert-Contains 'check-config supports Fix switch' $toolText '\[switch\]\s*\$Fix'
+Assert-Contains 'check-config calls AnalyzeFile' $toolText 'AnalyzeFile'
+Assert-Contains 'check-config calls RepairFile' $toolText 'RepairFile'
+Assert-Contains 'check-config prints formatted report' $toolText 'FormatReport'

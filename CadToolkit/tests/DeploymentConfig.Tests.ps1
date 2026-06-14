@@ -15,6 +15,7 @@ $assemblyInfo = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadT
 $autoload = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\autoload.lsp') -Raw
 $manualFileName = 'CadToolkit' + (-join ([char[]](0x4F7F, 0x7528, 0x624B, 0x518C))) + '.html'
 $manual = Get-Content -Encoding UTF8 (Join-Path (Join-Path $repo 'CadToolkit') $manualFileName) -Raw
+$toolPath = Join-Path $repo 'CadToolkit\tools\check-config.ps1'
 $parseErrors = $null
 [System.Management.Automation.Language.Parser]::ParseFile($deployLocalPath, [ref]$null, [ref]$parseErrors) | Out-Null
 $preserveOrderNote = -join ([char[]](0x4E0D, 0x8981, 0x968F, 0x610F, 0x8C03, 0x6574, 0x914D, 0x7F6E, 0x9879, 0x548C, 0x5206, 0x7EC4, 0x987A, 0x5E8F))
@@ -73,6 +74,8 @@ Assert-ContainsLiteral 'local deploy uses real AutoCAD SDK path' $deployLocal 'C
 Assert-ContainsLiteral 'local deploy uses real ZWCAD SDK path' $deployLocal 'C:\Program Files\ZWSOFT\ZWCAD 2020'
 Assert-Contains 'local deploy builds real GstarCAD SDK path without source encoding risk' $deployLocal '0x6D69.*0x8FB0.*0x8F6F.*0x4EF6'
 Assert-Contains 'local deploy publishes default config template' $deployLocal 'CadToolkit\.default\.ini'
+if (-not (Test-Path $toolPath)) { throw 'check-config.ps1 is missing' }
+Assert-Contains 'local deploy publishes config check tool' $deployLocal 'check-config\.ps1'
 Assert-Contains 'local deploy publishes user manual without source encoding risk' $deployLocal '0x4F7F.*0x7528.*0x624B.*0x518C'
 Assert-Contains 'local deploy protects user config by hashing' $deployLocal 'Get-FileHash'
 Assert-Contains 'local deploy explains locked CAD dll failures' $deployLocal 'Close running CAD'
@@ -83,6 +86,7 @@ Assert-NotContains 'local deploy does not overwrite user config from repo' $depl
 Assert-Contains 'GitHub Action continues to use CI stubs' $workflow '\.github\\stubs'
 Assert-Contains 'release package includes default config template' $workflow 'CadToolkit\.default\.ini'
 Assert-Contains 'release package includes user manual' $workflow 'CadToolkit\u4F7F\u7528\u624B\u518C\.html'
+Assert-Contains 'release package includes config check tool' $workflow 'check-config\.ps1'
 Assert-NotContains 'release package does not include user config name' $workflow 'Copy-Item "\$\{\{ github\.workspace \}\}\\CadToolkit\\CadToolkit\.ini" "\$pkg\\?"'
 Assert-Contains 'release package writes autoload without UTF8 BOM' $workflow 'New-Object\s+System\.Text\.UTF8Encoding\(\$false\)'
 Assert-Contains 'release package writes autoload through explicit encoder' $workflow '\[System\.IO\.File\]::WriteAllText\("\$pkg\\autoload\.lsp",\s*\$autoload,\s*\$utf8NoBom\)'
