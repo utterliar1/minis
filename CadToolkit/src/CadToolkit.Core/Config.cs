@@ -38,6 +38,9 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("TextStyleDeleteUnusedOldStyles", "false")
         };
         static string _dir;
+        public static string ConfigPath { get { return IniPath; } }
+        public static string DefaultConfigText { get { return GetDefaultConfigText(); } }
+
         public static void Init(string assemblyPath)
         {
             // assembly is in C:\CadToolkit\{acad|zwcad|gcad}\CadToolkit.dll

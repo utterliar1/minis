@@ -294,3 +294,21 @@ Assert-TextContains 'project config contains config check command' $projectConfi
 Assert-TextContains 'default config contains config check command' $defaultConfigText $configCheckCommandLine
 Assert-Contains 'embedded default contains config check command' $configSource ([regex]::Escape($configCheckCommandLine) + '|\\u914D\\u7F6E\\u4F53\\u68C0=CT_CONFIGCHECK')
 Assert-Contains 'startup upgrade ensures config check command' $configSource 'EnsureOfficialCommand\(lines,\s*"\\u914D\\u7F6E\\u4F53\\u68C0"'
+
+$configCommandsPath = Join-Path $repo 'CadToolkit\src\CadToolkit\ConfigCommands.cs'
+if (-not (Test-Path $configCommandsPath)) { throw 'ConfigCommands.cs is missing' }
+$configCommandsSource = Get-Content -Encoding UTF8 $configCommandsPath -Raw
+$copyReportText = -join ([char[]](0x590D,0x5236,0x62A5,0x544A))
+$repairText = -join ([char[]](0x81EA,0x52A8,0x4FEE,0x590D))
+Assert-Contains 'config check command is registered' $configCommandsSource '\[CommandMethod\("CT_CONFIGCHECK"\)\]'
+Assert-Contains 'config check command analyzes file' $configCommandsSource 'ConfigDiagnostics\.AnalyzeFile'
+Assert-Contains 'config check command can repair file' $configCommandsSource 'ConfigDiagnostics\.RepairFile'
+Assert-Contains 'config check command formats report' $configCommandsSource 'ConfigDiagnostics\.FormatReport'
+Assert-TextContains 'config check dialog has copy button' $configCommandsSource $copyReportText
+Assert-TextContains 'config check dialog has repair button' $configCommandsSource $repairText
+Assert-Contains 'config exposes config path' $configSource 'public\s+static\s+string\s+ConfigPath'
+
+foreach ($projectName in @('CadToolkit.AutoCAD.csproj', 'CadToolkit.ZWCAD.csproj', 'CadToolkit.GstarCAD.csproj')) {
+    $projectText = Get-Content -Encoding UTF8 (Join-Path $repo "CadToolkit\src\CadToolkit\$projectName") -Raw
+    Assert-Contains "$projectName compiles config commands" $projectText 'Compile Include="ConfigCommands\.cs"'
+}
