@@ -197,7 +197,7 @@ namespace CadToolkit.Core
                 if (EqualsSection(line.Section, "Commands"))
                 {
                     if (line.IsComment && line.Trimmed.IndexOf('=') >= 0)
-                        AddIssue(result, ConfigDiagnosticSeverity.Warning, "CommandDocCommentWithEquals", "Command comment contains '=' and may be read as documentation text.", line.Number, "Commands", true);
+                        AddIssue(result, ConfigDiagnosticSeverity.Warning, "CommandDocCommentWithEquals", "Command comment contains '=' and may be read as documentation text.", line.Number, "Commands", IsKnownCommandDocComment(line.Trimmed));
 
                     if (line.Key != null && line.Key.Equals("文字样式规范", StringComparison.OrdinalIgnoreCase) && line.Value.Equals("CT_TEXTSTYLESTANDARD", StringComparison.OrdinalIgnoreCase))
                         AddIssue(result, ConfigDiagnosticSeverity.Warning, "OldOfficialCommandLabel", "Old official command label should be renamed to 文字规范.", line.Number, "Commands", true);
@@ -303,19 +303,36 @@ namespace CadToolkit.Core
             if (!result.HasChanges)
                 return AnalyzeFile(path);
 
-            string directory = Path.GetDirectoryName(path);
+            string fullPath = Path.GetFullPath(path);
+            string directory = Path.GetDirectoryName(fullPath);
             if (!string.IsNullOrEmpty(directory))
                 Directory.CreateDirectory(directory);
 
+            string tempPath = Path.Combine(directory, Path.GetFileName(fullPath) + ".tmp-" + Guid.NewGuid().ToString("N"));
             string backupPath = null;
-            if (File.Exists(path))
+            try
             {
-                backupPath = path + ".bak-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-                File.Copy(path, backupPath);
+                File.WriteAllText(tempPath, result.RepairedText ?? "", Encoding.UTF8);
+                if (File.Exists(fullPath))
+                {
+                    backupPath = CreateBackupPath(fullPath);
+                    File.Replace(tempPath, fullPath, backupPath, true);
+                }
+                else
+                {
+                    File.Move(tempPath, fullPath);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    if (File.Exists(tempPath)) File.Delete(tempPath);
+                }
+                catch { }
             }
 
-            File.WriteAllText(path, result.RepairedText ?? "", Encoding.UTF8);
-            var fresh = AnalyzeFile(path);
+            var fresh = AnalyzeFile(fullPath);
             fresh.BackupPath = backupPath;
             fresh.HasChanges = true;
             fresh.RepairedText = result.RepairedText;
@@ -344,7 +361,6 @@ namespace CadToolkit.Core
             if (commandsEnd < 0)
                 commandsEnd = lines.Count;
 
-            var commandValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             bool hasNewTextStyleCommand = false;
             for (int i = commandsStart + 1; i < commandsEnd; i++)
             {
@@ -513,6 +529,23 @@ namespace CadToolkit.Core
                 || trimmed.StartsWith("# 示例", StringComparison.Ordinal)
                 || trimmed.StartsWith("# 标准图层", StringComparison.Ordinal)
                 || trimmed.StartsWith("# 标准样式", StringComparison.Ordinal);
+        }
+
+        static string CreateBackupPath(string path)
+        {
+            string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+            string candidate = path + ".bak-" + stamp;
+            if (!File.Exists(candidate))
+                return candidate;
+
+            for (int i = 1; i < 1000; i++)
+            {
+                candidate = path + ".bak-" + stamp + "-" + i.ToString("000", CultureInfo.InvariantCulture);
+                if (!File.Exists(candidate))
+                    return candidate;
+            }
+
+            return path + ".bak-" + stamp + "-" + Guid.NewGuid().ToString("N");
         }
 
         static string NormalizeLineEndings(string text)

@@ -182,8 +182,12 @@ Assert-Issue 'missing root setting is reported' $missingRoot 'MissingRootSetting
 $missingCommands = Invoke-Analyze ($minimalConfig -replace '\[Commands\]', '[NotCommands]')
 Assert-Issue 'missing commands section is reported with dedicated code' $missingCommands 'MissingCommandsSection' 'Warning' $true
 
-$commandDocComment = Invoke-Analyze ($minimalConfig -replace '\[Commands\]', "[Commands]`n# sample=comment")
-Assert-Issue 'commands doc comment with equals is reported' $commandDocComment 'CommandDocCommentWithEquals' 'Warning' $true
+$commandFormatComment = '# ' + (-join ([char[]](0x683C,0x5F0F,0xFF1A,0x663E,0x793A,0x540D,0x79F0))) + '=CAD' + (-join ([char[]](0x547D,0x4EE4)))
+$commandDocComment = Invoke-Analyze ($minimalConfig -replace '\[Commands\]', "[Commands]`n$commandFormatComment")
+Assert-Issue 'known commands doc comment with equals is auto-fixable' $commandDocComment 'CommandDocCommentWithEquals' 'Warning' $true
+
+$genericCommandComment = Invoke-Analyze ($minimalConfig -replace '\[Commands\]', "[Commands]`n# note=value")
+Assert-Issue 'generic commands doc comment with equals is not auto-fixable' $genericCommandComment 'CommandDocCommentWithEquals' 'Warning' $false
 
 $badLayerMap = Invoke-Analyze ($minimalConfig -replace '\[LayerMap\]', "[LayerMap]`nMissingLayer=old")
 Assert-Issue 'layer map target missing is an error' $badLayerMap 'LayerMapTargetMissing' 'Error' $false
@@ -251,6 +255,15 @@ if (-not ($backupPath.StartsWith($repairPath + '.bak-'))) { throw "RepairFile ba
 $writtenText = [IO.File]::ReadAllText($repairPath, [Text.Encoding]::UTF8)
 Assert-TextContains 'RepairFile writes repaired text' $writtenText ($configCheckLabel + '=CT_CONFIGCHECK')
 Assert-TextContains 'RepairFile backup preserves original text' ([IO.File]::ReadAllText($backupPath, [Text.Encoding]::UTF8)) ($oldTextStyleLabel + '=CT_TEXTSTYLESTANDARD')
+
+[IO.File]::WriteAllText($repairPath, $repairFixture, [Text.Encoding]::UTF8)
+$secondRepairFileResult = $diagnosticsType.GetMethod('RepairFile', [Reflection.BindingFlags]'Public, Static').Invoke($null, [object[]]@([string]$repairPath))
+$secondBackupPath = [string]$secondRepairFileResult.BackupPath
+if ([string]::IsNullOrEmpty($secondBackupPath)) { throw 'second RepairFile should preserve BackupPath in returned result' }
+if ($secondBackupPath -eq $backupPath) { throw 'RepairFile should create a unique backup path on repeated repair' }
+if (-not (Test-Path $secondBackupPath)) { throw "second RepairFile backup was not created: $secondBackupPath" }
+Write-Host 'PASS RepairFile creates unique backup path on repeated repair'
+
 Remove-Item -Recurse -Force $repairDir
 
 $projectConfig = Join-Path $repo 'CadToolkit\CadToolkit.default.ini'
