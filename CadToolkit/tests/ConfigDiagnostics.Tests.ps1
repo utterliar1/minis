@@ -25,8 +25,8 @@ function Assert-TextNotContains($name, $text, $literal) {
     Write-Host "PASS $name"
 }
 
-function Invoke-Analyze($text) {
-    return $diagnosticsType.GetMethod('Analyze', [Reflection.BindingFlags]'Public, Static').Invoke($null, [object[]]@($text, 'test.ini'))
+function Invoke-Analyze($text, $path = 'test.ini') {
+    return $diagnosticsType.GetMethod('Analyze', [Reflection.BindingFlags]'Public, Static').Invoke($null, [object[]]@($text, $path))
 }
 
 function Invoke-Repair($text, $path = 'test.ini') {
@@ -170,6 +170,7 @@ Assert-NotNull 'config diagnostics analyze method exists' ($diagnosticsType.GetM
 Assert-NotNull 'config diagnostics repair method exists' ($diagnosticsType.GetMethod('Repair', [Reflection.BindingFlags]'Public, Static'))
 Assert-NotNull 'config diagnostics analyze file method exists' ($diagnosticsType.GetMethod('AnalyzeFile', [Reflection.BindingFlags]'Public, Static'))
 Assert-NotNull 'config diagnostics repair file method exists' ($diagnosticsType.GetMethod('RepairFile', [Reflection.BindingFlags]'Public, Static'))
+Assert-NotNull 'config diagnostics format report method exists' ($diagnosticsType.GetMethod('FormatReport', [Reflection.BindingFlags]'Public, Static'))
 
 $coreProjectText = Get-Content -Encoding UTF8 $coreProject -Raw
 Assert-Contains 'core project compiles config diagnostics' $coreProjectText 'Compile Include="ConfigDiagnostics\.cs"'
@@ -178,6 +179,17 @@ $minimalConfig = New-MinimalConfig
 
 $missingRoot = Invoke-Analyze ($minimalConfig -replace 'QuickBlockPrefix=BK\r?\n', '')
 Assert-Issue 'missing root setting is reported' $missingRoot 'MissingRootSetting' 'Warning' $true
+
+$reportPath = 'C:\CadToolkit\CadToolkit.ini'
+$reportResult = Invoke-Analyze ($minimalConfig -replace 'QuickBlockPrefix=BK\r?\n', '') $reportPath
+$report = [string]$diagnosticsType.GetMethod('FormatReport', [Reflection.BindingFlags]'Public, Static').Invoke($null, [object[]]@($reportResult))
+$reportTitle = 'CadToolkit ' + (-join ([char[]](0x914D,0x7F6E,0x4F53,0x68C0)))
+$reportWarning = -join ([char[]](0x8B66,0x544A))
+$reportFixable = -join ([char[]](0x53EF,0x81EA,0x52A8,0x4FEE,0x590D))
+Assert-TextContains 'report title is Chinese' $report $reportTitle
+Assert-TextContains 'report includes config path' $report $reportPath
+Assert-TextContains 'report includes warning group' $report $reportWarning
+Assert-TextContains 'report marks fixable issue' $report $reportFixable
 
 $missingCommands = Invoke-Analyze ($minimalConfig -replace '\[Commands\]', '[NotCommands]')
 Assert-Issue 'missing commands section is reported with dedicated code' $missingCommands 'MissingCommandsSection' 'Warning' $true

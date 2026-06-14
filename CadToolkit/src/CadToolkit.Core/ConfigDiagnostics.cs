@@ -339,6 +339,57 @@ namespace CadToolkit.Core
             return fresh;
         }
 
+        public static string FormatReport(ConfigDiagnosticResult result)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("CadToolkit 配置体检");
+            sb.AppendLine("配置文件：" + (result == null ? "" : result.Path));
+            sb.AppendLine();
+
+            AppendIssueGroup(sb, "错误", result, ConfigDiagnosticSeverity.Error);
+            AppendIssueGroup(sb, "警告", result, ConfigDiagnosticSeverity.Warning);
+            AppendIssueGroup(sb, "信息", result, ConfigDiagnosticSeverity.Info);
+
+            if (result != null && !string.IsNullOrEmpty(result.BackupPath))
+            {
+                sb.AppendLine();
+                sb.AppendLine("备份文件：" + result.BackupPath);
+            }
+
+            return sb.ToString();
+        }
+
+        static void AppendIssueGroup(StringBuilder sb, string title, ConfigDiagnosticResult result, ConfigDiagnosticSeverity severity)
+        {
+            var issues = new List<ConfigDiagnosticIssue>();
+            if (result != null)
+            {
+                foreach (ConfigDiagnosticIssue issue in result.Issues)
+                {
+                    if (issue.Severity == severity)
+                        issues.Add(issue);
+                }
+            }
+
+            if (issues.Count == 0)
+                return;
+
+            sb.AppendLine(title + " " + issues.Count.ToString(CultureInfo.InvariantCulture) + " 项");
+            foreach (ConfigDiagnosticIssue issue in issues)
+            {
+                string suffix = issue.CanFix ? "（可自动修复）" : "";
+                string location = "";
+                if (!string.IsNullOrEmpty(issue.Section))
+                    location += "[" + issue.Section + "] ";
+                if (issue.LineNumber > 0)
+                    location += "第 " + issue.LineNumber.ToString(CultureInfo.InvariantCulture) + " 行：";
+
+                sb.AppendLine("- " + location + issue.Message + suffix);
+            }
+
+            sb.AppendLine();
+        }
+
         static void AddMissingRootSettings(List<string> lines, HashSet<string> rootKeys)
         {
             foreach (KeyValuePair<string, string> setting in RootSettings)
