@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 
@@ -43,9 +44,179 @@ namespace CadToolkit.Core
 
     public static class ConfigDiagnostics
     {
+        static readonly string[] RequiredSections = new string[]
+        {
+            "Commands",
+            "LayerStandard",
+            "LayerMap",
+            "TextStyleStandard",
+            "TextStyleMap"
+        };
+
+        static readonly string[] RootSettings = new string[]
+        {
+            "QuickBlockPrefix",
+            "DeleteOriginal",
+            "KeepOriginal",
+            "AlignHorizontal",
+            "AlignUseFirstBase",
+            "AlignLineSpacing",
+            "IsoLayerKeepLayer0",
+            "LayerStandardFallbackTo0",
+            "LayerStandardWhitelist",
+            "TextStyleFallbackToStandard",
+            "TextStyleFallbackStyle",
+            "TextStyleWhitelist",
+            "TextStyleNormalizeHeight",
+            "TextStyleNormalizeWidthFactor",
+            "TextStyleNormalizeOblique",
+            "TextStyleNormalizeColorByLayer",
+            "TextStyleDeleteUnusedOldStyles"
+        };
+
+        static readonly KeyValuePair<string, string>[] OfficialCommands = new KeyValuePair<string, string>[]
+        {
+            new KeyValuePair<string, string>("查找替换", "CT_FINDREPLACE"),
+            new KeyValuePair<string, string>("文字对齐", "CT_ALIGN"),
+            new KeyValuePair<string, string>("加下划线", "CT_UNDERLINE"),
+            new KeyValuePair<string, string>("格式复制", "CT_TEXTBRUSH"),
+            new KeyValuePair<string, string>("文字合并", "CT_TEXTMERGE"),
+            new KeyValuePair<string, string>("文字编号", "CT_TEXTNUMBER"),
+            new KeyValuePair<string, string>("文字规范", "CT_TEXTSTYLESTANDARD"),
+            new KeyValuePair<string, string>("图层归零", "CT_SETLAYER0"),
+            new KeyValuePair<string, string>("图层规范", "CT_LAYERSTANDARD"),
+            new KeyValuePair<string, string>("孤立图层", "CT_ISOLAYER"),
+            new KeyValuePair<string, string>("按层选择", "CT_SELECTBYLAYER"),
+            new KeyValuePair<string, string>("按色选择", "CT_SELECTBYCOLOR"),
+            new KeyValuePair<string, string>("重命名块", "CT_RENAMEBLOCK"),
+            new KeyValuePair<string, string>("快捷建块", "CT_QUICKBLOCK"),
+            new KeyValuePair<string, string>("改块基点", "CT_CHANGEBASEPOINT"),
+            new KeyValuePair<string, string>("按块选择", "CT_SELECTBYBLOCK"),
+            new KeyValuePair<string, string>("画中心线", "CT_CENTERLINE"),
+            new KeyValuePair<string, string>("快速标注", "CT_QUICKDIM"),
+            new KeyValuePair<string, string>("递增复制", "CT_INCCOPY"),
+            new KeyValuePair<string, string>("Z轴归零", "CT_FLATTEN"),
+            new KeyValuePair<string, string>("配置体检", "CT_CONFIGCHECK")
+        };
+
+        internal class IniLine
+        {
+            public string Text;
+            public string Trimmed;
+            public int Number;
+            public string Section;
+            public bool IsSection;
+            public bool IsComment;
+            public string Key;
+            public string Value;
+        }
+
         public static ConfigDiagnosticResult Analyze(string text, string path)
         {
-            return new ConfigDiagnosticResult { Path = path, RepairedText = text ?? "" };
+            string source = text ?? "";
+            var result = new ConfigDiagnosticResult { Path = path, RepairedText = source };
+            var lines = Parse(source);
+            var sections = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var rootKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var commandLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var commandValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var layerStandards = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var textStyleStandards = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            int rootCount = 0;
+            int commandCount = 0;
+            int layerStandardCount = 0;
+            int layerMapCount = 0;
+            int textStyleStandardCount = 0;
+            int textStyleMapCount = 0;
+
+            foreach (IniLine line in lines)
+            {
+                if (line.IsSection && line.Section != null)
+                    sections.Add(line.Section);
+
+                if (line.Key == null)
+                    continue;
+
+                if (line.Section == null)
+                {
+                    rootKeys.Add(line.Key);
+                    rootCount++;
+                    continue;
+                }
+
+                if (EqualsSection(line.Section, "Commands"))
+                {
+                    commandLabels.Add(line.Key);
+                    commandValues.Add(line.Value);
+                    commandCount++;
+                }
+                else if (EqualsSection(line.Section, "LayerStandard"))
+                {
+                    layerStandards.Add(line.Key);
+                    layerStandardCount++;
+                    ValidateLayerStandard(result, line);
+                }
+                else if (EqualsSection(line.Section, "LayerMap"))
+                {
+                    layerMapCount++;
+                }
+                else if (EqualsSection(line.Section, "TextStyleStandard"))
+                {
+                    textStyleStandards.Add(line.Key);
+                    textStyleStandardCount++;
+                    ValidateTextStyleStandard(result, line);
+                }
+                else if (EqualsSection(line.Section, "TextStyleMap"))
+                {
+                    textStyleMapCount++;
+                }
+            }
+
+            foreach (string setting in RootSettings)
+            {
+                if (!rootKeys.Contains(setting))
+                    AddIssue(result, ConfigDiagnosticSeverity.Warning, "MissingRootSetting", "Missing root setting: " + setting, 0, null, true);
+            }
+
+            foreach (string section in RequiredSections)
+            {
+                if (sections.Contains(section))
+                    continue;
+
+                string code = EqualsSection(section, "Commands") ? "MissingCommandsSection" : "MissingSection";
+                AddIssue(result, ConfigDiagnosticSeverity.Warning, code, "Missing section: [" + section + "]", 0, section, true);
+            }
+
+            foreach (KeyValuePair<string, string> officialCommand in OfficialCommands)
+            {
+                if (!commandLabels.Contains(officialCommand.Key) && !commandValues.Contains(officialCommand.Value))
+                    AddIssue(result, ConfigDiagnosticSeverity.Warning, "MissingOfficialCommand", "Missing official command: " + officialCommand.Key + "=" + officialCommand.Value, 0, "Commands", true);
+            }
+
+            foreach (IniLine line in lines)
+            {
+                if (EqualsSection(line.Section, "Commands"))
+                {
+                    if (line.IsComment && line.Trimmed.IndexOf('=') >= 0)
+                        AddIssue(result, ConfigDiagnosticSeverity.Warning, "CommandDocCommentWithEquals", "Command comment contains '=' and may be read as documentation text.", line.Number, "Commands", true);
+
+                    if (line.Key != null && line.Key.Equals("文字样式规范", StringComparison.OrdinalIgnoreCase) && line.Value.Equals("CT_TEXTSTYLESTANDARD", StringComparison.OrdinalIgnoreCase))
+                        AddIssue(result, ConfigDiagnosticSeverity.Warning, "OldOfficialCommandLabel", "Old official command label should be renamed to 文字规范.", line.Number, "Commands", true);
+                }
+                else if (EqualsSection(line.Section, "LayerMap") && line.Key != null)
+                {
+                    if (!layerStandards.Contains(line.Key))
+                        AddIssue(result, ConfigDiagnosticSeverity.Error, "LayerMapTargetMissing", "LayerMap target is not defined in LayerStandard: " + line.Key, line.Number, "LayerMap", false);
+                }
+                else if (EqualsSection(line.Section, "TextStyleMap") && line.Key != null)
+                {
+                    if (!textStyleStandards.Contains(line.Key))
+                        AddIssue(result, ConfigDiagnosticSeverity.Error, "TextStyleMapTargetMissing", "TextStyleMap target is not defined in TextStyleStandard: " + line.Key, line.Number, "TextStyleMap", false);
+                }
+            }
+
+            AddIssue(result, ConfigDiagnosticSeverity.Info, "Summary", string.Format(CultureInfo.InvariantCulture, "Checked {0} root settings, {1} commands, {2} layer standards, {3} layer maps, {4} text style standards, {5} text style maps.", rootCount, commandCount, layerStandardCount, layerMapCount, textStyleStandardCount, textStyleMapCount), 0, null, false);
+            return result;
         }
 
         public static ConfigDiagnosticResult Repair(string text, string path)
@@ -64,6 +235,92 @@ namespace CadToolkit.Core
             string text = File.Exists(path) ? File.ReadAllText(path, Encoding.UTF8) : "";
             var result = Repair(text, path);
             return result;
+        }
+
+        static List<IniLine> Parse(string text)
+        {
+            string normalized = (text ?? "").Replace("\r\n", "\n").Replace('\r', '\n');
+            string[] rawLines = normalized.Split('\n');
+            var lines = new List<IniLine>();
+            string currentSection = null;
+
+            for (int i = 0; i < rawLines.Length; i++)
+            {
+                string raw = rawLines[i];
+                string trimmed = raw.Trim();
+                var line = new IniLine();
+                line.Text = raw;
+                line.Trimmed = trimmed;
+                line.Number = i + 1;
+                line.Section = currentSection;
+                line.IsComment = trimmed.StartsWith("#") || trimmed.StartsWith(";");
+
+                if (trimmed.Length >= 2 && trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                {
+                    line.IsSection = true;
+                    line.Section = trimmed.Substring(1, trimmed.Length - 2).Trim();
+                    currentSection = line.Section;
+                }
+                else if (!line.IsComment)
+                {
+                    int equals = trimmed.IndexOf('=');
+                    if (equals >= 0)
+                    {
+                        line.Key = trimmed.Substring(0, equals).Trim();
+                        line.Value = trimmed.Substring(equals + 1).Trim();
+                    }
+                }
+
+                lines.Add(line);
+            }
+
+            return lines;
+        }
+
+        static void ValidateLayerStandard(ConfigDiagnosticResult result, IniLine line)
+        {
+            string[] parts = (line.Value ?? "").Split('|');
+            int color;
+            bool plot;
+            bool valid = parts.Length == 4
+                && int.TryParse(parts[0].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out color)
+                && bool.TryParse(parts[3].Trim(), out plot);
+
+            if (!valid)
+                AddIssue(result, ConfigDiagnosticSeverity.Error, "MalformedLayerStandard", "LayerStandard value must be color|linetype|lineweight|plot.", line.Number, "LayerStandard", false);
+        }
+
+        static void ValidateTextStyleStandard(ConfigDiagnosticResult result, IniLine line)
+        {
+            string[] parts = (line.Value ?? "").Split('|');
+            double height;
+            double width;
+            double oblique;
+            bool valid = parts.Length == 5
+                && double.TryParse(parts[2].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out height)
+                && double.TryParse(parts[3].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out width)
+                && double.TryParse(parts[4].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out oblique);
+
+            if (!valid)
+                AddIssue(result, ConfigDiagnosticSeverity.Error, "MalformedTextStyleStandard", "TextStyleStandard value must be font|bigfont|height|width|oblique.", line.Number, "TextStyleStandard", false);
+        }
+
+        static bool EqualsSection(string left, string right)
+        {
+            return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+        }
+
+        static void AddIssue(ConfigDiagnosticResult result, ConfigDiagnosticSeverity severity, string code, string message, int lineNumber, string section, bool canFix)
+        {
+            result.Issues.Add(new ConfigDiagnosticIssue
+            {
+                Severity = severity,
+                Code = code,
+                Message = message,
+                LineNumber = lineNumber,
+                Section = section,
+                CanFix = canFix
+            });
         }
     }
 }
