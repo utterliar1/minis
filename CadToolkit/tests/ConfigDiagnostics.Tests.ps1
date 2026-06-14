@@ -285,3 +285,12 @@ if (Test-Path $projectConfig) {
     Assert-NoIssue 'current project config has no command comment equals' $current 'CommandDocCommentWithEquals'
     Assert-NoIssue 'current project config has no malformed layer standard' $current 'MalformedLayerStandard'
 }
+
+$configCheckCommandLine = (-join ([char[]](0x914D,0x7F6E,0x4F53,0x68C0))) + '=CT_CONFIGCHECK'
+$projectConfigText = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.ini') -Raw
+$defaultConfigText = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.default.ini') -Raw
+$configSource = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit.Core\Config.cs') -Raw
+Assert-TextContains 'project config contains config check command' $projectConfigText $configCheckCommandLine
+Assert-TextContains 'default config contains config check command' $defaultConfigText $configCheckCommandLine
+Assert-Contains 'embedded default contains config check command' $configSource ([regex]::Escape($configCheckCommandLine) + '|\\u914D\\u7F6E\\u4F53\\u68C0=CT_CONFIGCHECK')
+Assert-Contains 'startup upgrade ensures config check command' $configSource 'EnsureOfficialCommand\(lines,\s*"\\u914D\\u7F6E\\u4F53\\u68C0"'

@@ -20,6 +20,7 @@ $parseErrors = $null
 $preserveOrderNote = -join ([char[]](0x4E0D, 0x8981, 0x968F, 0x610F, 0x8C03, 0x6574, 0x914D, 0x7F6E, 0x9879, 0x548C, 0x5206, 0x7EC4, 0x987A, 0x5E8F))
 $layerStandardFormatNote = (-join ([char[]](0x6807, 0x51C6, 0x56FE, 0x5C42))) + '=' + (-join ([char[]](0x989C, 0x8272))) + '|' + (-join ([char[]](0x7EBF, 0x578B))) + '|' + (-join ([char[]](0x7EBF, 0x5BBD))) + '|' + (-join ([char[]](0x662F, 0x5426, 0x6253, 0x5370)))
 $textStyleStandardFormatNote = (-join ([char[]](0x6807, 0x51C6, 0x6837, 0x5F0F))) + '=' + (-join ([char[]](0x5B57, 0x4F53, 0x6587, 0x4EF6))) + '|' + (-join ([char[]](0x5927, 0x5B57, 0x4F53, 0x6587, 0x4EF6))) + '|' + (-join ([char[]](0x56FA, 0x5B9A, 0x5B57, 0x9AD8))) + '|' + (-join ([char[]](0x5BBD, 0x5EA6, 0x56E0, 0x5B50))) + '|' + (-join ([char[]](0x503E, 0x659C, 0x89D2)))
+$configCheckCommandLine = (-join ([char[]](0x914D,0x7F6E,0x4F53,0x68C0))) + '=CT_CONFIGCHECK'
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) { throw "$name did not find pattern: $pattern" }
@@ -98,6 +99,9 @@ Assert-ContainsLiteral 'project config documents text style standard format' $pr
 Assert-ContainsLiteral 'default config documents text style standard format' $defaultConfig $textStyleStandardFormatNote
 Assert-CommandsSectionHasNoEqualsComments 'project config keeps non-command docs out of Commands section' $projectConfig
 Assert-CommandsSectionHasNoEqualsComments 'default config keeps non-command docs out of Commands section' $defaultConfig
+Assert-ContainsLiteral 'project config contains config check command' $projectConfig $configCheckCommandLine
+Assert-ContainsLiteral 'default config contains config check command' $defaultConfig $configCheckCommandLine
+Assert-Contains 'embedded default contains config check command' $configSource ([regex]::Escape($configCheckCommandLine) + '|\\u914D\\u7F6E\\u4F53\\u68C0=CT_CONFIGCHECK')
 Assert-Contains 'command groups skip comment lines with equals' $configSource 'if\s+\(t\.StartsWith\("#"\)\)\s+continue;'
 Assert-Contains 'assembly version is 1.25' $assemblyInfo 'AssemblyVersion\("1\.25\.0\.0"\)'
 Assert-Contains 'assembly file version is 1.25' $assemblyInfo 'AssemblyFileVersion\("1\.25\.0\.0"\)'
