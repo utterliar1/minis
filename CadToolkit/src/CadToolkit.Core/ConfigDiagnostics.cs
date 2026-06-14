@@ -53,25 +53,25 @@ namespace CadToolkit.Core
             "TextStyleMap"
         };
 
-        static readonly string[] RootSettings = new string[]
+        static readonly KeyValuePair<string, string>[] RootSettings = new KeyValuePair<string, string>[]
         {
-            "QuickBlockPrefix",
-            "DeleteOriginal",
-            "KeepOriginal",
-            "AlignHorizontal",
-            "AlignUseFirstBase",
-            "AlignLineSpacing",
-            "IsoLayerKeepLayer0",
-            "LayerStandardFallbackTo0",
-            "LayerStandardWhitelist",
-            "TextStyleFallbackToStandard",
-            "TextStyleFallbackStyle",
-            "TextStyleWhitelist",
-            "TextStyleNormalizeHeight",
-            "TextStyleNormalizeWidthFactor",
-            "TextStyleNormalizeOblique",
-            "TextStyleNormalizeColorByLayer",
-            "TextStyleDeleteUnusedOldStyles"
+            new KeyValuePair<string, string>("QuickBlockPrefix", "BK"),
+            new KeyValuePair<string, string>("DeleteOriginal", "true"),
+            new KeyValuePair<string, string>("KeepOriginal", "false"),
+            new KeyValuePair<string, string>("AlignHorizontal", "0"),
+            new KeyValuePair<string, string>("AlignUseFirstBase", "true"),
+            new KeyValuePair<string, string>("AlignLineSpacing", "0"),
+            new KeyValuePair<string, string>("IsoLayerKeepLayer0", "false"),
+            new KeyValuePair<string, string>("LayerStandardFallbackTo0", "false"),
+            new KeyValuePair<string, string>("LayerStandardWhitelist", "0,Defpoints,*图框*,*视口*,*原有*,*新增*"),
+            new KeyValuePair<string, string>("TextStyleFallbackToStandard", "false"),
+            new KeyValuePair<string, string>("TextStyleFallbackStyle", "STANDARD-TEXT"),
+            new KeyValuePair<string, string>("TextStyleWhitelist", "Standard,Annotative,*DIM*"),
+            new KeyValuePair<string, string>("TextStyleNormalizeHeight", "false"),
+            new KeyValuePair<string, string>("TextStyleNormalizeWidthFactor", "false"),
+            new KeyValuePair<string, string>("TextStyleNormalizeOblique", "false"),
+            new KeyValuePair<string, string>("TextStyleNormalizeColorByLayer", "false"),
+            new KeyValuePair<string, string>("TextStyleDeleteUnusedOldStyles", "false")
         };
 
         static readonly KeyValuePair<string, string>[] OfficialCommands = new KeyValuePair<string, string>[]
@@ -101,14 +101,14 @@ namespace CadToolkit.Core
 
         internal class IniLine
         {
-            public string Text;
-            public string Trimmed;
-            public int Number;
-            public string Section;
-            public bool IsSection;
-            public bool IsComment;
-            public string Key;
-            public string Value;
+            internal string Text;
+            internal string Trimmed;
+            internal int Number;
+            internal string Section;
+            internal bool IsSection;
+            internal bool IsComment;
+            internal string Key;
+            internal string Value;
         }
 
         public static ConfigDiagnosticResult Analyze(string text, string path)
@@ -118,8 +118,7 @@ namespace CadToolkit.Core
             var lines = Parse(source);
             var sections = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var rootKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var commandLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var commandValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var commandPairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var layerStandards = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var textStyleStandards = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             int rootCount = 0;
@@ -146,8 +145,7 @@ namespace CadToolkit.Core
 
                 if (EqualsSection(line.Section, "Commands"))
                 {
-                    commandLabels.Add(line.Key);
-                    commandValues.Add(line.Value);
+                    commandPairs.Add(line.Key + "=" + line.Value);
                     commandCount++;
                 }
                 else if (EqualsSection(line.Section, "LayerStandard"))
@@ -172,10 +170,10 @@ namespace CadToolkit.Core
                 }
             }
 
-            foreach (string setting in RootSettings)
+            foreach (KeyValuePair<string, string> setting in RootSettings)
             {
-                if (!rootKeys.Contains(setting))
-                    AddIssue(result, ConfigDiagnosticSeverity.Warning, "MissingRootSetting", "Missing root setting: " + setting, 0, null, true);
+                if (!rootKeys.Contains(setting.Key))
+                    AddIssue(result, ConfigDiagnosticSeverity.Warning, "MissingRootSetting", "Missing root setting: " + setting.Key, 0, null, true);
             }
 
             foreach (string section in RequiredSections)
@@ -189,7 +187,8 @@ namespace CadToolkit.Core
 
             foreach (KeyValuePair<string, string> officialCommand in OfficialCommands)
             {
-                if (!commandLabels.Contains(officialCommand.Key) && !commandValues.Contains(officialCommand.Value))
+                string officialPair = officialCommand.Key + "=" + officialCommand.Value;
+                if (!commandPairs.Contains(officialPair))
                     AddIssue(result, ConfigDiagnosticSeverity.Warning, "MissingOfficialCommand", "Missing official command: " + officialCommand.Key + "=" + officialCommand.Value, 0, "Commands", true);
             }
 
