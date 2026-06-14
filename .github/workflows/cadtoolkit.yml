@@ -94,7 +94,8 @@ jobs:
 
           $autoload = Get-Content "${{ github.workspace }}\CadToolkit\autoload.lsp" -Raw
           $autoload = $autoload -replace 'CadToolkit v[0-9.]+ ready', "CadToolkit v$ver ready"
-          Set-Content "$pkg\autoload.lsp" $autoload -Encoding UTF8
+          $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+          [System.IO.File]::WriteAllText("$pkg\autoload.lsp", $autoload, $utf8NoBom)
           Copy-Item "${{ github.workspace }}\CadToolkit\CadToolkit.default.ini" "$pkg\"
           Copy-Item "${{ github.workspace }}\CadToolkit\CadToolkit使用手册.html" "$pkg\"
 
