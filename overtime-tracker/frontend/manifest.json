@@ -1,6 +1,7 @@
 {
   "name": "考勤助手",
   "short_name": "考勤",
+  "version": "1.0",
   "description": "GPS定位打卡 · 团队管理 · 工时统计",
   "start_url": "/",
   "display": "standalone",

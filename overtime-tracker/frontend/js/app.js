@@ -30,7 +30,10 @@ OT.clearAppCache = async function clearAppCache(){
       await Promise.all(regs.map(r=>r.unregister()));
     }
     showToast('缓存已清理，正在刷新...');
-    setTimeout(()=>location.reload(),300);
+    setTimeout(()=>{
+      const path=location.pathname||'/';
+      location.replace(`${path}?refresh=${Date.now()}`);
+    },300);
   }catch(e){
     showToast('缓存清理失败，请手动刷新');
   }
@@ -139,12 +142,12 @@ Object.assign(window, {
     // 管理员登录页：隐藏注册 tab，显示管理员指南
     const tabReg = document.getElementById('tab-register');
     if(tabReg) tabReg.style.display = 'none';
-    guideLinks.innerHTML = '<a href="/使用指南.html?v=19" style="color:#4F46E5;text-decoration:underline;margin:0 8px">📋 使用指南</a><a href="/管理员使用指南.html?v=19" style="color:#4F46E5;text-decoration:underline;margin:0 8px">🔧 管理员指南</a>';
+    guideLinks.innerHTML = '<a href="/使用指南.html?v=1.0" style="color:#4F46E5;text-decoration:underline;margin:0 8px">📋 使用指南</a><a href="/管理员使用指南.html?v=1.0" style="color:#4F46E5;text-decoration:underline;margin:0 8px">🔧 管理员指南</a>';
   } else {
     // 成员登录页：显示注册 tab（需要管理员先加入白名单）
     const tabReg = document.getElementById('tab-register');
     if(tabReg) tabReg.style.display = '';
-    guideLinks.innerHTML = '<a href="/使用指南.html?v=19" style="color:#4F46E5;text-decoration:underline;margin:0 8px">📋 使用指南</a>';
+    guideLinks.innerHTML = '<a href="/使用指南.html?v=1.0" style="color:#4F46E5;text-decoration:underline;margin:0 8px">📋 使用指南</a>';
   }
 })();
 

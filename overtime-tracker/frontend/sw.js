@@ -1,17 +1,15 @@
-const CACHE_NAME = 'ot-tracker-v19';
+const CACHE_NAME = 'ot-tracker-v1.0';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/css/style.css?v=19',
-  '/js/utils.js?v=19',
-  '/js/auth.js?v=19',
-  '/js/stats.js?v=19',
-  '/js/records.js?v=19',
-  '/js/clock.js?v=19',
-  '/js/admin.js?v=19',
-  '/js/app.js?v=19',
-  '/使用指南.html?v=19',
-  '/管理员使用指南.html?v=19',
+  '/css/style.css?v=1.0',
+  '/js/utils.js?v=1.0',
+  '/js/auth.js?v=1.0',
+  '/js/stats.js?v=1.0',
+  '/js/records.js?v=1.0',
+  '/js/clock.js?v=1.0',
+  '/js/admin.js?v=1.0',
+  '/js/app.js?v=1.0',
+  '/使用指南.html?v=1.0',
+  '/管理员使用指南.html?v=1.0',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png'
@@ -35,7 +33,7 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Fetch: network first, fallback to cache (for API calls always go network)
+// Fetch: API and document requests always try network first.
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
@@ -45,11 +43,25 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Static assets: cache first, then network
+  if (e.request.mode === 'navigate' || e.request.destination === 'document') {
+    e.respondWith(
+      fetch(e.request)
+        .then(resp => {
+          if (resp.status === 200 && resp.type === 'basic') {
+            const clone = resp.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put('/index.html', clone));
+          }
+          return resp;
+        })
+        .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // Static assets: cache first, then network.
   e.respondWith(
     caches.match(e.request)
       .then(cached => cached || fetch(e.request).then(resp => {
-        // Cache new static assets
         if (resp.status === 200 && resp.type === 'basic') {
           const clone = resp.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
@@ -57,10 +69,7 @@ self.addEventListener('fetch', e => {
         return resp;
       }))
       .catch(() => {
-        // Offline fallback: return cached index.html
-        if (e.request.destination === 'document') {
-          return caches.match('/index.html');
-        }
+        return caches.match(e.request);
       })
   );
 });

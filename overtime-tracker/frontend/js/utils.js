@@ -1,6 +1,7 @@
 // Shared state and utilities
 var OT = window.OT = window.OT || {};
 
+OT.APP_VERSION = '1.0';
 OT.API_BASE = location.origin;
 OT.token = localStorage.getItem('ot_token') || null;
 OT.currentUser = JSON.parse(localStorage.getItem('ot_user') || 'null');

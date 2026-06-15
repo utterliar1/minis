@@ -13,13 +13,17 @@ const vm = require('vm');
 
 const elements = {};
 const store = {};
-let reloadCalled = false;
+let replacedUrl = '';
 let deletedCaches = [];
 let unregistered = 0;
 let confirmTitle = '';
 let confirmMessage = '';
 let confirmCallback = null;
 let toastMessage = '';
+const RealDate = Date;
+class FixedDate extends RealDate {
+  static now() { return 1234567890; }
+}
 
 function element(id) {
   if (!elements[id]) {
@@ -37,7 +41,8 @@ function element(id) {
 
 const sandbox = {
   console,
-  location: { pathname: '/', reload() { reloadCalled = true; } },
+  Date: FixedDate,
+  location: { pathname: '/', search: '', replace(url) { replacedUrl = url; } },
   localStorage: {
     getItem(key) { return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null; },
     setItem(key, value) { store[key] = String(value); },
@@ -101,7 +106,7 @@ if (unregistered !== 2) throw new Error(`Expected 2 service workers unregistered
 if (store.ot_token !== 'token-123') throw new Error('Login token should be preserved');
 if (!store.ot_user) throw new Error('Login user should be preserved');
 if (!toastMessage.includes('缓存已清理')) throw new Error(`Expected success toast, got ${toastMessage}`);
-if (!reloadCalled) throw new Error('Expected page reload');
+if (replacedUrl !== '/?refresh=1234567890') throw new Error(`Expected timestamp refresh navigation, got ${replacedUrl}`);
 })().catch(err => {
   console.error(err);
   process.exit(1);
@@ -117,3 +122,14 @@ if (!reloadCalled) throw new Error('Expected page reload');
     )
 
     assert result.returncode == 0, result.stderr
+
+
+def test_frontend_declares_visible_app_version():
+    index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+    utils = (ROOT / "frontend" / "js" / "utils.js").read_text(encoding="utf-8")
+    css = (ROOT / "frontend" / "css" / "style.css").read_text(encoding="utf-8")
+
+    assert "OT.APP_VERSION = '1.0'" in utils
+    assert 'id="app-version"' in index
+    assert "v1.0" in index
+    assert ".app-version" in css
