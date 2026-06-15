@@ -166,6 +166,18 @@ namespace CadToolkit.UI
             btnManage.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnManage.Click += delegate { result = new PanelAction { Kind = "MANAGE" }; f.Close(); };
 
+            var btnConfigCheck = new Button();
+            btnConfigCheck.Text = "⚙";
+            btnConfigCheck.FlatStyle = FlatStyle.Flat;
+            btnConfigCheck.FlatAppearance.BorderColor = Color.FromArgb(180, 180, 180);
+            btnConfigCheck.BackColor = Color.White;
+            btnConfigCheck.Font = new Font("Microsoft YaHei", 10f);
+            btnConfigCheck.Size = new Size(UiScale(28), UiScale(24));
+            btnConfigCheck.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnConfigCheck.Click += delegate { result = new PanelAction { Kind = "CONFIGCHECK" }; f.Close(); };
+            var configTip = new ToolTip();
+            configTip.SetToolTip(btnConfigCheck, "配置体检");
+
             var lblAuthor = new Label();
             lblAuthor.Text = version;
             lblAuthor.AutoSize = false;
@@ -177,14 +189,17 @@ namespace CadToolkit.UI
 
             bar.Controls.Add(btnAdd);
             bar.Controls.Add(btnManage);
+            bar.Controls.Add(btnConfigCheck);
             bar.Controls.Add(lblAuthor);
             bar.Resize += delegate
             {
                 btnManage.Location = new Point(bar.ClientSize.Width - groupGap - btnManage.Width, UiScale(5));
                 btnAdd.Location = new Point(btnManage.Left - UiScale(6) - btnAdd.Width, UiScale(5));
+                btnConfigCheck.Location = new Point(btnAdd.Left - UiScale(6) - btnConfigCheck.Width, UiScale(5));
             };
             btnManage.Location = new Point(bar.ClientSize.Width - groupGap - btnManage.Width, UiScale(5));
             btnAdd.Location = new Point(btnManage.Left - UiScale(6) - btnAdd.Width, UiScale(5));
+            btnConfigCheck.Location = new Point(btnAdd.Left - UiScale(6) - btnConfigCheck.Width, UiScale(5));
             f.Controls.Add(content);
             f.Controls.Add(bar);
 

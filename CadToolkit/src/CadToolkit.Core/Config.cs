@@ -38,6 +38,9 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("TextStyleDeleteUnusedOldStyles", "false")
         };
         static string _dir;
+        public static string ConfigPath { get { return IniPath; } }
+        public static string DefaultConfigText { get { return GetDefaultConfigText(); } }
+
         public static void Init(string assemblyPath)
         {
             // assembly is in C:\CadToolkit\{acad|zwcad|gcad}\CadToolkit.dll
@@ -97,8 +100,27 @@ namespace CadToolkit.Core
             changed |= EnsureOfficialCommand(lines, "改块基点", "CT_CHANGEBASEPOINT", "快捷建块");
             changed |= RenameOfficialCommandLabel(lines, "文字样式规范", "文字规范", "CT_TEXTSTYLESTANDARD");
             changed |= EnsureOfficialCommand(lines, "文字规范", "CT_TEXTSTYLESTANDARD", "文字编号");
+            changed |= RemoveOfficialCommand(lines, "\u914D\u7F6E\u4F53\u68C0", "CT_CONFIGCHECK");
             if (changed)
                 lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
+        }
+
+        static bool RemoveOfficialCommand(List<string> lines, string label, string command)
+        {
+            bool changed = false;
+            for (int i = lines.Count - 1; i >= 0; i--)
+            {
+                string trimmed = lines[i].Trim();
+                if (trimmed.Length == 0 || trimmed.StartsWith("#") || trimmed.StartsWith(";") || trimmed.StartsWith("[")) continue;
+                int eq = trimmed.IndexOf('=');
+                if (eq <= 0) continue;
+                string key = trimmed.Substring(0, eq).Trim();
+                string value = trimmed.Substring(eq + 1).Trim();
+                if (!key.Equals(label, StringComparison.OrdinalIgnoreCase) || !value.Equals(command, StringComparison.OrdinalIgnoreCase)) continue;
+                lines.RemoveAt(i);
+                changed = true;
+            }
+            return changed;
         }
 
         static bool RenameOfficialCommandLabel(List<string> lines, string oldLabel, string newLabel, string command)

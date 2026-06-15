@@ -693,6 +693,16 @@ namespace CadToolkit
                 };
                 CadApp.Idle += idle;
             }
+            else if (action.Kind == "CONFIGCHECK")
+            {
+                System.EventHandler idle = null;
+                idle = delegate(object sender, System.EventArgs ea)
+                {
+                    try { CadApp.Idle -= idle; } catch {}
+                    CadApp.DocumentManager.MdiActiveDocument.SendStringToExecute("CT_CONFIGCHECK ", true, false, true);
+                };
+                CadApp.Idle += idle;
+            }
             else if (action.Kind == "ADD")
             {
                 using (var dlg = new AddCommandDialog())
