@@ -27,7 +27,7 @@
   .app-shell{display:none}
   .header{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:20px 16px 24px;position:sticky;top:0;z-index:100}
   .header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-  .header h1{font-size:20px;font-weight:700}.header-btns{display:flex;gap:8px}
+  .header h1{font-size:20px;font-weight:700}.app-version{display:inline-flex;align-items:center;margin-left:6px;padding:2px 6px;border-radius:999px;background:rgba(255,255,255,.16);font-size:11px;font-weight:600;vertical-align:middle}.header-btns{display:flex;gap:8px}
   .header-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
   .user-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.18);border-radius:16px;padding:3px 10px;font-size:12px;font-weight:600;margin-bottom:10px}
   .role-dot{width:7px;height:7px;border-radius:50%}.role-admin{background:var(--accent)}.role-user{background:var(--success)}

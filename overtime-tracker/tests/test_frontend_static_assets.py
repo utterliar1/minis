@@ -112,7 +112,9 @@ def test_static_asset_cache_version_is_current_and_consistent():
     assert "ot-tracker-v17" not in sw
     assert "v=18" not in index + app + sw
     assert "ot-tracker-v18" not in sw
-    assert "ot-tracker-v19" in sw
+    assert "v=19" not in index + app + sw
+    assert "ot-tracker-v19" not in sw
+    assert "ot-tracker-v1.0" in sw
     for asset in [
         "/css/style.css",
         "/js/utils.js",
@@ -125,7 +127,25 @@ def test_static_asset_cache_version_is_current_and_consistent():
         "/\u4f7f\u7528\u6307\u5357.html",
         "/\u7ba1\u7406\u5458\u4f7f\u7528\u6307\u5357.html",
     ]:
-        assert f"{asset}?v=19" in index + app + sw
+        assert f"{asset}?v=1.0" in index + app + sw
+
+
+def test_service_worker_does_not_precache_html_entry_and_uses_network_first_for_documents():
+    sw = (ROOT / "frontend" / "sw.js").read_text(encoding="utf-8")
+
+    static_assets = sw[sw.index("const STATIC_ASSETS"):sw.index("];") + 2]
+    assert "'/'" not in static_assets
+    assert "'/index.html'" not in static_assets
+    assert "e.request.mode === 'navigate'" in sw
+    assert "fetch(e.request)" in sw
+    assert "caches.match('/index.html')" in sw
+
+
+def test_nginx_does_not_strongly_cache_html_entry_points():
+    nginx = (ROOT / "nginx.conf").read_text(encoding="utf-8")
+
+    assert 'add_header Cache-Control "no-cache, no-store, must-revalidate";' in nginx
+    assert "try_files $uri $uri/ /index.html;" in nginx
 
 
 def test_members_page_exposes_bulk_whitelist_addition():
