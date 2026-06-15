@@ -100,9 +100,27 @@ namespace CadToolkit.Core
             changed |= EnsureOfficialCommand(lines, "改块基点", "CT_CHANGEBASEPOINT", "快捷建块");
             changed |= RenameOfficialCommandLabel(lines, "文字样式规范", "文字规范", "CT_TEXTSTYLESTANDARD");
             changed |= EnsureOfficialCommand(lines, "文字规范", "CT_TEXTSTYLESTANDARD", "文字编号");
-            changed |= EnsureOfficialCommand(lines, "\u914D\u7F6E\u4F53\u68C0", "CT_CONFIGCHECK", "\u6587\u5B57\u89C4\u8303");
+            changed |= RemoveOfficialCommand(lines, "\u914D\u7F6E\u4F53\u68C0", "CT_CONFIGCHECK");
             if (changed)
                 lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
+        }
+
+        static bool RemoveOfficialCommand(List<string> lines, string label, string command)
+        {
+            bool changed = false;
+            for (int i = lines.Count - 1; i >= 0; i--)
+            {
+                string trimmed = lines[i].Trim();
+                if (trimmed.Length == 0 || trimmed.StartsWith("#") || trimmed.StartsWith(";") || trimmed.StartsWith("[")) continue;
+                int eq = trimmed.IndexOf('=');
+                if (eq <= 0) continue;
+                string key = trimmed.Substring(0, eq).Trim();
+                string value = trimmed.Substring(eq + 1).Trim();
+                if (!key.Equals(label, StringComparison.OrdinalIgnoreCase) || !value.Equals(command, StringComparison.OrdinalIgnoreCase)) continue;
+                lines.RemoveAt(i);
+                changed = true;
+            }
+            return changed;
         }
 
         static bool RenameOfficialCommandLabel(List<string> lines, string oldLabel, string newLabel, string command)
@@ -260,7 +278,6 @@ namespace CadToolkit.Core
             sb.AppendLine("\u6587\u5B57\u5408\u5E76=CT_TEXTMERGE");
             sb.AppendLine("\u6587\u5B57\u7F16\u53F7=CT_TEXTNUMBER");
             sb.AppendLine("\u6587\u5B57\u89C4\u8303=CT_TEXTSTYLESTANDARD");
-            sb.AppendLine("\u914D\u7F6E\u4F53\u68C0=CT_CONFIGCHECK");
             sb.AppendLine("# \u56FE\u5C42\u7BA1\u7406");
             sb.AppendLine("\u56FE\u5C42\u5F52\u96F6=CT_SETLAYER0");
             sb.AppendLine("\u56FE\u5C42\u89C4\u8303=CT_LAYERSTANDARD");

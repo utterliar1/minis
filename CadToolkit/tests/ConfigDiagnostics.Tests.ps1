@@ -90,7 +90,6 @@ TextStyleDeleteUnusedOldStyles=false
 快速标注=CT_QUICKDIM
 递增复制=CT_INCCOPY
 Z轴归零=CT_FLATTEN
-配置体检=CT_CONFIGCHECK
 
 [LayerStandard]
 LAYER-EQUIPMENT=4|CONTINUOUS|Default|true
@@ -186,10 +185,17 @@ $report = [string]$diagnosticsType.GetMethod('FormatReport', [Reflection.Binding
 $reportTitle = 'CadToolkit ' + (-join ([char[]](0x914D,0x7F6E,0x4F53,0x68C0)))
 $reportWarning = -join ([char[]](0x8B66,0x544A))
 $reportFixable = -join ([char[]](0x53EF,0x81EA,0x52A8,0x4FEE,0x590D))
+$reportConclusion = -join ([char[]](0x7ED3,0x8BBA,0xFF1A,0x53D1,0x73B0))
+$reportTip = -join ([char[]](0x63D0,0x793A,0xFF1A,0x6807,0x8BB0,0x4E3A))
+$missingRootChinese = -join ([char[]](0x7F3A,0x5C11,0x6839,0x914D,0x7F6E,0x9879))
 Assert-TextContains 'report title is Chinese' $report $reportTitle
 Assert-TextContains 'report includes config path' $report $reportPath
+Assert-TextContains 'report includes Chinese conclusion' $report $reportConclusion
+Assert-TextContains 'report includes Chinese hint' $report $reportTip
 Assert-TextContains 'report includes warning group' $report $reportWarning
 Assert-TextContains 'report marks fixable issue' $report $reportFixable
+Assert-TextContains 'report localizes issue message' $report $missingRootChinese
+Assert-TextNotContains 'report does not show raw English issue message' $report 'Missing root setting'
 
 $missingCommands = Invoke-Analyze ($minimalConfig -replace '\[Commands\]', '[NotCommands]')
 Assert-Issue 'missing commands section is reported with dedicated code' $missingCommands 'MissingCommandsSection' 'Warning' $true
@@ -227,13 +233,12 @@ Assert-TextContains 'repair preserves existing root value' $repairedText 'QuickB
 Assert-TextContains 'repair preserves unfixable layer map target' $repairedText 'BROKEN-TARGET=UNKNOWN-LAYER'
 Assert-TextContains 'repair renames old text style command' $repairedText ($newTextStyleLabel + '=CT_TEXTSTYLESTANDARD')
 Assert-TextNotContains 'repair removes old text style command label' $repairedText ($oldTextStyleLabel + '=CT_TEXTSTYLESTANDARD')
-Assert-TextContains 'repair adds config check command' $repairedText ($configCheckLabel + '=CT_CONFIGCHECK')
+Assert-TextNotContains 'repair does not add config check command to panel list' $repairedText ($configCheckLabel + '=CT_CONFIGCHECK')
 Assert-TextNotContains 'repair removes known equals command doc comment' $repairedText $formatComment
 
 $aliasCollisionFixture = $repairFixture -replace '\[Commands\]', "[Commands]`r`nCustomConfigCheck=CT_CONFIGCHECK"
 $aliasCollisionRepair = Invoke-Repair $aliasCollisionFixture
 $aliasCollisionText = [string]$aliasCollisionRepair.RepairedText
-Assert-TextContains 'repair adds official command even when command value is used by custom alias' $aliasCollisionText ($configCheckLabel + '=CT_CONFIGCHECK')
 Assert-TextContains 'repair preserves custom command alias with same command value' $aliasCollisionText 'CustomConfigCheck=CT_CONFIGCHECK'
 
 $missingRootFixture = @"
@@ -265,7 +270,8 @@ if ([string]::IsNullOrEmpty($backupPath)) { throw 'RepairFile should preserve Ba
 if (-not (Test-Path $backupPath)) { throw "RepairFile backup was not created: $backupPath" }
 if (-not ($backupPath.StartsWith($repairPath + '.bak-'))) { throw "RepairFile backup path was not timestamped next to config: $backupPath" }
 $writtenText = [IO.File]::ReadAllText($repairPath, [Text.Encoding]::UTF8)
-Assert-TextContains 'RepairFile writes repaired text' $writtenText ($configCheckLabel + '=CT_CONFIGCHECK')
+Assert-TextContains 'RepairFile writes repaired text' $writtenText ($newTextStyleLabel + '=CT_TEXTSTYLESTANDARD')
+Assert-TextNotContains 'RepairFile keeps config check out of command list' $writtenText ($configCheckLabel + '=CT_CONFIGCHECK')
 Assert-TextContains 'RepairFile backup preserves original text' ([IO.File]::ReadAllText($backupPath, [Text.Encoding]::UTF8)) ($oldTextStyleLabel + '=CT_TEXTSTYLESTANDARD')
 
 [IO.File]::WriteAllText($repairPath, $repairFixture, [Text.Encoding]::UTF8)
@@ -290,10 +296,10 @@ $configCheckCommandLine = (-join ([char[]](0x914D,0x7F6E,0x4F53,0x68C0))) + '=CT
 $projectConfigText = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.ini') -Raw
 $defaultConfigText = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.default.ini') -Raw
 $configSource = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit.Core\Config.cs') -Raw
-Assert-TextContains 'project config contains config check command' $projectConfigText $configCheckCommandLine
-Assert-TextContains 'default config contains config check command' $defaultConfigText $configCheckCommandLine
-Assert-Contains 'embedded default contains config check command' $configSource ([regex]::Escape($configCheckCommandLine) + '|\\u914D\\u7F6E\\u4F53\\u68C0=CT_CONFIGCHECK')
-Assert-Contains 'startup upgrade ensures config check command' $configSource 'EnsureOfficialCommand\(lines,\s*"\\u914D\\u7F6E\\u4F53\\u68C0"'
+Assert-TextNotContains 'project config keeps config check out of command list' $projectConfigText $configCheckCommandLine
+Assert-TextNotContains 'default config keeps config check out of command list' $defaultConfigText $configCheckCommandLine
+Assert-Contains 'embedded default keeps config check out of command list' $configSource 'RemoveOfficialCommand\(lines,\s*"\\u914D\\u7F6E\\u4F53\\u68C0"'
+Assert-Contains 'startup upgrade removes old config check command button' $configSource 'RemoveOfficialCommand\(lines,\s*"\\u914D\\u7F6E\\u4F53\\u68C0"'
 
 $configCommandsPath = Join-Path $repo 'CadToolkit\src\CadToolkit\ConfigCommands.cs'
 if (-not (Test-Path $configCommandsPath)) { throw 'ConfigCommands.cs is missing' }
@@ -304,8 +310,11 @@ Assert-Contains 'config check command is registered' $configCommandsSource '\[Co
 Assert-Contains 'config check command analyzes file' $configCommandsSource 'ConfigDiagnostics\.AnalyzeFile'
 Assert-Contains 'config check command can repair file' $configCommandsSource 'ConfigDiagnostics\.RepairFile'
 Assert-Contains 'config check command formats report' $configCommandsSource 'ConfigDiagnostics\.FormatReport'
+Assert-Contains 'panel action runs config check command' (Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit\Plugin.cs') -Raw) 'action\.Kind == "CONFIGCHECK"'
 Assert-TextContains 'config check dialog has copy button' $configCommandsSource $copyReportText
 Assert-TextContains 'config check dialog has repair button' $configCommandsSource $repairText
+Assert-Contains 'config check dialog supports Esc close' $configCommandsSource 'CancelButton\s*=\s*close'
+Assert-Contains 'config check close button is cancel action' $configCommandsSource 'close\.DialogResult\s*=\s*DialogResult\.Cancel'
 Assert-Contains 'config exposes config path' $configSource 'public\s+static\s+string\s+ConfigPath'
 
 foreach ($projectName in @('CadToolkit.AutoCAD.csproj', 'CadToolkit.ZWCAD.csproj', 'CadToolkit.GstarCAD.csproj')) {
@@ -325,6 +334,15 @@ Assert-Contains 'check-config supports Fix switch' $toolText '\[switch\]\s*\$Fix
 Assert-Contains 'check-config calls AnalyzeFile' $toolText 'AnalyzeFile'
 Assert-Contains 'check-config calls RepairFile' $toolText 'RepairFile'
 Assert-Contains 'check-config prints formatted report' $toolText 'FormatReport'
+
+$panelBuilderPath = Join-Path $repo 'CadToolkit\src\CadToolkit.UI\PanelBuilder.cs'
+$panelBuilderSource = Get-Content -Encoding UTF8 $panelBuilderPath -Raw
+$configIcon = [string][char]0x2699
+Assert-Contains 'panel builder has config check action' $panelBuilderSource 'CONFIGCHECK'
+Assert-TextContains 'panel builder shows config check icon button' $panelBuilderSource $configIcon
+Assert-Contains 'panel builder anchors config check with right controls' $panelBuilderSource 'btnConfigCheck\.Anchor\s*=\s*AnchorStyles\.Top\s*\|\s*AnchorStyles\.Right'
+Assert-Contains 'panel builder places config check left of add button' $panelBuilderSource 'btnConfigCheck\.Location\s*=\s*new Point\(btnAdd\.Left\s*-\s*UiScale\(6\)\s*-\s*btnConfigCheck\.Width'
+Assert-Contains 'panel builder handles config check action' $panelBuilderSource 'Kind = "CONFIGCHECK"'
 
 $readme = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\README.md') -Raw
 $manualFileName = 'CadToolkit' + (-join ([char[]](0x4F7F,0x7528,0x624B,0x518C))) + '.html'

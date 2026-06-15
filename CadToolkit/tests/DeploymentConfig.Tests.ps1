@@ -103,9 +103,9 @@ Assert-ContainsLiteral 'project config documents text style standard format' $pr
 Assert-ContainsLiteral 'default config documents text style standard format' $defaultConfig $textStyleStandardFormatNote
 Assert-CommandsSectionHasNoEqualsComments 'project config keeps non-command docs out of Commands section' $projectConfig
 Assert-CommandsSectionHasNoEqualsComments 'default config keeps non-command docs out of Commands section' $defaultConfig
-Assert-ContainsLiteral 'project config contains config check command' $projectConfig $configCheckCommandLine
-Assert-ContainsLiteral 'default config contains config check command' $defaultConfig $configCheckCommandLine
-Assert-Contains 'embedded default contains config check command' $configSource ([regex]::Escape($configCheckCommandLine) + '|\\u914D\\u7F6E\\u4F53\\u68C0=CT_CONFIGCHECK')
+Assert-NotContains 'project config keeps config check out of command list' $projectConfig ([regex]::Escape($configCheckCommandLine))
+Assert-NotContains 'default config keeps config check out of command list' $defaultConfig ([regex]::Escape($configCheckCommandLine))
+Assert-Contains 'embedded default removes old config check command button' $configSource 'RemoveOfficialCommand\(lines,\s*"\\u914D\\u7F6E\\u4F53\\u68C0"'
 Assert-Contains 'command groups skip comment lines with equals' $configSource 'if\s+\(t\.StartsWith\("#"\)\)\s+continue;'
 Assert-Contains 'assembly version is 1.25' $assemblyInfo 'AssemblyVersion\("1\.25\.0\.0"\)'
 Assert-Contains 'assembly file version is 1.25' $assemblyInfo 'AssemblyFileVersion\("1\.25\.0\.0"\)'

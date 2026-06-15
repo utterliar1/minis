@@ -73,10 +73,12 @@ namespace CadToolkit
 
                 var close = new Button();
                 close.Text = "关闭";
+                close.DialogResult = DialogResult.Cancel;
                 close.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
                 close.SetBounds(ClientSize.Width - UiScale(108), ClientSize.Height - UiScale(40), UiScale(96), UiScale(28));
                 close.Click += delegate { Close(); };
                 Controls.Add(close);
+                CancelButton = close;
 
                 RefreshReport(ConfigDiagnostics.AnalyzeFile(_path));
             }

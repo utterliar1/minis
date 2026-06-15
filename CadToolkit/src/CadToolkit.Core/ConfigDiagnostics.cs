@@ -95,8 +95,7 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("画中心线", "CT_CENTERLINE"),
             new KeyValuePair<string, string>("快速标注", "CT_QUICKDIM"),
             new KeyValuePair<string, string>("递增复制", "CT_INCCOPY"),
-            new KeyValuePair<string, string>("Z轴归零", "CT_FLATTEN"),
-            new KeyValuePair<string, string>("配置体检", "CT_CONFIGCHECK")
+            new KeyValuePair<string, string>("Z轴归零", "CT_FLATTEN")
         };
 
         internal class IniLine
@@ -342,8 +341,19 @@ namespace CadToolkit.Core
         public static string FormatReport(ConfigDiagnosticResult result)
         {
             var sb = new StringBuilder();
+            int errorCount = CountIssues(result, ConfigDiagnosticSeverity.Error);
+            int warningCount = CountIssues(result, ConfigDiagnosticSeverity.Warning);
+            int fixableCount = CountFixableIssues(result);
+
             sb.AppendLine("CadToolkit 配置体检");
             sb.AppendLine("配置文件：" + (result == null ? "" : result.Path));
+            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "结论：发现 {0} 个错误、{1} 个警告。", errorCount, warningCount));
+            if (fixableCount > 0)
+                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "提示：标记为“可自动修复”的 {0} 项可直接点击“自动修复”。修复前会自动备份原配置。", fixableCount));
+            else if (errorCount == 0 && warningCount == 0)
+                sb.AppendLine("提示：当前配置未发现需要处理的问题。");
+            else
+                sb.AppendLine("提示：未标记为“可自动修复”的项目需要手动检查配置内容。");
             sb.AppendLine();
 
             AppendIssueGroup(sb, "错误", result, ConfigDiagnosticSeverity.Error);
@@ -357,6 +367,36 @@ namespace CadToolkit.Core
             }
 
             return sb.ToString();
+        }
+
+        static int CountIssues(ConfigDiagnosticResult result, ConfigDiagnosticSeverity severity)
+        {
+            int count = 0;
+            if (result == null)
+                return count;
+
+            foreach (ConfigDiagnosticIssue issue in result.Issues)
+            {
+                if (issue.Severity == severity)
+                    count++;
+            }
+
+            return count;
+        }
+
+        static int CountFixableIssues(ConfigDiagnosticResult result)
+        {
+            int count = 0;
+            if (result == null)
+                return count;
+
+            foreach (ConfigDiagnosticIssue issue in result.Issues)
+            {
+                if (issue.CanFix)
+                    count++;
+            }
+
+            return count;
         }
 
         static void AppendIssueGroup(StringBuilder sb, string title, ConfigDiagnosticResult result, ConfigDiagnosticSeverity severity)
@@ -384,10 +424,71 @@ namespace CadToolkit.Core
                 if (issue.LineNumber > 0)
                     location += "第 " + issue.LineNumber.ToString(CultureInfo.InvariantCulture) + " 行：";
 
-                sb.AppendLine("- " + location + issue.Message + suffix);
+                sb.AppendLine("- " + location + LocalizeIssue(issue) + suffix);
             }
 
             sb.AppendLine();
+        }
+
+        static string LocalizeIssue(ConfigDiagnosticIssue issue)
+        {
+            if (issue == null)
+                return "";
+
+            string code = issue.Code ?? "";
+            string message = issue.Message ?? "";
+
+            if (code.Equals("MissingRootSetting", StringComparison.OrdinalIgnoreCase))
+                return "缺少根配置项：" + ExtractAfter(message, ": ");
+            if (code.Equals("MissingCommandsSection", StringComparison.OrdinalIgnoreCase))
+                return "缺少命令分组：[Commands]";
+            if (code.Equals("MissingSection", StringComparison.OrdinalIgnoreCase))
+                return "缺少配置分组：" + ExtractAfter(message, ": ");
+            if (code.Equals("MissingOfficialCommand", StringComparison.OrdinalIgnoreCase))
+                return "缺少内置命令按钮：" + ExtractAfter(message, ": ");
+            if (code.Equals("CommandDocCommentWithEquals", StringComparison.OrdinalIgnoreCase))
+                return "命令分组里的说明文字包含等号，可能被误读为命令配置。";
+            if (code.Equals("OldOfficialCommandLabel", StringComparison.OrdinalIgnoreCase))
+                return "旧命令名称“文字样式规范”应改为“文字规范”。";
+            if (code.Equals("LayerMapTargetMissing", StringComparison.OrdinalIgnoreCase))
+                return "图层映射目标未在 [LayerStandard] 中定义：" + ExtractAfter(message, ": ");
+            if (code.Equals("TextStyleMapTargetMissing", StringComparison.OrdinalIgnoreCase))
+                return "文字样式映射目标未在 [TextStyleStandard] 中定义：" + ExtractAfter(message, ": ");
+            if (code.Equals("MalformedLayerStandard", StringComparison.OrdinalIgnoreCase))
+                return "图层标准格式错误，应为：颜色|线型|线宽|是否打印。";
+            if (code.Equals("MalformedTextStyleStandard", StringComparison.OrdinalIgnoreCase))
+                return "文字样式标准格式错误，应为：字体文件|大字体文件|固定字高|宽度因子|倾斜角。";
+            if (code.Equals("Summary", StringComparison.OrdinalIgnoreCase))
+                return LocalizeSummary(message);
+
+            return string.IsNullOrEmpty(message) ? code : message;
+        }
+
+        static string ExtractAfter(string text, string marker)
+        {
+            if (string.IsNullOrEmpty(text))
+                return "";
+
+            int index = text.IndexOf(marker, StringComparison.Ordinal);
+            if (index < 0)
+                return text;
+
+            return text.Substring(index + marker.Length);
+        }
+
+        static string LocalizeSummary(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+                return "检查完成。";
+
+            return "检查完成：" + message
+                .Replace("Checked ", "")
+                .Replace(" root settings", " 个根配置项")
+                .Replace(" commands", " 个命令")
+                .Replace(" layer standards", " 个图层标准")
+                .Replace(" layer maps", " 个图层映射")
+                .Replace(" text style standards", " 个文字样式标准")
+                .Replace(" text style maps.", " 个文字样式映射。");
         }
 
         static void AddMissingRootSettings(List<string> lines, HashSet<string> rootKeys)
