@@ -108,6 +108,7 @@ namespace CadToolkit
             if (selectedIds == null) return;
             var ppr = Ed.GetPoint("\n\u6307\u5b9a\u5757\u57fa\u70b9\uff1a");
             if (ppr.Status != PromptStatus.OK) return;
+            Point3d worldPoint = GetPointInWorld(ppr.Value);
             string prefix = Config.Prefix;
             bool del = Config.DeleteOriginal;
             string createdName = "";
@@ -122,14 +123,14 @@ namespace CadToolkit
                     do { name = string.Format("{0}{1:D3}", prefix, idx++); } while (bt.Has(name));
                     var btr = new BlockTableRecord();
                     btr.Name = name;
-                    btr.Origin = ppr.Value;
+                    btr.Origin = worldPoint;
                     bt.Add(btr);
                     tr.AddNewlyCreatedDBObject(btr, true);
                     var ids = new ObjectIdCollection(selectedIds);
                     var mapping = new IdMapping();
                     Db.DeepCloneObjects(ids, btr.Id, mapping, false);
                     var msBtr = (BlockTableRecord)tr.GetObject(Db.CurrentSpaceId, OpenMode.ForWrite);
-                    var br = new BlockReference(ppr.Value, btr.Id);
+                    var br = new BlockReference(worldPoint, btr.Id);
                     msBtr.AppendEntity(br);
                     tr.AddNewlyCreatedDBObject(br, true);
                     if (del)
@@ -184,6 +185,7 @@ namespace CadToolkit
 
             var ppr = Ed.GetPoint("\n指定新的块基点：");
             if (ppr.Status != PromptStatus.OK) return;
+            Point3d worldPoint = GetPointInWorld(ppr.Value);
 
             bool changed = RunWithUndo("CT_CHANGEBASEPOINT", delegate
             {
@@ -198,7 +200,7 @@ namespace CadToolkit
                     }
 
                     Point3d oldOrigin = selectedBtr.Origin;
-                    Point3d newOrigin = TransformPointByInverse(ppr.Value, selectedBr.BlockTransform);
+                    Point3d newOrigin = TransformPointByInverse(worldPoint, selectedBr.BlockTransform);
                     referenceIds = GetBlockReferencesForDefinition(tr, blockDefId);
 
                     var shifts = new Dictionary<ObjectId, Vector3d>();

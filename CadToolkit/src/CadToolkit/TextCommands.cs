@@ -78,7 +78,7 @@ namespace CadToolkit
             {
                 if (dlg.ShowDialog() != DialogResult.OK) return;
                 int h = dlg.HorzIndex;
-                bool useFirst = dlg.UseFirstBase;
+                bool useAutoBase = dlg.UseFirstBase;
                 double spacing = dlg.LineSpacing;
                 var texts = new List<DBText>();
                 double baseX = 0;
@@ -100,7 +100,7 @@ namespace CadToolkit
                             foreach (var t in texts) { if (t.Height > maxH) maxH = t.Height; }
                             spacing = maxH * 1.8;
                         }
-                        if (useFirst)
+                        if (useAutoBase)
                         {
                             var t0 = texts[0];
                             double tw = 0;
@@ -114,8 +114,9 @@ namespace CadToolkit
                         {
                             var ppr = Ed.GetPoint("\n\u6307\u5b9a\u5bf9\u9f50\u57fa\u70b9\uff1a");
                             if (ppr.Status != PromptStatus.OK) return false;
-                            baseX = ppr.Value.X;
-                            baseY = ppr.Value.Y;
+                            Point3d worldPoint = GetPointInWorld(ppr.Value);
+                            baseX = worldPoint.X;
+                            baseY = worldPoint.Y;
                         }
                         for (int i = 0; i < texts.Count; i++)
                         {

@@ -216,8 +216,9 @@ namespace CadToolkit
                 if (ppr.Status != PromptStatus.OK) break;
                 num++;
                 string newText = prefix + num.ToString().PadLeft(numLen, '0');
-                double dx = ppr.Value.X - anchor.X;
-                double dy = ppr.Value.Y - anchor.Y;
+                Point3d worldPoint = GetPointInWorld(ppr.Value);
+                double dx = worldPoint.X - anchor.X;
+                double dy = worldPoint.Y - anchor.Y;
                 var transform = Matrix3d.Displacement(new Vector3d(dx, dy, 0));
                 using (var tr = Db.TransactionManager.StartTransaction())
                 {

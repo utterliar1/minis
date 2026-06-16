@@ -83,8 +83,8 @@ namespace CadToolkit.UI
             lblBase.Left = 4; lblBase.Top = 7; lblBase.AutoSize = true;
             lblBase.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
 
-            var rbFirst = new RadioButton(); rbFirst.Text = "\u7B2C\u4E00\u4E2A\u9009\u4E2D\u6587\u5B57"; rbFirst.Left = 94; rbFirst.Top = 5; rbFirst.AutoSize = true; rbFirst.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f); rbFirst.Checked = UseFirstBase;
-            var rbPick = new RadioButton(); rbPick.Text = "\u624B\u52A8\u6307\u5B9A"; rbPick.Left = 244; rbPick.Top = 5; rbPick.AutoSize = true; rbPick.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f); rbPick.Checked = !UseFirstBase;
+            var rbFirst = new RadioButton(); rbFirst.Text = "\u81EA\u52A8"; rbFirst.Left = 94; rbFirst.Top = 5; rbFirst.AutoSize = true; rbFirst.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f); rbFirst.Checked = UseFirstBase;
+            var rbPick = new RadioButton(); rbPick.Text = "\u624B\u52A8"; rbPick.Left = 170; rbPick.Top = 5; rbPick.AutoSize = true; rbPick.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f); rbPick.Checked = !UseFirstBase;
             rbFirst.CheckedChanged += delegate { if (rbFirst.Checked) UseFirstBase = true; };
             rbPick.CheckedChanged += delegate { if (rbPick.Checked) UseFirstBase = false; };
             pnlB.Controls.AddRange(new Control[] { lblBase, rbFirst, rbPick });

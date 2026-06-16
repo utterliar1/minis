@@ -2,6 +2,7 @@
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $blockCommands = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit\BlockCommands.cs') -Raw
+$coordinateHelpers = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit\CoordinateHelpers.cs') -Raw
 $projectConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.ini') -Raw
 $defaultConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.default.ini') -Raw
 $configSource = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit.Core\Config.cs') -Raw
@@ -48,6 +49,7 @@ Assert-Contains 'change basepoint reads pickfirst selection before prompting' $c
 Assert-Contains 'change basepoint uses picked block id from pickfirst or prompt' $changeBody 'pickedId'
 Assert-NotContains 'change basepoint does not rely directly on prompt entity result id' $changeBody 'per\.ObjectId'
 Assert-Contains 'change basepoint asks for new base point' $changeBody '指定新的块基点'
+Assert-Contains 'change basepoint converts selected point from UCS to WCS' $changeBody 'GetPointInWorld\(ppr\.Value\)'
 Assert-Contains 'change basepoint converts world point to definition coordinates' $changeBody 'TransformPointByInverse\([^,]+,\s*selectedBr\.BlockTransform\)'
 Assert-Contains 'change basepoint updates block definition origin' $changeBody '\.Origin\s*='
 Assert-Contains 'change basepoint transforms old base point per reference' $changeBody 'oldOrigin\.TransformBy\(br\.BlockTransform\)'
@@ -59,8 +61,11 @@ Assert-Contains 'change basepoint helper consumes panel pending selection' $bloc
 Assert-Contains 'change basepoint helper clears panel pending selection' $blockCommands 'static\s+ObjectId\s+GetImpliedBlockReferenceOrPrompt[\s\S]*_pendingSelection\s*=\s*null'
 Assert-Contains 'change basepoint helper checks implied selection' $blockCommands 'static\s+ObjectId\s+GetImpliedBlockReferenceOrPrompt[\s\S]*SelectImplied\(\)'
 Assert-Contains 'change basepoint helper falls back to prompt entity' $blockCommands 'static\s+ObjectId\s+GetImpliedBlockReferenceOrPrompt[\s\S]*GetEntity\(peo\)'
+Assert-Contains 'shared helper converts UCS point to world' $coordinateHelpers 'static\s+Point3d\s+GetPointInWorld'
+Assert-Contains 'shared helper reads editor current UCS' $coordinateHelpers 'CurrentUserCoordinateSystem'
 Assert-Contains 'change basepoint inverse helper avoids direct SDK-only call' $blockCommands 'static\s+Point3d\s+TransformPointByInverse'
 Assert-Contains 'change basepoint scans all block references' $blockCommands 'GetBlockReferencesForDefinition'
+Assert-Contains 'quick block converts picked point from UCS to WCS' $blockCommands 'CT_QUICKBLOCK[\s\S]*GetPointInWorld\(ppr\.Value\)'
 
 Assert-ContainsLiteral 'project config contains command label' $projectConfig '改块基点=CT_CHANGEBASEPOINT'
 Assert-ContainsLiteral 'default config contains command label' $defaultConfig '改块基点=CT_CHANGEBASEPOINT'
