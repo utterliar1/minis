@@ -62,4 +62,4 @@ Assert-Contains 'local deploy writes autoload without UTF8 BOM' $deployLocal 'Ne
 Assert-Contains 'local deploy writes autoload through explicit encoder' $deployLocal '\[System\.IO\.File\]::WriteAllText'
 Assert-Contains 'autoload keeps CC alias command' $autoload '\(defun\s+c:CC'
 Assert-Contains 'autoload keeps CT alias command' $autoload '\(defun\s+c:CT'
-Assert-Contains 'autoload announces current version' $autoload 'CadToolkit v1\.25 ready'
+Assert-Contains 'autoload announces current version' $autoload 'CadToolkit v1\.26 ready'

@@ -91,11 +91,13 @@ namespace GrxCAD.DatabaseServices
     }
     public class ObjectId
     {
+        public static readonly ObjectId Null = new ObjectId();
         public override bool Equals(object obj) { return obj is ObjectId; }
         public override int GetHashCode() { return 0; }
         public static bool operator ==(ObjectId a, ObjectId b) => false;
         public static bool operator !=(ObjectId a, ObjectId b) => true;
         public bool IsValid { get { return true; } }
+        public bool IsNull { get { return false; } }
     }
     public class ObjectIdCollection : IEnumerable<ObjectId>
     {
@@ -164,6 +166,7 @@ namespace GrxCAD.DatabaseServices
         public BlockReference(Geometry.Point3d pt, ObjectId id) {}
         public string Name { get; set; }
         public ObjectId BlockTableRecord { get; set; }
+        public ObjectId DynamicBlockTableRecord { get; set; }
         public AttributeCollection AttributeCollection { get; set; }
         public Geometry.Point3d Position { get; set; }
         public Geometry.Scale3d ScaleFactors { get; set; }
@@ -326,6 +329,7 @@ namespace GrxCAD.EditorInput
         public PromptSelectionResult SelectImplied() { return new PromptSelectionResult(); }
         public void SetImpliedSelection(DatabaseServices.ObjectId[] ids) {}
         public PromptSelectionResult GetSelection(PromptSelectionOptions opts) { return new PromptSelectionResult(); }
+        public PromptSelectionResult GetSelection(PromptSelectionOptions opts, SelectionFilter filter) { return new PromptSelectionResult(); }
         public PromptSelectionResult SelectAll(SelectionFilter filter) { return new PromptSelectionResult(); }
         public PromptEntityResult GetEntity(string msg) { return new PromptEntityResult(); }
         public PromptEntityResult GetEntity(PromptEntityOptions opts) { return new PromptEntityResult(); }

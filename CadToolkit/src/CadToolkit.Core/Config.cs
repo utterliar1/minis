@@ -35,7 +35,16 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("TextStyleNormalizeWidthFactor", "false"),
             new KeyValuePair<string, string>("TextStyleNormalizeOblique", "false"),
             new KeyValuePair<string, string>("TextStyleNormalizeColorByLayer", "false"),
-            new KeyValuePair<string, string>("TextStyleDeleteUnusedOldStyles", "false")
+            new KeyValuePair<string, string>("TextStyleDeleteUnusedOldStyles", "false"),
+            new KeyValuePair<string, string>("BatchPlotDevice", "DWG To PDF.pc3"),
+            new KeyValuePair<string, string>("BatchPlotPaper", "A3"),
+            new KeyValuePair<string, string>("BatchPlotStyle", "monochrome.ctb"),
+            new KeyValuePair<string, string>("BatchPlotAutoRotate", "true"),
+            new KeyValuePair<string, string>("BatchPlotCenter", "true"),
+            new KeyValuePair<string, string>("BatchPlotMarginPercent", "2"),
+            new KeyValuePair<string, string>("BatchPlotMarginMm", "5"),
+            new KeyValuePair<string, string>("BatchPlotFileNameMode", "DrawingDashIndex"),
+            new KeyValuePair<string, string>("BatchPlotSortMode", "Position")
         };
         static string _dir;
         public static string ConfigPath { get { return IniPath; } }
@@ -100,6 +109,8 @@ namespace CadToolkit.Core
             changed |= EnsureOfficialCommand(lines, "改块基点", "CT_CHANGEBASEPOINT", "快捷建块");
             changed |= RenameOfficialCommandLabel(lines, "文字样式规范", "文字规范", "CT_TEXTSTYLESTANDARD");
             changed |= EnsureOfficialCommand(lines, "文字规范", "CT_TEXTSTYLESTANDARD", "文字编号");
+            changed |= MoveOfficialCommand(lines, "递增复制", "CT_INCCOPY", "文字编号");
+            changed |= EnsureOfficialCommand(lines, "批量打印", "CT_BATCHPLOT", "快速标注");
             changed |= RemoveOfficialCommand(lines, "\u914D\u7F6E\u4F53\u68C0", "CT_CONFIGCHECK");
             if (changed)
                 lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
@@ -186,6 +197,58 @@ namespace CadToolkit.Core
             return true;
         }
 
+        static bool MoveOfficialCommand(List<string> lines, string label, string command, string afterLabel)
+        {
+            int commandsHeader = -1;
+            int commandsEnd = -1;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                string trimmed = lines[i].Trim();
+                if (trimmed.Equals("[Commands]", StringComparison.OrdinalIgnoreCase))
+                {
+                    commandsHeader = i;
+                    continue;
+                }
+                if (commandsHeader >= 0 && trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                {
+                    commandsEnd = i;
+                    break;
+                }
+            }
+
+            if (commandsHeader < 0) return false;
+            if (commandsEnd < 0) commandsEnd = lines.Count;
+
+            string pair = label + "=" + command;
+            bool found = false;
+            for (int i = commandsEnd - 1; i > commandsHeader; i--)
+            {
+                if (!lines[i].Trim().Equals(pair, StringComparison.OrdinalIgnoreCase)) continue;
+                lines.RemoveAt(i);
+                commandsEnd--;
+                found = true;
+            }
+
+            if (!found) return false;
+
+            int insertAt = commandsEnd;
+            for (int i = commandsHeader + 1; i < commandsEnd; i++)
+            {
+                string trimmed = lines[i].Trim();
+                if (trimmed.StartsWith(afterLabel + "=", StringComparison.OrdinalIgnoreCase))
+                {
+                    insertAt = i + 1;
+                    break;
+                }
+                int eq = trimmed.IndexOf('=');
+                if (eq > 0 && trimmed.Substring(0, eq).Trim().Equals(afterLabel, StringComparison.OrdinalIgnoreCase))
+                    insertAt = i + 1;
+            }
+
+            lines.Insert(insertAt, pair);
+            return true;
+        }
+
         static bool HasConfigKey(List<string> lines, string key)
         {
             foreach (string line in lines)
@@ -264,6 +327,26 @@ namespace CadToolkit.Core
             sb.AppendLine("TextStyleNormalizeColorByLayer=false");
             sb.AppendLine("TextStyleDeleteUnusedOldStyles=false");
             sb.AppendLine();
+            sb.AppendLine("# \u6279\u91CF\u6253\u5370");
+            sb.AppendLine("# BatchPlotDevice\uFF1APDF \u8F93\u51FA\u8BBE\u5907\u540D\uFF0C\u4F8B\u5982 DWG To PDF.pc3\u3002");
+            sb.AppendLine("# BatchPlotPaper\uFF1A\u6279\u91CF\u6253\u5370\u9ED8\u8BA4\u56FE\u7EB8\uFF0C\u9996\u6B21\u4F7F\u7528 A3\uFF0C\u540E\u7EED\u4F1A\u8BB0\u4F4F\u4E0A\u6B21\u9009\u9879\u3002");
+            sb.AppendLine("# BatchPlotStyle\uFF1A\u6253\u5370\u6837\u5F0F\u8868\uFF0C\u4F8B\u5982 monochrome.ctb\u3002");
+            sb.AppendLine("# BatchPlotAutoRotate\uFF1A\u662F\u5426\u6309\u56FE\u6846\u957F\u5BBD\u81EA\u52A8\u65CB\u8F6C\u3002");
+            sb.AppendLine("# BatchPlotCenter\uFF1A\u662F\u5426\u5C45\u4E2D\u6253\u5370\u7A97\u53E3\u3002");
+            sb.AppendLine("# BatchPlotMarginPercent\uFF1A\u6279\u91CF\u6253\u5370\u9875\u8FB9\u8DDD\u767E\u5206\u6BD4\uFF0C\u9ED8\u8BA4 2\uFF0C0 \u8868\u793A\u4E0D\u989D\u5916\u589E\u52A0\u9875\u8FB9\u8DDD\u3002");
+            sb.AppendLine("# BatchPlotMarginMm\uFF1A\u6279\u91CF\u6253\u5370\u9875\u8FB9\u8DDD\uFF08mm\uFF09\uFF0C\u9ED8\u8BA4 5\u3002");
+            sb.AppendLine("# BatchPlotFileNameMode\uFF1APDF \u6587\u4EF6\u540D\u89C4\u5219\uFF0CDrawingDashIndex=\u56FE\u540D-001\uFF0CDrawingUnderscoreIndex=\u56FE\u540D_001\uFF0CIndexOnly=001\uFF0CSheetNumberName=\u56FE\u53F7 \u56FE\u540D\u3002");
+            sb.AppendLine("# BatchPlotSortMode\uFF1A\u6279\u91CF\u6253\u5370\u6392\u5E8F\uFF0CPosition=\u4F4D\u7F6E\u6392\u5E8F\uFF0CSheetNumber=\u56FE\u53F7\u6392\u5E8F\u3002");
+            sb.AppendLine("BatchPlotDevice=DWG To PDF.pc3");
+            sb.AppendLine("BatchPlotPaper=A3");
+            sb.AppendLine("BatchPlotStyle=monochrome.ctb");
+            sb.AppendLine("BatchPlotAutoRotate=true");
+            sb.AppendLine("BatchPlotCenter=true");
+            sb.AppendLine("BatchPlotMarginPercent=2");
+            sb.AppendLine("BatchPlotMarginMm=5");
+            sb.AppendLine("BatchPlotFileNameMode=DrawingDashIndex");
+            sb.AppendLine("BatchPlotSortMode=Position");
+            sb.AppendLine();
             sb.AppendLine("# \u547D\u4EE4\u5217\u8868");
             sb.AppendLine("# \u683C\u5F0F\uFF1A\u663E\u793A\u540D\u79F0=CAD\u547D\u4EE4");
             sb.AppendLine("# \u9762\u677F\u4F1A\u6309\u4E0B\u9762\u7684\u987A\u5E8F\u663E\u793A\u547D\u4EE4\uFF1B# \u6587\u5B57\u7F16\u8F91 / # \u56FE\u5C42\u7BA1\u7406 \u8FD9\u7C7B\u884C\u4F1A\u4F5C\u4E3A\u9762\u677F\u5206\u7EC4\u6807\u9898\u3002");
@@ -277,6 +360,7 @@ namespace CadToolkit.Core
             sb.AppendLine("\u683C\u5F0F\u590D\u5236=CT_TEXTBRUSH");
             sb.AppendLine("\u6587\u5B57\u5408\u5E76=CT_TEXTMERGE");
             sb.AppendLine("\u6587\u5B57\u7F16\u53F7=CT_TEXTNUMBER");
+            sb.AppendLine("\u9012\u589E\u590D\u5236=CT_INCCOPY");
             sb.AppendLine("\u6587\u5B57\u89C4\u8303=CT_TEXTSTYLESTANDARD");
             sb.AppendLine("# \u56FE\u5C42\u7BA1\u7406");
             sb.AppendLine("\u56FE\u5C42\u5F52\u96F6=CT_SETLAYER0");
@@ -292,7 +376,7 @@ namespace CadToolkit.Core
             sb.AppendLine("# \u7ED8\u56FE\u6807\u6CE8");
             sb.AppendLine("\u753B\u4E2D\u5FC3\u7EBF=CT_CENTERLINE");
             sb.AppendLine("\u5FEB\u901F\u6807\u6CE8=CT_QUICKDIM");
-            sb.AppendLine("\u9012\u589E\u590D\u5236=CT_INCCOPY");
+            sb.AppendLine("\u6279\u91CF\u6253\u5370=CT_BATCHPLOT");
             sb.AppendLine("Z\u8F74\u5F52\u96F6=CT_FLATTEN");
             sb.AppendLine();
             sb.AppendLine("[LayerStandard]");
@@ -405,7 +489,7 @@ namespace CadToolkit.Core
                     }
                 }
                 catch (Exception ex) { LogConfigError("Read assembly version failed: " + ex.Message); }
-                return "v1.25";
+                return "v1.26";
             }
         }
 
@@ -428,6 +512,15 @@ namespace CadToolkit.Core
         public static bool TextStyleNormalizeOblique { get { return GetBool("TextStyleNormalizeOblique", false); } }
         public static bool TextStyleNormalizeColorByLayer { get { return GetBool("TextStyleNormalizeColorByLayer", false); } }
         public static bool TextStyleDeleteUnusedOldStyles { get { return GetBool("TextStyleDeleteUnusedOldStyles", false); } }
+        public static string BatchPlotDevice { get { return GetString("BatchPlotDevice", "DWG To PDF.pc3"); } set { SaveString("BatchPlotDevice", value); } }
+        public static string BatchPlotPaper { get { return GetString("BatchPlotPaper", "A3"); } set { SaveString("BatchPlotPaper", value); } }
+        public static string BatchPlotStyle { get { return GetString("BatchPlotStyle", "monochrome.ctb"); } set { SaveString("BatchPlotStyle", value); } }
+        public static bool BatchPlotAutoRotate { get { return GetBool("BatchPlotAutoRotate", true); } set { SaveBool("BatchPlotAutoRotate", value); } }
+        public static bool BatchPlotCenter { get { return GetBool("BatchPlotCenter", true); } set { SaveBool("BatchPlotCenter", value); } }
+        public static double BatchPlotMarginPercent { get { double v; return double.TryParse(GetString("BatchPlotMarginPercent", "2"), out v) ? Math.Max(0, v) : 2; } set { SaveString("BatchPlotMarginPercent", Math.Max(0, value).ToString()); } }
+        public static double BatchPlotMarginMm { get { double v; return double.TryParse(GetString("BatchPlotMarginMm", "5"), out v) ? Math.Max(0, v) : 5; } set { SaveString("BatchPlotMarginMm", Math.Max(0, value).ToString()); } }
+        public static string BatchPlotFileNameMode { get { return GetString("BatchPlotFileNameMode", "DrawingDashIndex"); } set { SaveString("BatchPlotFileNameMode", value); } }
+        public static string BatchPlotSortMode { get { return GetString("BatchPlotSortMode", "Position"); } set { SaveString("BatchPlotSortMode", value); } }
 
         static void SaveString(string key, string val)
         {

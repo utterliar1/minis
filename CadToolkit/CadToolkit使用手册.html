@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CadToolkit v1.25 - 使用手册</title>
+<title>CadToolkit v1.26 - 使用手册</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:#F8FAFC;color:#1E293B;line-height:1.8;padding:16px}
@@ -57,8 +57,8 @@
   <h1>⚙️ CadToolkit</h1>
   <p>AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱</p>
   <div class="tags">
-    <span class="tag">v1.25</span>
-    <span class="tag">19 个内置命令</span>
+    <span class="tag">v1.26</span>
+    <span class="tag">20 个内置命令</span>
     <span class="tag">无限自定义</span>
   </div>
 </div>
@@ -72,7 +72,7 @@
   </div>
   <div class="step">
     <div class="step-num">2</div>
-    <div class="step-text"><strong>加载插件</strong><br>在 CAD 命令行输入：<br><pre>(load "C:/CadToolkit/autoload.lsp")</pre>看到 <code>CadToolkit v1.25 ready. Type CC to start.</code> 提示即成功</div>
+    <div class="step-text"><strong>加载插件</strong><br>在 CAD 命令行输入：<br><pre>(load "C:/CadToolkit/autoload.lsp")</pre>看到 <code>CadToolkit v1.26 ready. Type CC to start.</code> 提示即成功</div>
   </div>
   <div class="step">
     <div class="step-num">3</div>
@@ -103,7 +103,7 @@
 <!-- 文字编辑 -->
 <div class="card">
   <h2>✍️ 文字编辑</h2>
-  <span class="group-badge badge-text">7 个命令</span>
+  <span class="group-badge badge-text">8 个命令</span>
 
   <h3>查找替换 <span class="cmd-tag">CT_FINDREPLACE</span></h3>
   <p>批量替换图线中的文字内容。</p>
@@ -138,6 +138,13 @@
       <li><strong>后缀</strong>：编号放在原文字后（如「房间」→「房间1」「房间2」）</li>
       <li><strong>替换</strong>：用编号替换原文字（如「任意文字」→「1」「2」「3」）</li>
       <li>只需设置起始号，三种模式三选一</li>
+  </ul>
+
+  <h3>递增复制 <span class="cmd-tag">CT_INCCOPY</span></h3>
+  <p>选中含编号的对象，连续指定复制位置，每次复制自动递增编号。</p>
+  <ul>
+    <li>识别尾部数字自动递增（A001 → A002 → A003）</li>
+    <li>回车结束</li>
   </ul>
 
   <h3>文字规范 <span class="cmd-tag">CT_TEXTSTYLESTANDARD</span></h3>
@@ -212,11 +219,13 @@
   <h3>快速标注 <span class="cmd-tag">CT_QUICKDIM</span></h3>
   <p>选中对象后自动计算包围盒，一键创建水平 + 垂直两个方向的尺寸标注。</p>
 
-  <h3>递增复制 <span class="cmd-tag">CT_INCCOPY</span></h3>
-  <p>选中含编号的对象，连续指定复制位置，每次复制自动递增编号。</p>
+  <h3>批量打印 <span class="cmd-tag">CT_BATCHPLOT</span></h3>
+  <p>手动选中多个模型空间图框对象后，按每个图框外包范围逐张输出 PDF。</p>
   <ul>
-    <li>识别尾部数字自动递增（A001 → A002 → A003）</li>
-    <li>回车结束</li>
+    <li>每个图框输出一个 PDF：DWG 名称 + 三位序号</li>
+    <li>默认输出到 DWG 同目录</li>
+    <li>PDF 设备、纸张、打印样式、自动旋转和居中设置会记住上次选项</li>
+    <li>默认按从上到下、同一行从左到右的顺序输出</li>
   </ul>
 
   <h3>Z轴归零 <span class="cmd-tag">CT_FLATTEN</span></h3>
@@ -370,7 +379,7 @@ LayerStandardWhitelist=0,Defpoints,*图框*,*视口*,*原有*,*新增*
 </div>
 
 <div class="footer">
-  <p>CadToolkit v1.25 | WLUP</p>
+  <p>CadToolkit v1.26 | WLUP</p>
   <p>有问题请联系管理员</p>
 </div>
 
