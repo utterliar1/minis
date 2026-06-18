@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Printing;
+using System.IO;
+using System.Reflection;
 using System.Windows.Forms;
 using CadToolkit.Core;
 
@@ -252,6 +255,561 @@ namespace CadToolkit.UI
             AcceptButton = ok; CancelButton = cancel;
             Shown += delegate { t3.Focus(); t3.SelectAll(); };
             DpiUtil.Apply(this);
+        }
+    }
+
+    public class BatchPlotPreflightRow
+    {
+        public string Index;
+        public string SheetNumber;
+        public string SheetName;
+        public string Size;
+        public string Orientation;
+        public string Target;
+        public string Status;
+        public bool SizeMismatched;
+    }
+
+    public class BatchPlotDialog : Form
+    {
+        public string DeviceName;
+        public string PaperName;
+        public string PlotStyle;
+        public bool AutoRotate;
+        public bool CenterPlot;
+        public double MarginPercent;
+        public double MarginMm;
+        public string FileNameMode;
+        public string SortMode;
+        readonly ToolTip outputDirectoryToolTip = new ToolTip();
+
+        public BatchPlotDialog(int frameCount, string frameBlockName, List<BatchPlotPreflightRow> preflightRows, string outputDirectory, string drawingName)
+        {
+            DeviceName = Config.BatchPlotDevice;
+            PaperName = Config.BatchPlotPaper;
+            PlotStyle = Config.BatchPlotStyle;
+            AutoRotate = Config.BatchPlotAutoRotate;
+            CenterPlot = Config.BatchPlotCenter;
+            MarginPercent = Config.BatchPlotMarginPercent;
+            MarginMm = Config.BatchPlotMarginMm;
+            FileNameMode = Config.BatchPlotFileNameMode;
+            SortMode = Config.BatchPlotSortMode;
+
+            Text = "\u6279\u91CF\u6253\u5370";
+            StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
+            AutoScaleMode = AutoScaleMode.None; ClientSize = new Size(680, 560);
+
+            var lblInfo = new Label();
+            lblInfo.Text = string.Format("\u56FE\u6846\u5757\uFF1A{0}\uFF1B\u6570\u91CF\uFF1A{1}", string.IsNullOrEmpty(frameBlockName) ? "\u672A\u77E5" : frameBlockName, frameCount);
+            lblInfo.Left = 16; lblInfo.Top = 14; lblInfo.Width = 648; lblInfo.Height = 24;
+            lblInfo.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
+            var lblDir = new Label();
+            lblDir.Text = "\u8F93\u51FA\u76EE\u5F55\uFF1A";
+            lblDir.Left = 16; lblDir.Top = 48; lblDir.AutoSize = true;
+            lblDir.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
+            var txtDir = new TextBox();
+            txtDir.Left = 96; txtDir.Top = 44; txtDir.Width = 230; txtDir.ReadOnly = true;
+            txtDir.Text = outputDirectory;
+            txtDir.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            outputDirectoryToolTip.SetToolTip(txtDir, outputDirectory);
+
+            var lblDevice = new Label();
+            lblDevice.Text = "\u6253\u5370\u8BBE\u5907\uFF1A";
+            lblDevice.Left = 16; lblDevice.Top = 82; lblDevice.AutoSize = true;
+            lblDevice.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var cmbDevice = new ComboBox();
+            cmbDevice.Left = 96; cmbDevice.Top = 78; cmbDevice.Width = 230;
+            cmbDevice.DropDownStyle = ComboBoxStyle.DropDown;
+            cmbDevice.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            AddPrinterName(cmbDevice, "DWG To PDF.pc3");
+            foreach (string printer in PrinterSettings.InstalledPrinters)
+            {
+                AddPrinterName(cmbDevice, printer);
+            }
+            cmbDevice.Text = DeviceName;
+
+            var lblPaper = new Label();
+            lblPaper.Text = "\u56FE\u7EB8\uFF1A";
+            lblPaper.Left = 360; lblPaper.Top = 48; lblPaper.AutoSize = true;
+            lblPaper.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var cmbPaper = new ComboBox();
+            cmbPaper.Left = 430; cmbPaper.Top = 44; cmbPaper.Width = 78;
+            cmbPaper.DropDownStyle = ComboBoxStyle.DropDown;
+            cmbPaper.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            cmbPaper.Items.Add("A4");
+            cmbPaper.Items.Add("A3");
+            cmbPaper.Items.Add("A2");
+            cmbPaper.Items.Add("A1");
+            cmbPaper.Items.Add("A0");
+            cmbPaper.Text = PaperName;
+
+            var lblStyle = new Label();
+            lblStyle.Text = "\u6837\u5F0F\uFF1A";
+            lblStyle.Left = 16; lblStyle.Top = 116; lblStyle.AutoSize = true;
+            lblStyle.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var cmbStyle = new ComboBox();
+            cmbStyle.Left = 96; cmbStyle.Top = 112; cmbStyle.Width = 230;
+            cmbStyle.DropDownStyle = ComboBoxStyle.DropDown;
+            cmbStyle.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            foreach (string style in GetPlotStyleNames())
+            {
+                cmbStyle.Items.Add(style);
+            }
+            cmbStyle.Text = PlotStyle;
+
+            var lblMargin = new Label();
+            lblMargin.Text = "\u9875\u8FB9\u8DDD\uFF1A";
+            lblMargin.Left = 520; lblMargin.Top = 48; lblMargin.AutoSize = true;
+            lblMargin.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var txtMargin = new TextBox();
+            txtMargin.Left = 590; txtMargin.Top = 44; txtMargin.Width = 32;
+            txtMargin.Text = MarginMm.ToString();
+            txtMargin.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var lblMarginUnit = new Label();
+            lblMarginUnit.Text = "mm";
+            lblMarginUnit.Left = 626; lblMarginUnit.Top = 48; lblMarginUnit.AutoSize = true;
+            lblMarginUnit.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var lblFileName = new Label();
+            lblFileName.Text = "\u6587\u4EF6\u540D\uFF1A";
+            lblFileName.Left = 360; lblFileName.Top = 82; lblFileName.AutoSize = true;
+            lblFileName.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var cmbFileNameMode = new ComboBox();
+            cmbFileNameMode.Left = 430; cmbFileNameMode.Top = 78; cmbFileNameMode.Width = 194;
+            cmbFileNameMode.DropDownStyle = ComboBoxStyle.DropDown;
+            cmbFileNameMode.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            AddFileNameMode(cmbFileNameMode, "DrawingDashIndex", "\u56FE\u540D-001");
+            AddFileNameMode(cmbFileNameMode, "DrawingUnderscoreIndex", "\u56FE\u540D_001");
+            AddFileNameMode(cmbFileNameMode, "SheetNumberName", "\u56FE\u53F7 \u56FE\u540D");
+            AddFileNameMode(cmbFileNameMode, "IndexOnly", "001");
+            SelectFileNameMode(cmbFileNameMode, FileNameMode);
+
+            var lblSortMode = new Label();
+            lblSortMode.Text = "\u6392\u5E8F\uFF1A";
+            lblSortMode.Left = 360; lblSortMode.Top = 116; lblSortMode.AutoSize = true;
+            lblSortMode.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var cmbSortMode = new ComboBox();
+            cmbSortMode.Left = 430; cmbSortMode.Top = 112; cmbSortMode.Width = 194;
+            cmbSortMode.DropDownStyle = ComboBoxStyle.DropDown;
+            cmbSortMode.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            AddFileNameMode(cmbSortMode, "Position", "\u4F4D\u7F6E\u6392\u5E8F");
+            AddFileNameMode(cmbSortMode, "SheetNumber", "\u56FE\u53F7\u6392\u5E8F");
+            SelectFileNameMode(cmbSortMode, SortMode);
+
+            var chkRotate = new CheckBox();
+            chkRotate.Text = "\u81EA\u52A8\u65CB\u8F6C";
+            chkRotate.Left = 430; chkRotate.Top = 146; chkRotate.Width = 96;
+            chkRotate.Checked = AutoRotate;
+            chkRotate.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var chkCenter = new CheckBox();
+            chkCenter.Text = "\u5C45\u4E2D\u6253\u5370";
+            chkCenter.Left = 540; chkCenter.Top = 146; chkCenter.Width = 94;
+            chkCenter.Checked = CenterPlot;
+            chkCenter.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var lblNote = new Label();
+            lblNote.Text = "\u9884\u68C0\uFF1A\u8BF7\u6838\u5BF9\u56FE\u53F7\u3001\u56FE\u540D\u3001\u76EE\u6807\u548C\u72B6\u6001\u540E\u518D\u6253\u5370\u3002";
+            lblNote.Left = 16; lblNote.Top = 170; lblNote.Width = 648; lblNote.Height = 22;
+            lblNote.ForeColor = Color.FromArgb(90, 90, 90);
+            lblNote.Font = new System.Drawing.Font("Microsoft YaHei", 8.5f);
+
+            var preflightList = new ListView();
+            preflightList.Left = 16; preflightList.Top = 194; preflightList.Width = 648; preflightList.Height = 298;
+            preflightList.View = View.Details;
+            preflightList.FullRowSelect = true;
+            preflightList.GridLines = true;
+            preflightList.HeaderStyle = ColumnHeaderStyle.Nonclickable;
+            preflightList.Font = new System.Drawing.Font("Microsoft YaHei", 8.5f);
+            preflightList.Columns.Add("\u5E8F\u53F7", 42);
+            preflightList.Columns.Add("\u56FE\u53F7", 80);
+            preflightList.Columns.Add("\u56FE\u540D", 170);
+            preflightList.Columns.Add("\u5C3A\u5BF8", 95);
+            preflightList.Columns.Add("\u65B9\u5411", 55);
+            preflightList.Columns.Add("\u76EE\u6807", 120);
+            preflightList.Columns.Add("\u72B6\u6001", 80);
+            foreach (BatchPlotPreflightRow row in preflightRows ?? new List<BatchPlotPreflightRow>())
+            {
+                var item = new ListViewItem(row.Index ?? "");
+                item.SubItems.Add(row.SheetNumber ?? "");
+                item.SubItems.Add(row.SheetName ?? "");
+                item.SubItems.Add(row.Size ?? "");
+                item.SubItems.Add(row.Orientation ?? "");
+                item.SubItems.Add(row.Target ?? "");
+                item.SubItems.Add(row.Status ?? "");
+                preflightList.Items.Add(item);
+            }
+
+            var lblWarning = new Label();
+            lblWarning.Text = "\u68C0\u6D4B\u5230\u56FE\u6846\u5C3A\u5BF8\u4E0D\u4E00\u81F4\uFF0C\u8BF7\u786E\u8BA4\u662F\u5426\u6DF7\u9009\u3002";
+            lblWarning.Left = 16; lblWarning.Top = 498; lblWarning.Width = 648; lblWarning.Height = 20;
+            lblWarning.ForeColor = Color.FromArgb(170, 90, 0);
+            lblWarning.Font = new System.Drawing.Font("Microsoft YaHei", 8.5f);
+            lblWarning.Visible = HasMismatchedPreflightSize(preflightRows);
+
+            var copyPreflight = new Button();
+            copyPreflight.Text = "\u590D\u5236\u5217\u8868";
+            copyPreflight.Left = 16; copyPreflight.Top = 524; copyPreflight.Width = 88; copyPreflight.Height = 28;
+            copyPreflight.FlatStyle = FlatStyle.System;
+            copyPreflight.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+            copyPreflight.Enabled = preflightRows != null && preflightRows.Count > 0;
+            copyPreflight.Click += delegate
+            {
+                string text = FormatPreflightRows(preflightRows);
+                if (!string.IsNullOrEmpty(text)) Clipboard.SetText(text);
+            };
+            outputDirectoryToolTip.SetToolTip(copyPreflight, "\u590D\u5236\u9884\u68C0\u5217\u8868\u5230\u526A\u8D34\u677F");
+
+            EventHandler refreshPreflight = delegate { RefreshBatchPlotPreflight(lblInfo, preflightList, preflightRows, frameBlockName, frameCount, drawingName, cmbDevice.Text, GetDialogSelectedFileNameMode(cmbFileNameMode)); };
+            cmbDevice.TextChanged += refreshPreflight;
+            cmbFileNameMode.SelectedIndexChanged += refreshPreflight;
+            RefreshBatchPlotPreflight(lblInfo, preflightList, preflightRows, frameBlockName, frameCount, drawingName, cmbDevice.Text, GetDialogSelectedFileNameMode(cmbFileNameMode));
+
+            var ok = new Button();
+            ok.Text = "\u786E\u5B9A";
+            ok.DialogResult = DialogResult.OK;
+            ok.Left = 496; ok.Top = 524; ok.Width = 78; ok.Height = 28;
+            ok.FlatStyle = FlatStyle.System;
+            ok.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
+            var cancel = new Button();
+            cancel.Text = "\u53D6\u6D88";
+            cancel.DialogResult = DialogResult.Cancel;
+            cancel.Left = 586; cancel.Top = 524; cancel.Width = 78; cancel.Height = 28;
+            cancel.FlatStyle = FlatStyle.System;
+            cancel.Font = new System.Drawing.Font("Microsoft YaHei", 9f);
+
+            ok.Click += delegate
+            {
+                DeviceName = cmbDevice.Text.Trim();
+                PaperName = cmbPaper.Text.Trim();
+                PlotStyle = cmbStyle.Text.Trim();
+                AutoRotate = chkRotate.Checked;
+                CenterPlot = chkCenter.Checked;
+                double margin;
+                MarginMm = double.TryParse(txtMargin.Text.Trim(), out margin) ? Math.Max(0, margin) : 0;
+                MarginPercent = MarginMm;
+                FileNameMode = GetSelectedFileNameMode(cmbFileNameMode);
+                SortMode = GetSelectedFileNameMode(cmbSortMode);
+                Config.BatchPlotDevice = DeviceName;
+                Config.BatchPlotPaper = PaperName;
+                Config.BatchPlotStyle = PlotStyle;
+                Config.BatchPlotAutoRotate = AutoRotate;
+                Config.BatchPlotCenter = CenterPlot;
+                Config.BatchPlotMarginPercent = MarginPercent;
+                Config.BatchPlotMarginMm = MarginMm;
+                Config.BatchPlotFileNameMode = FileNameMode;
+                Config.BatchPlotSortMode = SortMode;
+            };
+
+            Controls.AddRange(new Control[] { lblInfo, lblDir, txtDir, lblDevice, cmbDevice, lblPaper, cmbPaper, lblStyle, cmbStyle, lblMargin, txtMargin, lblMarginUnit, lblFileName, cmbFileNameMode, lblSortMode, cmbSortMode, chkRotate, chkCenter, lblNote, preflightList, lblWarning, copyPreflight, ok, cancel });
+            AcceptButton = ok; CancelButton = cancel;
+            Shown += delegate { cmbDevice.Focus(); };
+            DpiUtil.Apply(this);
+            AutoScroll = false;
+        }
+
+        static string FormatPreflightRows(List<BatchPlotPreflightRow> rows)
+        {
+            if (rows == null || rows.Count == 0) return "";
+            var lines = new List<string>();
+            lines.Add("\u5E8F\u53F7\t\u56FE\u53F7\t\u56FE\u540D\t\u5C3A\u5BF8\t\u65B9\u5411\t\u76EE\u6807\t\u72B6\u6001");
+            foreach (BatchPlotPreflightRow row in rows)
+            {
+                lines.Add(string.Format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}", row.Index, row.SheetNumber, row.SheetName, row.Size, row.Orientation, row.Target, row.Status));
+            }
+            return string.Join(Environment.NewLine, lines.ToArray());
+        }
+
+        static void RefreshBatchPlotPreflight(Label summary, ListView list, List<BatchPlotPreflightRow> rows, string frameBlockName, int frameCount, string drawingName, string deviceName, string fileNameMode)
+        {
+            bool outputToFile = IsDialogPdfPlotDevice(deviceName);
+            string outputMode = outputToFile ? "\u8F93\u51FA\uFF1APDF" : "\u8F93\u51FA\uFF1A\u6253\u5370\u673A";
+            summary.Text = string.Format("\u56FE\u6846\u5757\uFF1A{0}\uFF1B\u6570\u91CF\uFF1A{1}\uFF1B{2}", string.IsNullOrEmpty(frameBlockName) ? "\u672A\u77E5" : frameBlockName, frameCount, outputMode);
+
+            if (rows == null || list == null) return;
+            ResetDialogDuplicateStatuses(rows);
+            for (int i = 0; i < rows.Count; i++)
+            {
+                BatchPlotPreflightRow row = rows[i];
+                row.Target = outputToFile ? BuildDialogBatchPlotOutputFileName(drawingName, i + 1, fileNameMode, row) : "\u53D1\u9001\u5230\u6253\u5370\u673A";
+            }
+            MarkDialogDuplicateTargets(rows, outputToFile);
+            for (int i = 0; i < rows.Count; i++)
+            {
+                BatchPlotPreflightRow row = rows[i];
+                if (i < list.Items.Count && list.Items[i].SubItems.Count > 6)
+                {
+                    list.Items[i].SubItems[5].Text = row.Target;
+                    list.Items[i].SubItems[6].Text = row.Status;
+                }
+            }
+        }
+
+        static void ResetDialogDuplicateStatuses(List<BatchPlotPreflightRow> rows)
+        {
+            if (rows == null) return;
+            foreach (BatchPlotPreflightRow row in rows)
+            {
+                row.Status = RemoveDialogStatus(row.Status, "\u6587\u4EF6\u540D\u91CD\u590D");
+            }
+        }
+
+        static void MarkDialogDuplicateTargets(List<BatchPlotPreflightRow> rows, bool outputToFile)
+        {
+            if (!outputToFile || rows == null) return;
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (BatchPlotPreflightRow row in rows)
+            {
+                string key = string.IsNullOrEmpty(row.Target) ? "" : row.Target.Trim();
+                if (string.IsNullOrEmpty(key)) continue;
+                counts[key] = counts.ContainsKey(key) ? counts[key] + 1 : 1;
+            }
+            foreach (BatchPlotPreflightRow row in rows)
+            {
+                string key = string.IsNullOrEmpty(row.Target) ? "" : row.Target.Trim();
+                if (!string.IsNullOrEmpty(key) && counts.ContainsKey(key) && counts[key] > 1)
+                    row.Status = AppendDialogStatus(row.Status, "\u6587\u4EF6\u540D\u91CD\u590D");
+            }
+        }
+
+        static string AppendDialogStatus(string status, string addition)
+        {
+            if (string.IsNullOrEmpty(status) || status == "\u6B63\u5E38") return addition;
+            if (status.IndexOf(addition, StringComparison.OrdinalIgnoreCase) >= 0) return status;
+            return status + "\uFF1B" + addition;
+        }
+
+        static string RemoveDialogStatus(string status, string target)
+        {
+            if (string.IsNullOrEmpty(status)) return "\u6B63\u5E38";
+            var kept = new List<string>();
+            foreach (string part in status.Split(new char[] { '\uFF1B' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (!part.Equals(target, StringComparison.OrdinalIgnoreCase) && !part.Equals("\u6B63\u5E38", StringComparison.OrdinalIgnoreCase))
+                    kept.Add(part);
+            }
+            return kept.Count == 0 ? "\u6B63\u5E38" : string.Join("\uFF1B", kept.ToArray());
+        }
+
+        static bool IsDialogPdfPlotDevice(string deviceName)
+        {
+            string rawName = string.IsNullOrEmpty(deviceName) ? "" : deviceName.Trim();
+            string name = rawName.ToUpperInvariant();
+            if (name.IndexOf("PDF", StringComparison.OrdinalIgnoreCase) < 0) return false;
+            if (name.IndexOf("ADOBE PDF", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            if (name.IndexOf("PDF24", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            if (name.IndexOf("MICROSOFT PRINT TO PDF", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+
+            return rawName.IndexOf("DWG To PDF", StringComparison.OrdinalIgnoreCase) >= 0
+                || name.EndsWith(".PC3", StringComparison.OrdinalIgnoreCase);
+        }
+
+        static string BuildDialogBatchPlotOutputFileName(string drawingName, int index, string fileNameMode, BatchPlotPreflightRow row)
+        {
+            string name = string.IsNullOrEmpty(drawingName) ? "Drawing" : drawingName;
+            string serial = index.ToString("D3");
+            string mode = string.IsNullOrEmpty(fileNameMode) ? "DrawingDashIndex" : fileNameMode;
+            if (mode.Equals("IndexOnly", StringComparison.OrdinalIgnoreCase)) return serial + ".pdf";
+            if (mode.Equals("DrawingUnderscoreIndex", StringComparison.OrdinalIgnoreCase)) return name + "_" + serial + ".pdf";
+            if (mode.Equals("SheetNumberName", StringComparison.OrdinalIgnoreCase))
+            {
+                string sheetStem = ((row == null ? "" : row.SheetNumber) + " " + (row == null ? "" : row.SheetName)).Trim();
+                return (string.IsNullOrEmpty(sheetStem) ? serial : sheetStem) + ".pdf";
+            }
+            return name + "-" + serial + ".pdf";
+        }
+
+        static string GetDialogSelectedFileNameMode(ComboBox combo)
+        {
+            return GetSelectedFileNameMode(combo);
+        }
+
+        static bool HasMismatchedPreflightSize(List<BatchPlotPreflightRow> rows)
+        {
+            if (rows == null) return false;
+            foreach (BatchPlotPreflightRow row in rows)
+                if (row != null && row.SizeMismatched) return true;
+            return false;
+        }
+
+        class FileNameModeItem
+        {
+            public string Value;
+            public string Text;
+            public override string ToString() { return Text; }
+        }
+
+        static void AddFileNameMode(ComboBox combo, string value, string text)
+        {
+            combo.Items.Add(new FileNameModeItem { Value = value, Text = text });
+        }
+
+        static void SelectFileNameMode(ComboBox combo, string value)
+        {
+            for (int i = 0; i < combo.Items.Count; i++)
+            {
+                var item = combo.Items[i] as FileNameModeItem;
+                if (item != null && string.Equals(item.Value, value, StringComparison.OrdinalIgnoreCase))
+                {
+                    combo.SelectedIndex = i;
+                    return;
+                }
+            }
+            if (combo.Items.Count > 0) combo.SelectedIndex = 0;
+        }
+
+        static string GetSelectedFileNameMode(ComboBox combo)
+        {
+            var item = combo.SelectedItem as FileNameModeItem;
+            return item == null ? "DrawingDashIndex" : item.Value;
+        }
+
+        static List<string> GetPlotStyleNames()
+        {
+            var names = new List<string>();
+            AddCadPlotStyleNames(names);
+
+            AddPlotStyleName(names, Config.BatchPlotStyle);
+            AddPlotStyleName(names, "monochrome.ctb");
+            AddPlotStyleName(names, "acad.ctb");
+            AddPlotStyleName(names, "grayscale.ctb");
+
+            SortPlotStyleNames(names, Config.BatchPlotStyle);
+            return names;
+        }
+
+        static void SortPlotStyleNames(List<string> names, string currentStyle)
+        {
+            names.Sort(delegate(string a, string b)
+            {
+                int byPriority = GetPlotStyleSortPriority(a, currentStyle).CompareTo(GetPlotStyleSortPriority(b, currentStyle));
+                if (byPriority != 0) return byPriority;
+                return string.Compare(a, b, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        static int GetPlotStyleSortPriority(string name, string currentStyle)
+        {
+            if (!string.IsNullOrEmpty(currentStyle) && string.Equals(name, currentStyle, StringComparison.OrdinalIgnoreCase)) return 0;
+            if (ContainsCjk(name) && !IsBuiltInPlotStyle(name)) return 1;
+            if (!IsBuiltInPlotStyle(name)) return 2;
+            return 3;
+        }
+
+        static void AddCadPlotStyleNames(List<string> names)
+        {
+            try
+            {
+                Type validatorType = FindCadType("Autodesk.AutoCAD.DatabaseServices.PlotSettingsValidator")
+                    ?? FindCadType("GrxCAD.DatabaseServices.PlotSettingsValidator")
+                    ?? FindCadType("ZwSoft.ZwCAD.DatabaseServices.PlotSettingsValidator")
+                    ?? FindCadType("GcDb.PlotSettingsValidator")
+                    ?? FindCadType("OdDbPlotSettingsValidator");
+                if (validatorType == null) return;
+
+                object validator = validatorType.InvokeMember("Current", BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Static, null, null, null);
+                if (validator == null) return;
+
+                object list = validator.GetType().InvokeMember("GetPlotStyleSheetList", BindingFlags.InvokeMethod | BindingFlags.Public | BindingFlags.Instance, null, validator, null);
+                var enumerable = list as System.Collections.IEnumerable;
+                if (enumerable == null) return;
+
+                foreach (object item in enumerable)
+                {
+                    AddPlotStyleName(names, Convert.ToString(item));
+                }
+            }
+            catch { }
+        }
+
+        static Type FindCadType(string fullName)
+        {
+            foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                try
+                {
+                    Type type = asm.GetType(fullName, false);
+                    if (type != null) return type;
+                }
+                catch { }
+            }
+            return Type.GetType(fullName, false);
+        }
+
+        static void AddPlotStyleName(List<string> names, string name)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            if (!IsCtbPlotStyleName(name)) return;
+            foreach (string existing in names)
+            {
+                if (string.Equals(existing, name, StringComparison.OrdinalIgnoreCase)) return;
+            }
+            names.Add(name);
+        }
+
+        static bool IsCtbPlotStyleName(string name)
+        {
+            return !string.IsNullOrEmpty(name) && name.Trim().EndsWith(".ctb", StringComparison.OrdinalIgnoreCase);
+        }
+
+        static bool ContainsCjk(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            foreach (char ch in text)
+            {
+                if (ch >= '\u4E00' && ch <= '\u9FFF') return true;
+            }
+            return false;
+        }
+
+        static bool IsBuiltInPlotStyle(string name)
+        {
+            string normalized = SafeStyleName(name);
+            return normalized == "ACAD.CTB"
+                || normalized == "ACAD.STB"
+                || normalized == "MONOCHROME.CTB"
+                || normalized == "GRAYSCALE.CTB"
+                || normalized == "COLOR.STB"
+                || normalized == "MONO.STB"
+                || normalized == "GCAD.CTB"
+                || normalized == "GCAD.STB"
+                || normalized.StartsWith("AUTODESK-", StringComparison.OrdinalIgnoreCase)
+                || normalized.StartsWith("DWF", StringComparison.OrdinalIgnoreCase)
+                || normalized.StartsWith("FILL PATTERNS", StringComparison.OrdinalIgnoreCase)
+                || normalized.StartsWith("SCREENING", StringComparison.OrdinalIgnoreCase);
+        }
+
+        static string SafeStyleName(string name)
+        {
+            return string.IsNullOrEmpty(name) ? "" : name.Trim().ToUpperInvariant();
+        }
+
+        static void AddPrinterName(ComboBox combo, string name)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            if (!ContainsPrinterName(combo, name)) combo.Items.Add(name);
+        }
+
+        static bool ContainsPrinterName(ComboBox combo, string name)
+        {
+            foreach (object item in combo.Items)
+            {
+                string existing = Convert.ToString(item);
+                if (string.Equals(existing, name, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
         }
     }
 

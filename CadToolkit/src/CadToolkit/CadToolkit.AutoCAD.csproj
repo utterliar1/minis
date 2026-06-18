@@ -33,6 +33,7 @@
     <Compile Include="LayerCommands.cs" />
     <Compile Include="BlockCommands.cs" />
     <Compile Include="DrawCommands.cs" />
+    <Compile Include="BatchPlotCommands.cs" />
     <Compile Include="ConfigCommands.cs" />
   </ItemGroup>
   <ItemGroup>

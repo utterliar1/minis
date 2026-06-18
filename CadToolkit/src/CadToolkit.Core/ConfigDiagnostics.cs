@@ -71,7 +71,16 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("TextStyleNormalizeWidthFactor", "false"),
             new KeyValuePair<string, string>("TextStyleNormalizeOblique", "false"),
             new KeyValuePair<string, string>("TextStyleNormalizeColorByLayer", "false"),
-            new KeyValuePair<string, string>("TextStyleDeleteUnusedOldStyles", "false")
+            new KeyValuePair<string, string>("TextStyleDeleteUnusedOldStyles", "false"),
+            new KeyValuePair<string, string>("BatchPlotDevice", "DWG To PDF.pc3"),
+            new KeyValuePair<string, string>("BatchPlotPaper", "A3"),
+            new KeyValuePair<string, string>("BatchPlotStyle", "monochrome.ctb"),
+            new KeyValuePair<string, string>("BatchPlotAutoRotate", "true"),
+            new KeyValuePair<string, string>("BatchPlotCenter", "true"),
+            new KeyValuePair<string, string>("BatchPlotMarginPercent", "2"),
+            new KeyValuePair<string, string>("BatchPlotMarginMm", "5"),
+            new KeyValuePair<string, string>("BatchPlotFileNameMode", "DrawingDashIndex"),
+            new KeyValuePair<string, string>("BatchPlotSortMode", "Position")
         };
 
         static readonly KeyValuePair<string, string>[] OfficialCommands = new KeyValuePair<string, string>[]
@@ -82,6 +91,7 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("格式复制", "CT_TEXTBRUSH"),
             new KeyValuePair<string, string>("文字合并", "CT_TEXTMERGE"),
             new KeyValuePair<string, string>("文字编号", "CT_TEXTNUMBER"),
+            new KeyValuePair<string, string>("递增复制", "CT_INCCOPY"),
             new KeyValuePair<string, string>("文字规范", "CT_TEXTSTYLESTANDARD"),
             new KeyValuePair<string, string>("图层归零", "CT_SETLAYER0"),
             new KeyValuePair<string, string>("图层规范", "CT_LAYERSTANDARD"),
@@ -94,7 +104,7 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("按块选择", "CT_SELECTBYBLOCK"),
             new KeyValuePair<string, string>("画中心线", "CT_CENTERLINE"),
             new KeyValuePair<string, string>("快速标注", "CT_QUICKDIM"),
-            new KeyValuePair<string, string>("递增复制", "CT_INCCOPY"),
+            new KeyValuePair<string, string>("批量打印", "CT_BATCHPLOT"),
             new KeyValuePair<string, string>("Z轴归零", "CT_FLATTEN")
         };
 
@@ -587,8 +597,12 @@ namespace CadToolkit.Core
             string anchorValue = null;
             if (command.Value.Equals("CT_CONFIGCHECK", StringComparison.OrdinalIgnoreCase))
                 anchorValue = "CT_TEXTSTYLESTANDARD";
+            else if (command.Value.Equals("CT_INCCOPY", StringComparison.OrdinalIgnoreCase))
+                anchorValue = "CT_TEXTNUMBER";
             else if (command.Value.Equals("CT_CHANGEBASEPOINT", StringComparison.OrdinalIgnoreCase))
                 anchorValue = "CT_QUICKBLOCK";
+            else if (command.Value.Equals("CT_BATCHPLOT", StringComparison.OrdinalIgnoreCase))
+                anchorValue = "CT_QUICKDIM";
 
             if (anchorValue != null)
             {

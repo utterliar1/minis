@@ -107,10 +107,10 @@ Assert-NotContains 'project config keeps config check out of command list' $proj
 Assert-NotContains 'default config keeps config check out of command list' $defaultConfig ([regex]::Escape($configCheckCommandLine))
 Assert-Contains 'embedded default removes old config check command button' $configSource 'RemoveOfficialCommand\(lines,\s*"\\u914D\\u7F6E\\u4F53\\u68C0"'
 Assert-Contains 'command groups skip comment lines with equals' $configSource 'if\s+\(t\.StartsWith\("#"\)\)\s+continue;'
-Assert-Contains 'assembly version is 1.25' $assemblyInfo 'AssemblyVersion\("1\.25\.0\.0"\)'
-Assert-Contains 'assembly file version is 1.25' $assemblyInfo 'AssemblyFileVersion\("1\.25\.0\.0"\)'
-Assert-Contains 'config fallback version is v1.25' $configSource 'return "v1\.25";'
-Assert-Contains 'local deploy fallback version is v1.25' $deployLocal "return 'v1\.25'"
-Assert-Contains 'autoload announces v1.25' $autoload 'CadToolkit v1\.25 ready'
-Assert-Contains 'manual title uses v1.25' $manual 'CadToolkit v1\.25'
-Assert-NotContains 'manual no longer references v1.24' $manual 'v1\.24'
+Assert-Contains 'assembly version is 1.26' $assemblyInfo 'AssemblyVersion\("1\.26\.0\.0"\)'
+Assert-Contains 'assembly file version is 1.26' $assemblyInfo 'AssemblyFileVersion\("1\.26\.0\.0"\)'
+Assert-Contains 'config fallback version is v1.26' $configSource 'return "v1\.26";'
+Assert-Contains 'local deploy fallback version is v1.26' $deployLocal "return 'v1\.26'"
+Assert-Contains 'autoload announces v1.26' $autoload 'CadToolkit v1\.26 ready'
+Assert-Contains 'manual title uses v1.26' $manual 'CadToolkit v1\.26'
+Assert-NotContains 'manual no longer references v1.25' $manual 'v1\.25'

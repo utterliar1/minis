@@ -30,7 +30,7 @@ if ([string]::IsNullOrWhiteSpace($GstarCADDir)) {
 function Get-CadToolkitVersion {
     $assemblyInfo = Get-Content -Encoding UTF8 (Join-Path $SrcRoot 'CadToolkit.Core\Properties\AssemblyInfo.cs') -Raw
     if ($assemblyInfo -notmatch 'AssemblyVersion\("([0-9]+)\.([0-9]+)\.([0-9]+)\.[0-9]+"\)') {
-        return 'v1.25'
+        return 'v1.26'
     }
 
     $version = "v$($Matches[1]).$($Matches[2])"
