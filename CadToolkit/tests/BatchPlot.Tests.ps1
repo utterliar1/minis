@@ -20,6 +20,12 @@ $sizeMismatchWarning = -join ([char[]](0x68C0, 0x6D4B, 0x5230, 0x56FE, 0x6846, 0
 $sendToPrinterText = -join ([char[]](0x53D1, 0x9001, 0x5230, 0x6253, 0x5370, 0x673A))
 $outputPdfText = -join ([char[]](0x8F93, 0x51FA, 0xFF1A, 0x50, 0x44, 0x46))
 $outputPrinterText = -join ([char[]](0x8F93, 0x51FA, 0xFF1A, 0x6253, 0x5370, 0x673A))
+$builtInCountText = '21 ' + (-join ([char[]](0x4E2A, 0x5185, 0x7F6E)))
+$positionSortRuleText = -join ([char[]](0x5148, 0x6309, 0x5DE6, 0x53F3, 0x5217, 0xFF0C, 0x518D, 0x6309, 0x540C, 0x4E00, 0x5217, 0x4ECE, 0x4E0A, 0x5230, 0x4E0B))
+$quickStartText = -join ([char[]](0x5FEB, 0x901F, 0x5F00, 0x59CB))
+$featureOverviewText = -join ([char[]](0x529F, 0x80FD, 0x603B, 0x89C8))
+$systemPrinterBehaviorText = -join ([char[]](0x6309, 0x7CFB, 0x7EDF, 0x6253, 0x5370, 0x673A, 0x5904, 0x7406))
+$unknownCtPanelText = (-join ([char[]](0x672A, 0x77E5, 0x547D, 0x4EE4))) + ' CT_PANEL'
 
 function Assert-Match($name, $text, $pattern) {
     if ($text -notmatch $pattern) { throw "$name did not find pattern: $pattern" }
@@ -393,5 +399,27 @@ foreach ($projectFile in $projectFiles) {
 
 Assert-Literal 'readme documents batch plot label' $readme $batchPlotLabel
 Assert-Literal 'readme documents batch plot command' $readme 'CT_BATCHPLOT'
+Assert-Literal 'readme documents current built in command count' $readme $builtInCountText
+Assert-Literal 'readme documents batch plot margin mm' $readme 'BatchPlotMarginMm'
+Assert-Literal 'readme documents batch plot selection order' $readme 'SelectionOrder'
+Assert-Literal 'readme documents batch plot reverse order' $readme 'BatchPlotSortReverse'
+Assert-Literal 'readme documents PDF24 printer behavior' $readme 'PDF24'
+Assert-Literal 'readme documents current position sorting rule' $readme $positionSortRuleText
 Assert-Literal 'manual documents batch plot label' $manual $batchPlotLabel
 Assert-Literal 'manual documents batch plot command' $manual 'CT_BATCHPLOT'
+Assert-Literal 'manual documents current built in command count' $manual $builtInCountText
+Assert-Literal 'manual documents batch plot margin mm' $manual 'BatchPlotMarginMm'
+Assert-Literal 'manual documents batch plot selection order' $manual 'SelectionOrder'
+Assert-Literal 'manual documents batch plot reverse order' $manual 'BatchPlotSortReverse'
+Assert-Literal 'manual documents PDF24 printer behavior' $manual 'PDF24'
+Assert-Literal 'manual documents quick start section' $manual $quickStartText
+Assert-Literal 'manual documents feature overview' $manual $featureOverviewText
+Assert-Literal 'manual documents layer standard workflow' $manual 'CT_LAYERSTANDARD'
+Assert-Literal 'manual documents text standard workflow' $manual 'CT_TEXTSTYLESTANDARD'
+Assert-Literal 'manual documents config upgrade behavior' $manual 'CadToolkit.default.ini'
+Assert-Literal 'manual documents config health check' $manual 'CT_CONFIGCHECK'
+Assert-Literal 'manual documents unblock advice' $manual 'Unblock-File'
+Assert-Literal 'manual documents ctb-only style behavior' $manual '.ctb'
+Assert-Literal 'manual documents current position sorting rule' $manual $positionSortRuleText
+Assert-Literal 'manual documents system printer behavior' $manual $systemPrinterBehaviorText
+Assert-Literal 'manual documents common unknown CT_PANEL issue' $manual $unknownCtPanelText
