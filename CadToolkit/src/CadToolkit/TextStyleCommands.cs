@@ -478,7 +478,31 @@ namespace CadToolkit
 
         static TreeNode[] BuildTextStylePlanTreeNodes(List<TextStyleStandardPlan> plans, List<TextStyleStandardPlan> fallbackPlans, List<TextStyleStandardPlan> whitelistPlans, List<TextStyleStandardRule> rules, bool fallbackToStandard, string fallbackStyle)
         {
-            var nodes = new List<TreeNode>();
+            return BuildStandardPreviewTreeNodes(BuildTextStyleStandardPreviewModel(plans, fallbackPlans, whitelistPlans, rules, fallbackToStandard, fallbackStyle), true);
+        }
+
+        static TreeNode[] BuildFilteredTextStylePlanTreeNodes(List<TextStyleStandardPlan> plans, List<TextStyleStandardPlan> fallbackPlans, List<TextStyleStandardPlan> whitelistPlans, List<TextStyleStandardRule> rules, bool fallbackToStandard, string fallbackStyle, TextStylePlanTreeFilter filter)
+        {
+            return BuildFilteredStandardPreviewTreeNodes(BuildTextStyleStandardPreviewModel(plans, fallbackPlans, whitelistPlans, rules, fallbackToStandard, fallbackStyle), (int)filter, true);
+        }
+
+        static TreeNode[] BuildSearchedTextStylePlanTreeNodes(List<TextStyleStandardPlan> plans, List<TextStyleStandardPlan> fallbackPlans, List<TextStyleStandardPlan> whitelistPlans, List<TextStyleStandardRule> rules, bool fallbackToStandard, string fallbackStyle, TextStylePlanTreeFilter filter, string searchText)
+        {
+            return BuildSearchedStandardPreviewTreeNodes(BuildTextStyleStandardPreviewModel(plans, fallbackPlans, whitelistPlans, rules, fallbackToStandard, fallbackStyle), (int)filter, searchText, true);
+        }
+
+        static string FormatTextStylePlanTreeReport(TreeNode[] nodes)
+        {
+            return FormatStandardPreviewTreeReport(nodes);
+        }
+
+        static StandardPreviewModel BuildTextStyleStandardPreviewModel(List<TextStyleStandardPlan> plans, List<TextStyleStandardPlan> fallbackPlans, List<TextStyleStandardPlan> whitelistPlans, List<TextStyleStandardRule> rules, bool fallbackToStandard, string fallbackStyle)
+        {
+            if (plans == null) plans = new List<TextStyleStandardPlan>();
+            if (fallbackPlans == null) fallbackPlans = new List<TextStyleStandardPlan>();
+            if (whitelistPlans == null) whitelistPlans = new List<TextStyleStandardPlan>();
+            if (rules == null) rules = new List<TextStyleStandardRule>();
+
             int migrateObjects = SumTextStylePlanCounts(plans);
             int fallbackObjects = SumTextStylePlanCounts(fallbackPlans);
             int whitelistObjects = SumTextStylePlanCounts(whitelistPlans);
@@ -486,62 +510,24 @@ namespace CadToolkit
             var ruleByName = BuildTextStyleRuleLookup(rules);
             string targetFallbackLabel = FormatTextStyleTargetLabel(targetFallback, ruleByName);
 
-            var summary = new TreeNode(string.Format("摘要：标准文字样式 {0} 个；将归并 {1} 样式 / {2} 对象；未识别 {3} 样式 / {4} 对象；白名单 {5} 样式 / {6} 对象",
-                rules.Count, plans.Count, migrateObjects, fallbackPlans.Count, fallbackObjects, whitelistPlans.Count, whitelistObjects));
-            nodes.Add(summary);
+            var model = new StandardPreviewModel();
+            model.SummaryText = string.Format("摘要：标准文字样式 {0} 个；将归并 {1} 样式 / {2} 对象；未识别 {3} 样式 / {4} 对象；白名单 {5} 样式 / {6} 对象",
+                rules.Count, plans.Count, migrateObjects, fallbackPlans.Count, fallbackObjects, whitelistPlans.Count, whitelistObjects);
+            model.UnknownTitle = string.Format("未识别文字样式（{0} 样式 / {1} 对象，{2}）",
+                fallbackPlans.Count, fallbackObjects, fallbackToStandard ? "将归到 " + targetFallbackLabel : "保持原样");
+            model.MigrationTitle = string.Format("将归并文字样式（{0} 样式 / {1} 对象）", plans.Count, migrateObjects);
+            model.WhitelistTitle = string.Format("白名单文字样式（{0} 样式 / {1} 对象，保持原样）", whitelistPlans.Count, whitelistObjects);
+            model.UnknownMovesToTarget = fallbackToStandard;
+            model.UnknownTargetText = targetFallback;
 
-            var unknown = new TreeNode(string.Format("未识别文字样式（{0} 样式 / {1} 对象，{2}）",
-                fallbackPlans.Count, fallbackObjects, fallbackToStandard ? "将归到 " + targetFallbackLabel : "保持原样"));
-            foreach (var p in SortTextStylePlansByCount(fallbackPlans))
-            {
-                string text = fallbackToStandard
-                    ? string.Format("{0} -> {1}    {2} 对象    {3}", p.SourceStyle, targetFallback, p.Count, SafeStr(p.Reason))
-                    : string.Format("{0}    {1} 对象    保持原样    {2}", p.SourceStyle, p.Count, SafeStr(p.Reason));
-                unknown.Nodes.Add(new TreeNode(text));
-            }
-            unknown.Expand();
-            nodes.Add(unknown);
+            foreach (var p in fallbackPlans)
+                model.UnknownItems.Add(new StandardPreviewItem { SourceText = p.SourceStyle, TargetText = targetFallback, TargetLabel = targetFallbackLabel, Count = p.Count, Reason = p.Reason });
+            foreach (var p in plans)
+                model.MigrationItems.Add(new StandardPreviewItem { SourceText = p.SourceStyle, TargetText = p.TargetStyle, TargetLabel = FormatTextStyleTargetLabel(p.TargetStyle, ruleByName), Count = p.Count, Reason = p.Reason });
+            foreach (var p in whitelistPlans)
+                model.WhitelistItems.Add(new StandardPreviewItem { SourceText = p.SourceStyle, Count = p.Count, Reason = p.Reason });
 
-            var migrate = new TreeNode(string.Format("将归并文字样式（{0} 样式 / {1} 对象）", plans.Count, migrateObjects));
-            foreach (var group in BuildTextStylePlanTargetGroups(plans))
-            {
-                var groupNode = new TreeNode(string.Format("{0}（{1} 样式 / {2} 对象）", FormatTextStyleTargetLabel(group.TargetStyle, ruleByName), group.Plans.Count, group.Count));
-                foreach (var p in SortTextStylePlansByCount(group.Plans))
-                    groupNode.Nodes.Add(new TreeNode(string.Format("{0} -> {1}    {2} 对象    {3}", p.SourceStyle, p.TargetStyle, p.Count, SafeStr(p.Reason))));
-                migrate.Nodes.Add(groupNode);
-            }
-            nodes.Add(migrate);
-
-            var whitelist = new TreeNode(string.Format("白名单文字样式（{0} 样式 / {1} 对象，保持原样）", whitelistPlans.Count, whitelistObjects));
-            foreach (var p in SortTextStylePlansByCount(whitelistPlans))
-                whitelist.Nodes.Add(new TreeNode(string.Format("{0}    {1} 对象    {2}", p.SourceStyle, p.Count, SafeStr(p.Reason))));
-            nodes.Add(whitelist);
-
-            return nodes.ToArray();
-        }
-
-        static TreeNode[] BuildFilteredTextStylePlanTreeNodes(List<TextStyleStandardPlan> plans, List<TextStyleStandardPlan> fallbackPlans, List<TextStyleStandardPlan> whitelistPlans, List<TextStyleStandardRule> rules, bool fallbackToStandard, string fallbackStyle, TextStylePlanTreeFilter filter)
-        {
-            var allNodes = BuildTextStylePlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackToStandard, fallbackStyle);
-            if (filter == TextStylePlanTreeFilter.All) return allNodes;
-
-            var nodes = new List<TreeNode>();
-            nodes.Add((TreeNode)allNodes[0].Clone());
-            if (filter == TextStylePlanTreeFilter.Unknown) nodes.Add((TreeNode)allNodes[1].Clone());
-            if (filter == TextStylePlanTreeFilter.Migration) nodes.Add((TreeNode)allNodes[2].Clone());
-            if (filter == TextStylePlanTreeFilter.Whitelist) nodes.Add((TreeNode)allNodes[3].Clone());
-            return nodes.ToArray();
-        }
-
-        static TreeNode[] BuildSearchedTextStylePlanTreeNodes(List<TextStyleStandardPlan> plans, List<TextStyleStandardPlan> fallbackPlans, List<TextStyleStandardPlan> whitelistPlans, List<TextStyleStandardRule> rules, bool fallbackToStandard, string fallbackStyle, TextStylePlanTreeFilter filter, string searchText)
-        {
-            var filtered = BuildFilteredTextStylePlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackToStandard, fallbackStyle, filter);
-            return FilterStandardPreviewNodes(filtered, searchText);
-        }
-
-        static string FormatTextStylePlanTreeReport(TreeNode[] nodes)
-        {
-            return FormatStandardPreviewTreeReport(nodes);
+            return model;
         }
 
         static string BuildTextStyleRiskWarning(bool fallbackToStandard, int fallbackStyleCount, string fallbackStyle, bool blockDefinitions, bool normalizeHeight, bool normalizeWidthFactor, bool normalizeOblique, bool colorByLayer, bool deleteUnused)

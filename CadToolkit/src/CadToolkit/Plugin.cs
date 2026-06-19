@@ -503,67 +503,53 @@ namespace CadToolkit
 
         static TreeNode[] BuildLayerPlanTreeNodes(List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0)
         {
-            var nodes = new List<TreeNode>();
-            int migrateObjects = SumLayerPlanCounts(plans);
-            int fallbackObjects = SumLayerPlanCounts(fallbackPlans);
-            int whitelistObjects = SumLayerPlanCounts(whitelistPlans);
-
-            var summary = new TreeNode(string.Format("摘要：标准图层 {0} 个；将迁移 {1} 层 / {2} 对象；未识别 {3} 层 / {4} 对象；白名单 {5} 层 / {6} 对象",
-                rules.Count, plans.Count, migrateObjects, fallbackPlans.Count, fallbackObjects, whitelistPlans.Count, whitelistObjects));
-            nodes.Add(summary);
-
-            var unknown = new TreeNode(string.Format("未识别图层（{0} 层 / {1} 对象，{2}）",
-                fallbackPlans.Count, fallbackObjects, fallbackTo0 ? "将归到 0 层" : "保持原样"));
-            foreach (var p in SortLayerPlansByCount(fallbackPlans))
-            {
-                string text = fallbackTo0
-                    ? string.Format("{0} -> 0    {1} 对象    {2}", p.SourceLayer, p.Count, SafeStr(p.Reason))
-                    : string.Format("{0}    {1} 对象    保持原样    {2}", p.SourceLayer, p.Count, SafeStr(p.Reason));
-                unknown.Nodes.Add(new TreeNode(text));
-            }
-            unknown.Expand();
-            nodes.Add(unknown);
-
-            var migrate = new TreeNode(string.Format("将迁移图层（{0} 层 / {1} 对象）", plans.Count, migrateObjects));
-            foreach (var group in BuildLayerPlanTargetGroups(plans))
-            {
-                var groupNode = new TreeNode(string.Format("{0}（{1} 层 / {2} 对象）", group.TargetLayer, group.Plans.Count, group.Count));
-                foreach (var p in SortLayerPlansByCount(group.Plans))
-                    groupNode.Nodes.Add(new TreeNode(string.Format("{0} -> {1}    {2} 对象    {3}", p.SourceLayer, p.TargetLayer, p.Count, SafeStr(p.Reason))));
-                migrate.Nodes.Add(groupNode);
-            }
-            nodes.Add(migrate);
-
-            var whitelist = new TreeNode(string.Format("白名单图层（{0} 层 / {1} 对象，保持原样）", whitelistPlans.Count, whitelistObjects));
-            foreach (var p in SortLayerPlansByCount(whitelistPlans))
-                whitelist.Nodes.Add(new TreeNode(string.Format("{0}    {1} 对象    {2}", p.SourceLayer, p.Count, SafeStr(p.Reason))));
-            nodes.Add(whitelist);
-
-            return nodes.ToArray();
+            return BuildStandardPreviewTreeNodes(BuildLayerStandardPreviewModel(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0), true);
         }
 
         static TreeNode[] BuildFilteredLayerPlanTreeNodes(List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0, LayerPlanTreeFilter filter)
         {
-            var allNodes = BuildLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0);
-            if (filter == LayerPlanTreeFilter.All) return allNodes;
-
-            var nodes = new List<TreeNode>();
-            nodes.Add((TreeNode)allNodes[0].Clone());
-            if (filter == LayerPlanTreeFilter.Unknown) nodes.Add((TreeNode)allNodes[1].Clone());
-            if (filter == LayerPlanTreeFilter.Migration) nodes.Add((TreeNode)allNodes[2].Clone());
-            if (filter == LayerPlanTreeFilter.Whitelist) nodes.Add((TreeNode)allNodes[3].Clone());
-            return nodes.ToArray();
+            return BuildFilteredStandardPreviewTreeNodes(BuildLayerStandardPreviewModel(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0), (int)filter, true);
         }
 
         static TreeNode[] BuildSearchedLayerPlanTreeNodes(List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0, LayerPlanTreeFilter filter, string searchText)
         {
-            var filtered = BuildFilteredLayerPlanTreeNodes(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0, filter);
-            return FilterStandardPreviewNodes(filtered, searchText);
+            return BuildSearchedStandardPreviewTreeNodes(BuildLayerStandardPreviewModel(plans, fallbackPlans, whitelistPlans, rules, fallbackTo0), (int)filter, searchText, true);
         }
 
         static string FormatLayerPlanTreeReport(TreeNode[] nodes)
         {
             return FormatStandardPreviewTreeReport(nodes);
+        }
+
+        static StandardPreviewModel BuildLayerStandardPreviewModel(List<LayerStandardPlan> plans, List<LayerStandardPlan> fallbackPlans, List<LayerStandardPlan> whitelistPlans, List<LayerStandardRule> rules, bool fallbackTo0)
+        {
+            if (plans == null) plans = new List<LayerStandardPlan>();
+            if (fallbackPlans == null) fallbackPlans = new List<LayerStandardPlan>();
+            if (whitelistPlans == null) whitelistPlans = new List<LayerStandardPlan>();
+            if (rules == null) rules = new List<LayerStandardRule>();
+
+            int migrateObjects = SumLayerPlanCounts(plans);
+            int fallbackObjects = SumLayerPlanCounts(fallbackPlans);
+            int whitelistObjects = SumLayerPlanCounts(whitelistPlans);
+
+            var model = new StandardPreviewModel();
+            model.SummaryText = string.Format("摘要：标准图层 {0} 个；将迁移 {1} 层 / {2} 对象；未识别 {3} 层 / {4} 对象；白名单 {5} 层 / {6} 对象",
+                rules.Count, plans.Count, migrateObjects, fallbackPlans.Count, fallbackObjects, whitelistPlans.Count, whitelistObjects);
+            model.UnknownTitle = string.Format("未识别图层（{0} 层 / {1} 对象，{2}）",
+                fallbackPlans.Count, fallbackObjects, fallbackTo0 ? "将归到 0 层" : "保持原样");
+            model.MigrationTitle = string.Format("将迁移图层（{0} 层 / {1} 对象）", plans.Count, migrateObjects);
+            model.WhitelistTitle = string.Format("白名单图层（{0} 层 / {1} 对象，保持原样）", whitelistPlans.Count, whitelistObjects);
+            model.UnknownMovesToTarget = fallbackTo0;
+            model.UnknownTargetText = "0";
+
+            foreach (var p in fallbackPlans)
+                model.UnknownItems.Add(new StandardPreviewItem { SourceText = p.SourceLayer, TargetText = "0", TargetLabel = "0", Count = p.Count, Reason = p.Reason });
+            foreach (var p in plans)
+                model.MigrationItems.Add(new StandardPreviewItem { SourceText = p.SourceLayer, TargetText = p.TargetLayer, TargetLabel = p.TargetLayer, Count = p.Count, Reason = p.Reason });
+            foreach (var p in whitelistPlans)
+                model.WhitelistItems.Add(new StandardPreviewItem { SourceText = p.SourceLayer, Count = p.Count, Reason = p.Reason });
+
+            return model;
         }
 
         static bool NodeTextContains(TreeNode node, string needle)
