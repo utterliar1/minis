@@ -2,7 +2,7 @@
 
 AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱。
 
-一个命令 `CC` 呼出分组面板，20 个内置工具 + 无限自定义扩展，配置文件随插件一起迁移。
+一个命令 `CC` 呼出分组面板，21 个内置工具 + 无限自定义扩展，配置文件随插件一起迁移。
 
 ## 支持平台
 
@@ -23,7 +23,7 @@ AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱。
 
 > 建议将 `autoload.lsp` 添加到 CAD 启动组，实现开机自动加载。
 
-## 内置功能（20 个）
+## 内置功能（21 个）
 
 ### 文字编辑（8 个）
 
@@ -69,7 +69,7 @@ STANDARD-TEXT=gbenor.shx|gbcbig.shx|0|1.0|0
 |---------|------|---------|
 | 画中心线 | `CT_CENTERLINE` | 为选中的圆和矩形自动绘制中心线。使用 0 层、红色、CENTER 线型。中心线长度自动按图形尺寸的一定比例延伸。 |
 | 快速标注 | `CT_QUICKDIM` | 选中对象后自动计算包围盒，一键创建水平和垂直两个方向的对齐标注。标注偏移量自动按图形比例计算。 |
-| 批量打印 | `CT_BATCHPLOT` | 手动选中多个模型空间图框对象后，按图框外包范围逐张输出 PDF。默认输出到 DWG 同目录，纸张、PDF 设备、打印样式、自动旋转和居中设置会记住上次选项。 |
+| 批量打印 | `CT_BATCHPLOT` | 先选一个图框块作为模板，再框选范围内同名图框，按预检列表逐张打印。支持 DWG To PDF 输出单独 PDF，也支持 PDF24 等系统打印机；纸张、打印样式、页边距、排序和文件名规则会记住上次选项。 |
 | Z轴归零 | `CT_FLATTEN` | 将选中对象的 Z 坐标尽量归零，适合清理二维图纸里的高度偏移。 |
 
 ## 自定义命令
@@ -142,6 +142,31 @@ IsoLayerKeepLayer0=false
 powershell -NoProfile -ExecutionPolicy Bypass -File C:\CadToolkit\tools\check-config.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File C:\CadToolkit\tools\check-config.ps1 -Fix
 ```
+
+### 批量打印配置
+
+执行 `CT_BATCHPLOT` 时，先点选一个图框块作为模板，再框选需要打印的范围；插件只会收集范围内同名图框块，并在预检列表中显示图号、图名、尺寸、目标文件和状态。
+
+常用流程：
+
+1. 选择一个图框块作为模板。
+2. 框选本次要打印的图框范围。
+3. 在弹窗中确认打印设备、纸张、打印样式、页边距、文件名规则和排序。
+4. 检查预检列表，确认没有尺寸异常或文件名重复后打印。
+
+关键选项：
+
+| 配置项 | 说明 |
+|--------|------|
+| `BatchPlotDevice` | 默认打印设备。`DWG To PDF.pc3` 会按图框分别输出 PDF 文件；`PDF24`、Adobe PDF、Microsoft Print to PDF 等作为系统打印机处理。 |
+| `BatchPlotPaper` | 默认图纸尺寸，例如 `A3`。 |
+| `BatchPlotStyle` | 默认打印样式表，仅显示和使用 `.ctb` 样式。 |
+| `BatchPlotMarginMm` | 页边距，单位 mm。GstarCAD 下会通过自定义打印比例保证边距稳定。 |
+| `BatchPlotFileNameMode` | PDF 文件名规则：`DrawingDashIndex`、`DrawingUnderscoreIndex`、`IndexOnly`、`SheetNumberName`。 |
+| `BatchPlotSortMode` | 打印排序：`Position` 位置排序、`SheetNumber` 图号排序、`SelectionOrder` 选择顺序。 |
+| `BatchPlotSortReverse` | 是否按当前排序倒序打印。 |
+
+位置排序规则为先按左右列，再按同一列从上到下；选择顺序适合需要临时手动控制出图顺序的图纸。页边距建议从 5 到 10 mm 之间试起，不同 PDF 设备的物理可打印区域可能略有差异。
 
 ### 图层规范配置
 
