@@ -49,7 +49,7 @@
   <p>AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱。输入 <code>CC</code> 打开面板，常用绘图、文字、图层、图块和打印操作集中处理。</p>
   <div class="tags">
     <span class="tag">v1.26</span>
-    <span class="tag">23 个内置命令</span>
+    <span class="tag">21 个日常命令</span>
     <span class="tag">三端共用配置</span>
     <span class="tag">支持自定义命令</span>
   </div>
@@ -72,7 +72,7 @@
     <div><strong>面板执行</strong>输入 <code>CC</code>，点击对应按钮。</div>
     <div><strong>命令行执行</strong>直接输入具体命令，例如 <code>CT_BATCHPLOT</code>。</div>
     <div><strong>预选对象</strong>先选对象，再输入 <code>CC</code>，支持预选的命令会直接使用当前选择集。</div>
-    <div><strong>规范中心</strong>点击面板底部 <code>规</code> 按钮，或输入 <code>CT_STANDARDCENTER</code>。</div>
+    <div><strong>规范中心</strong>点击面板底部齿轮按钮，或输入 <code>CT_STANDARDCENTER</code>。</div>
   </div>
   <p>面板命令来自 <code>CadToolkit.ini</code> 的 <code>[Commands]</code> 段。可以用面板底部 <code>+</code> 添加自定义命令，用 <code>-</code> 管理已有命令。</p>
 </div>
@@ -92,12 +92,10 @@
     <tr><td>文字规范</td><td><span class="cmd">CT_TEXTSTYLESTANDARD</span></td><td>按配置把旧文字样式归并到标准文字样式。</td></tr>
   </table>
 
-  <h3>图层管理，7 个</h3>
+  <h3>图层管理，5 个</h3>
   <table>
     <tr><th>面板名称</th><th>命令</th><th>用途</th></tr>
     <tr><td>图层归零</td><td><span class="cmd">CT_SETLAYER0</span></td><td>把选中对象及可处理的块内对象移到 0 层。</td></tr>
-    <tr><td>配置维护</td><td><span class="cmd">CT_CONFIGMAINTAIN</span></td><td>打开当前 CadToolkit.ini、打开配置目录、进入配置体检，并可自动修复缺项；自动修复前会备份原配置。</td></tr>
-    <tr><td>规范中心</td><td><span class="cmd">CT_STANDARDCENTER</span></td><td>统一进入图层规范、文字规范、配置维护和配置体检。</td></tr>
     <tr><td>图层规范</td><td><span class="cmd">CT_LAYERSTANDARD</span></td><td>按标准图层和旧图层别名迁移对象，执行前有预览。</td></tr>
     <tr><td>孤立图层</td><td><span class="cmd">CT_ISOLAYER</span></td><td>只保留选中对象所在图层可见，再次执行恢复。</td></tr>
     <tr><td>按层选择</td><td><span class="cmd">CT_SELECTBYLAYER</span></td><td>按源对象图层选择同层对象。</td></tr>
@@ -126,7 +124,7 @@
 <div class="card">
   <h2>4. 规范工具</h2>
   <p><code>CT_STANDARDCENTER</code> 是规范类功能的统一入口。当前包含图层规范、文字规范、配置维护和配置体检，后续如果增加标注规范、线型规范、颜色规范，也会优先放到这里。</p>
-  <p>在 <code>CC</code> 面板中可以点击底部 <code>规</code> 按钮快速打开，也可以在命令行直接输入 <code>CT_STANDARDCENTER</code>。</p>
+  <p>在 <code>CC</code> 面板中可以点击底部齿轮按钮快速打开，也可以在命令行直接输入 <code>CT_STANDARDCENTER</code>。</p>
   <table>
     <tr><th>入口</th><th>用途</th></tr>
     <tr><td>图层规范</td><td>规范图层、预览迁移、处理白名单。</td></tr>
@@ -259,7 +257,7 @@ TITLE-TEXT=*标题*,TITLE</pre>
   </ul>
   <h3>配置维护和配置体检</h3>
   <p>输入 <code>CT_STANDARDCENTER</code> 可从规范中心进入配置维护和配置体检。输入 <code>CT_CONFIGMAINTAIN</code> 可以打开当前 CadToolkit.ini、打开配置目录、进入配置体检，并在确认后自动修复缺项；自动修复前会备份原配置。</p>
-  <p>也可以输入 <code>CT_CONFIGCHECK</code> 或点击面板齿轮按钮直接打开体检窗口。体检窗口会用中文说明问题和可修复项，支持 <code>Esc</code> 关闭。</p>
+  <p>也可以点击面板齿轮按钮打开规范中心后进入配置体检，或直接输入 <code>CT_CONFIGCHECK</code> 打开体检窗口。体检窗口会用中文说明问题和可修复项，支持 <code>Esc</code> 关闭。</p>
   <pre>powershell -NoProfile -ExecutionPolicy Bypass -File C:\CadToolkit\tools\check-config.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File C:\CadToolkit\tools\check-config.ps1 -Fix</pre>
   <h3>常用配置项</h3>

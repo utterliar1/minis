@@ -338,11 +338,10 @@ Assert-Contains 'check-config prints formatted report' $toolText 'FormatReport'
 $panelBuilderPath = Join-Path $repo 'CadToolkit\src\CadToolkit.UI\PanelBuilder.cs'
 $panelBuilderSource = Get-Content -Encoding UTF8 $panelBuilderPath -Raw
 $configIcon = [string][char]0x2699
-Assert-Contains 'panel builder has config check action' $panelBuilderSource 'CONFIGCHECK'
-Assert-TextContains 'panel builder shows config check icon button' $panelBuilderSource $configIcon
-Assert-Contains 'panel builder anchors config check with right controls' $panelBuilderSource 'btnConfigCheck\.Anchor\s*=\s*AnchorStyles\.Top\s*\|\s*AnchorStyles\.Right'
-Assert-Contains 'panel builder places config check left of add button' $panelBuilderSource 'btnConfigCheck\.Location\s*=\s*new Point\(btnAdd\.Left\s*-\s*UiScale\(6\)\s*-\s*btnConfigCheck\.Width'
-Assert-Contains 'panel builder handles config check action' $panelBuilderSource 'Kind = "CONFIGCHECK"'
+Assert-TextContains 'panel builder shows standard center icon button' $panelBuilderSource $configIcon
+Assert-Contains 'panel builder anchors standard center gear with right controls' $panelBuilderSource 'btnConfigCheck\.Anchor\s*=\s*AnchorStyles\.Top\s*\|\s*AnchorStyles\.Right'
+Assert-Contains 'panel builder places standard center gear left of add button' $panelBuilderSource 'btnConfigCheck\.Location\s*=\s*new Point\(btnAdd\.Left\s*-\s*UiScale\(6\)\s*-\s*btnConfigCheck\.Width'
+Assert-Contains 'panel builder handles standard center action' $panelBuilderSource 'Kind = "STANDARDCENTER"'
 
 $readme = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\README.md') -Raw
 $manualFileName = 'CadToolkit' + (-join ([char[]](0x4F7F,0x7528,0x624B,0x518C))) + '.html'

@@ -174,20 +174,9 @@ namespace CadToolkit.UI
             btnConfigCheck.Font = new Font("Microsoft YaHei", 10f);
             btnConfigCheck.Size = new Size(UiScale(28), UiScale(24));
             btnConfigCheck.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnConfigCheck.Click += delegate { result = new PanelAction { Kind = "CONFIGCHECK" }; f.Close(); };
+            btnConfigCheck.Click += delegate { result = new PanelAction { Kind = "STANDARDCENTER" }; f.Close(); };
             var configTip = new ToolTip();
-            configTip.SetToolTip(btnConfigCheck, "配置体检");
-
-            var btnStandardCenter = new Button();
-            btnStandardCenter.Text = "规";
-            btnStandardCenter.FlatStyle = FlatStyle.Flat;
-            btnStandardCenter.FlatAppearance.BorderColor = Color.FromArgb(180, 180, 180);
-            btnStandardCenter.BackColor = Color.White;
-            btnStandardCenter.Font = new Font("Microsoft YaHei", 9f, FontStyle.Bold);
-            btnStandardCenter.Size = new Size(UiScale(28), UiScale(24));
-            btnStandardCenter.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnStandardCenter.Click += delegate { result = new PanelAction { Kind = "STANDARDCENTER" }; f.Close(); };
-            configTip.SetToolTip(btnStandardCenter, "规范中心");
+            configTip.SetToolTip(btnConfigCheck, "规范中心");
 
             var lblAuthor = new Label();
             lblAuthor.Text = version;
@@ -201,19 +190,16 @@ namespace CadToolkit.UI
             bar.Controls.Add(btnAdd);
             bar.Controls.Add(btnManage);
             bar.Controls.Add(btnConfigCheck);
-            bar.Controls.Add(btnStandardCenter);
             bar.Controls.Add(lblAuthor);
             bar.Resize += delegate
             {
                 btnManage.Location = new Point(bar.ClientSize.Width - groupGap - btnManage.Width, UiScale(5));
                 btnAdd.Location = new Point(btnManage.Left - UiScale(6) - btnAdd.Width, UiScale(5));
                 btnConfigCheck.Location = new Point(btnAdd.Left - UiScale(6) - btnConfigCheck.Width, UiScale(5));
-                btnStandardCenter.Location = new Point(btnConfigCheck.Left - UiScale(6) - btnStandardCenter.Width, UiScale(5));
             };
             btnManage.Location = new Point(bar.ClientSize.Width - groupGap - btnManage.Width, UiScale(5));
             btnAdd.Location = new Point(btnManage.Left - UiScale(6) - btnAdd.Width, UiScale(5));
             btnConfigCheck.Location = new Point(btnAdd.Left - UiScale(6) - btnConfigCheck.Width, UiScale(5));
-            btnStandardCenter.Location = new Point(btnConfigCheck.Left - UiScale(6) - btnStandardCenter.Width, UiScale(5));
             f.Controls.Add(content);
             f.Controls.Add(bar);
 

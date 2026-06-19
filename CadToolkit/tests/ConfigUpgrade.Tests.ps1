@@ -97,8 +97,8 @@ try {
     Assert-Before 'upgrade keeps scalar defaults before sections' $upgraded 'DeleteOriginal=true' '[Commands]'
     Assert-Contains 'upgrade preserves custom command section' $upgraded '(?m)^Custom=MY_CUSTOM_CMD$'
     Assert-Contains 'upgrade appends missing official new command' $upgraded $changeBasepointPattern
-    Assert-Contains 'upgrade appends missing config maintenance command' $upgraded $configMaintenancePattern
-    Assert-Contains 'upgrade appends missing standard center command' $upgraded $standardCenterPattern
+    Assert-NotContains 'upgrade does not add config maintenance to panel commands' $upgraded $configMaintenancePattern
+    Assert-NotContains 'upgrade does not add standard center to panel commands' $upgraded $standardCenterPattern
     Assert-Contains 'upgrade renames official text style command label' $upgraded $textStyleCommandPattern
     Assert-NotContains 'upgrade removes old text style command label' $upgraded ('(?m)^' + [regex]::Escape($oldTextStyleCommand) + '$')
     Assert-Contains 'upgrade preserves increment copy command' $upgraded ('(?m)^' + [regex]::Escape($incCopyCommand) + '$')
@@ -107,10 +107,6 @@ try {
     Assert-Before 'upgrade moves increment copy into text group after text number' $upgraded $textNumberCommand $incCopyCommand
     Assert-Before 'upgrade places increment copy before text style standard' $upgraded $incCopyCommand $textStyleCommand
     Assert-Before 'upgrade keeps batch plot after quick dim instead of before increment copy' $upgraded $incCopyCommand $batchPlotCommand
-    Assert-Before 'upgrade places config maintenance after layer zero' $upgraded $layerZeroCommand $configMaintenanceCommand
-    Assert-Before 'upgrade places config maintenance before standard center' $upgraded $configMaintenanceCommand $standardCenterCommand
-    Assert-Before 'upgrade places standard center after layer zero' $upgraded $layerZeroCommand $standardCenterCommand
-    Assert-Before 'upgrade places standard center before layer standard' $upgraded $standardCenterCommand $layerStandardCommand
     Assert-Contains 'upgrade preserves custom layer standard' $upgraded '(?m)^CUSTOM-LAYER=2\|CONTINUOUS\|Default\|true$'
     Assert-Contains 'upgrade preserves custom layer map' $upgraded '(?m)^CUSTOM-LAYER=CUSTOM$'
     Assert-NotContains 'upgrade does not merge default text style standard section into existing user config' $upgraded '(?m)^\[TextStyleStandard\]$'

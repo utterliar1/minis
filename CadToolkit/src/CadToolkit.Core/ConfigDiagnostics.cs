@@ -111,6 +111,31 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("Z轴归零", "CT_FLATTEN")
         };
 
+        static readonly KeyValuePair<string, string>[] PanelCommands = new KeyValuePair<string, string>[]
+        {
+            new KeyValuePair<string, string>("查找替换", "CT_FINDREPLACE"),
+            new KeyValuePair<string, string>("文字对齐", "CT_ALIGN"),
+            new KeyValuePair<string, string>("加下划线", "CT_UNDERLINE"),
+            new KeyValuePair<string, string>("格式复制", "CT_TEXTBRUSH"),
+            new KeyValuePair<string, string>("文字合并", "CT_TEXTMERGE"),
+            new KeyValuePair<string, string>("文字编号", "CT_TEXTNUMBER"),
+            new KeyValuePair<string, string>("递增复制", "CT_INCCOPY"),
+            new KeyValuePair<string, string>("文字规范", "CT_TEXTSTYLESTANDARD"),
+            new KeyValuePair<string, string>("图层归零", "CT_SETLAYER0"),
+            new KeyValuePair<string, string>("图层规范", "CT_LAYERSTANDARD"),
+            new KeyValuePair<string, string>("孤立图层", "CT_ISOLAYER"),
+            new KeyValuePair<string, string>("按层选择", "CT_SELECTBYLAYER"),
+            new KeyValuePair<string, string>("按色选择", "CT_SELECTBYCOLOR"),
+            new KeyValuePair<string, string>("重命名块", "CT_RENAMEBLOCK"),
+            new KeyValuePair<string, string>("快捷建块", "CT_QUICKBLOCK"),
+            new KeyValuePair<string, string>("改块基点", "CT_CHANGEBASEPOINT"),
+            new KeyValuePair<string, string>("按块选择", "CT_SELECTBYBLOCK"),
+            new KeyValuePair<string, string>("画中心线", "CT_CENTERLINE"),
+            new KeyValuePair<string, string>("快速标注", "CT_QUICKDIM"),
+            new KeyValuePair<string, string>("批量打印", "CT_BATCHPLOT"),
+            new KeyValuePair<string, string>("Z轴归零", "CT_FLATTEN")
+        };
+
         internal class IniLine
         {
             internal string Text;
@@ -197,7 +222,7 @@ namespace CadToolkit.Core
                 AddIssue(result, ConfigDiagnosticSeverity.Warning, code, "Missing section: [" + section + "]", 0, section, true);
             }
 
-            foreach (KeyValuePair<string, string> officialCommand in OfficialCommands)
+            foreach (KeyValuePair<string, string> officialCommand in PanelCommands)
             {
                 string officialPair = officialCommand.Key + "=" + officialCommand.Value;
                 if (!commandPairs.Contains(officialPair))
@@ -582,7 +607,7 @@ namespace CadToolkit.Core
                     commandPairs.Add(key + "=" + value);
             }
 
-            foreach (KeyValuePair<string, string> command in OfficialCommands)
+            foreach (KeyValuePair<string, string> command in PanelCommands)
             {
                 string officialPair = command.Key + "=" + command.Value;
                 if (commandPairs.Contains(officialPair))
@@ -631,7 +656,7 @@ namespace CadToolkit.Core
 
             lines.Add("");
             lines.Add("[Commands]");
-            foreach (KeyValuePair<string, string> command in OfficialCommands)
+            foreach (KeyValuePair<string, string> command in PanelCommands)
                 lines.Add(command.Key + "=" + command.Value);
 
             lines.Add("");

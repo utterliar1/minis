@@ -111,8 +111,6 @@ namespace CadToolkit.Core
             changed |= RenameOfficialCommandLabel(lines, "文字样式规范", "文字规范", "CT_TEXTSTYLESTANDARD");
             changed |= EnsureOfficialCommand(lines, "文字规范", "CT_TEXTSTYLESTANDARD", "文字编号");
             changed |= MoveOfficialCommand(lines, "递增复制", "CT_INCCOPY", "文字编号");
-            changed |= EnsureOfficialCommand(lines, "配置维护", "CT_CONFIGMAINTAIN", "图层归零");
-            changed |= EnsureOfficialCommand(lines, "规范中心", "CT_STANDARDCENTER", "配置维护");
             changed |= EnsureOfficialCommand(lines, "批量打印", "CT_BATCHPLOT", "快速标注");
             changed |= RemoveOfficialCommand(lines, "\u914D\u7F6E\u4F53\u68C0", "CT_CONFIGCHECK");
             if (changed)
@@ -369,7 +367,6 @@ namespace CadToolkit.Core
             sb.AppendLine("\u6587\u5B57\u89C4\u8303=CT_TEXTSTYLESTANDARD");
             sb.AppendLine("# \u56FE\u5C42\u7BA1\u7406");
             sb.AppendLine("\u56FE\u5C42\u5F52\u96F6=CT_SETLAYER0");
-            sb.AppendLine("\u89C4\u8303\u4E2D\u5FC3=CT_STANDARDCENTER");
             sb.AppendLine("\u56FE\u5C42\u89C4\u8303=CT_LAYERSTANDARD");
             sb.AppendLine("\u5B64\u7ACB\u56FE\u5C42=CT_ISOLAYER");
             sb.AppendLine("\u6309\u5C42\u9009\u62E9=CT_SELECTBYLAYER");

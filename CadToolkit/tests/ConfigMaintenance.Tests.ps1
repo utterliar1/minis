@@ -24,8 +24,18 @@ function Assert-Match($name, $text, $pattern) {
     Write-Host "PASS $name"
 }
 
+function Assert-NotMatch($name, $text, $pattern) {
+    if ($text -match $pattern) { throw "$name unexpectedly found pattern: $pattern" }
+    Write-Host "PASS $name"
+}
+
 function Assert-Literal($name, $text, $literal) {
     if (-not $text.Contains($literal)) { throw "$name did not find literal: $literal" }
+    Write-Host "PASS $name"
+}
+
+function Assert-NotLiteral($name, $text, $literal) {
+    if ($text.Contains($literal)) { throw "$name unexpectedly found literal: $literal" }
     Write-Host "PASS $name"
 }
 
@@ -41,13 +51,11 @@ function Assert-Before($name, $text, $first, $second) {
 $configMaintenanceLine = $configMaintenanceLabel + '=CT_CONFIGMAINTAIN'
 $standardCenterLine = $standardCenterLabel + '=CT_STANDARDCENTER'
 
-Assert-Literal 'project config contains config maintenance command' $projectConfig $configMaintenanceLine
-Assert-Literal 'default config contains config maintenance command' $defaultConfig $configMaintenanceLine
-Assert-Match 'embedded default contains config maintenance command' $config 'CT_CONFIGMAINTAIN'
+Assert-NotLiteral 'project config omits config maintenance from panel commands' $projectConfig $configMaintenanceLine
+Assert-NotLiteral 'default config omits config maintenance from panel commands' $defaultConfig $configMaintenanceLine
+Assert-NotLiteral 'embedded default omits config maintenance from panel commands' $config $configMaintenanceLine
 Assert-Literal 'diagnostics knows config maintenance label' $diagnostics $configMaintenanceLabel
 Assert-Literal 'diagnostics knows CT_CONFIGMAINTAIN' $diagnostics 'CT_CONFIGMAINTAIN'
-Assert-Before 'config maintenance is before standard center in project config' $projectConfig $configMaintenanceLine $standardCenterLine
-Assert-Before 'config maintenance is before standard center in default config' $defaultConfig $configMaintenanceLine $standardCenterLine
 
 Assert-Match 'config maintenance command is registered' $configCommands '\[CommandMethod\("CT_CONFIGMAINTAIN"\)\]'
 Assert-Literal 'config maintenance form class exists' $configCommands 'ConfigMaintenanceForm'
