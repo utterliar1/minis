@@ -108,6 +108,7 @@ STANDARD-TEXT=Standard
 function New-RepairFixture {
     $oldTextStyleLabel = -join ([char[]](0x6587,0x5B57,0x6837,0x5F0F,0x89C4,0x8303))
     $quickBlockLabel = -join ([char[]](0x5FEB,0x6377,0x5EFA,0x5757))
+    $standardCenterLabel = -join ([char[]](0x89C4,0x8303,0x4E2D,0x5FC3))
     $formatComment = '# ' + (-join ([char[]](0x683C,0x5F0F,0xFF1A,0x663E,0x793A,0x540D,0x79F0))) + '=CAD' + (-join ([char[]](0x547D,0x4EE4)))
     $sampleComment = '# ' + (-join ([char[]](0x793A,0x4F8B))) + '=CAD'
 
@@ -134,6 +135,7 @@ TextStyleDeleteUnusedOldStyles=false
 $formatComment
 $oldTextStyleLabel=CT_TEXTSTYLESTANDARD
 $quickBlockLabel=CT_QUICKBLOCK
+$standardCenterLabel=CT_STANDARDCENTER
 $sampleComment
 
 [LayerStandard]
@@ -222,6 +224,9 @@ Assert-Issue 'malformed text style standard is an error' $badTextStyleStandard '
 $oldTextStyleLabel = -join ([char[]](0x6587,0x5B57,0x6837,0x5F0F,0x89C4,0x8303))
 $newTextStyleLabel = -join ([char[]](0x6587,0x5B57,0x89C4,0x8303))
 $configCheckLabel = -join ([char[]](0x914D,0x7F6E,0x4F53,0x68C0))
+$standardCenterLabel = -join ([char[]](0x89C4,0x8303,0x4E2D,0x5FC3))
+$batchPlotComment = '# ' + (-join ([char[]](0x6279, 0x91CF, 0x6253, 0x5370)))
+$commandListComment = '# ' + (-join ([char[]](0x547D, 0x4EE4, 0x5217, 0x8868)))
 $formatComment = '# ' + (-join ([char[]](0x683C,0x5F0F,0xFF1A,0x663E,0x793A,0x540D,0x79F0))) + '=CAD' + (-join ([char[]](0x547D,0x4EE4)))
 
 $repairFixture = New-RepairFixture
@@ -234,7 +239,8 @@ Assert-TextContains 'repair preserves unfixable layer map target' $repairedText 
 Assert-TextContains 'repair renames old text style command' $repairedText ($newTextStyleLabel + '=CT_TEXTSTYLESTANDARD')
 Assert-TextNotContains 'repair removes old text style command label' $repairedText ($oldTextStyleLabel + '=CT_TEXTSTYLESTANDARD')
 Assert-TextNotContains 'repair does not add config check command to panel list' $repairedText ($configCheckLabel + '=CT_CONFIGCHECK')
-Assert-TextNotContains 'repair removes known equals command doc comment' $repairedText $formatComment
+$commandsText = $repairedText.Substring($repairedText.IndexOf('[Commands]'))
+Assert-TextNotContains 'repair removes known equals command doc comment from commands section' $commandsText $formatComment
 
 $aliasCollisionFixture = $repairFixture -replace '\[Commands\]', "[Commands]`r`nCustomConfigCheck=CT_CONFIGCHECK"
 $aliasCollisionRepair = Invoke-Repair $aliasCollisionFixture
@@ -253,6 +259,14 @@ $firstSectionIndex = $missingRootText.IndexOf('[Commands]')
 $deleteOriginalIndex = $missingRootText.IndexOf('DeleteOriginal=true')
 if ($deleteOriginalIndex -lt 0 -or $deleteOriginalIndex -gt $firstSectionIndex) { throw 'repair should add missing root setting before first section' }
 Write-Host 'PASS repair adds missing root setting before first section'
+$batchPlotCommentIndex = $missingRootText.IndexOf($batchPlotComment)
+$batchPlotSettingIndex = $missingRootText.IndexOf('BatchPlotDevice=')
+$commandCommentIndex = $missingRootText.IndexOf($commandListComment)
+if ($batchPlotCommentIndex -lt 0 -or $batchPlotSettingIndex -lt 0 -or $commandCommentIndex -lt 0 -or $batchPlotCommentIndex -gt $batchPlotSettingIndex -or $batchPlotSettingIndex -gt $commandCommentIndex) {
+    throw 'repair should add missing root settings with template comments and spacing before command comments'
+}
+Write-Host 'PASS repair adds root settings with template comments and spacing'
+Assert-TextNotContains 'repair removes old standard center panel command' $repairedText ($standardCenterLabel + '=CT_STANDARDCENTER')
 
 $textStyleMapCount = ([regex]::Matches($repairedText, '\[TextStyleMap\]')).Count
 if ($textStyleMapCount -ne 1) { throw "repair should not duplicate TextStyleMap; found $textStyleMapCount" }

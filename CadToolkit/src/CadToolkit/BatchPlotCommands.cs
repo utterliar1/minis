@@ -131,6 +131,9 @@ namespace CadToolkit
                 settings.DrawingName = drawingName;
 
                 bool outputToFile = IsPdfPlotDevice(settings.DeviceName);
+                preflightRows = BuildBatchPlotPreflightRows(frames, settings.OutputDirectory, settings.DrawingName, settings.FileNameMode, settings.DeviceName, settings.PlotStyle);
+                if (!ConfirmBatchPlotPreflightIssues(preflightRows)) return;
+
                 int success = 0;
                 int failed = 0;
 #if GSTARCAD
@@ -178,6 +181,54 @@ namespace CadToolkit
             }
             MarkDuplicateBatchPlotTargets(rows, outputToFile);
             return rows;
+        }
+
+        static bool HasBatchPlotBlockingPreflightIssue(List<BatchPlotPreflightRow> rows)
+        {
+            if (rows == null) return false;
+            foreach (BatchPlotPreflightRow row in rows)
+                if (row != null && IsBatchPlotBlockingStatus(row.Status)) return true;
+            return false;
+        }
+
+        static bool IsBatchPlotBlockingStatus(string status)
+        {
+            string text = SafeStr(status);
+            return text.IndexOf("\u76EE\u5F55\u5F02\u5E38", StringComparison.OrdinalIgnoreCase) >= 0
+                || text.IndexOf("\u6587\u4EF6\u540D\u91CD\u590D", StringComparison.OrdinalIgnoreCase) >= 0
+                || text.IndexOf("\u8BBE\u5907\u7F3A\u5931", StringComparison.OrdinalIgnoreCase) >= 0
+                || text.IndexOf("\u6837\u5F0F\u7F3A\u5931", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        static bool ConfirmBatchPlotPreflightIssues(List<BatchPlotPreflightRow> rows)
+        {
+            if (rows == null) return true;
+
+            var issues = new List<BatchPlotPreflightRow>();
+            foreach (BatchPlotPreflightRow row in rows)
+            {
+                if (row == null) continue;
+                string status = SafeStr(row.Status).Trim();
+                if (status.Length > 0 && status != "\u6B63\u5E38") issues.Add(row);
+            }
+            if (issues.Count == 0) return true;
+
+            bool hasBlocking = HasBatchPlotBlockingPreflightIssue(rows);
+            var message = new System.Text.StringBuilder();
+            message.AppendLine(hasBlocking ? "\u6279\u91CF\u6253\u5370\u9884\u68C0\u53D1\u73B0\u4E25\u91CD\u95EE\u9898\uFF0C\u5EFA\u8BAE\u5148\u4FEE\u590D\u540E\u518D\u6253\u5370\u3002" : "\u6279\u91CF\u6253\u5370\u9884\u68C0\u53D1\u73B0\u63D0\u9192\u9879\u3002");
+            message.AppendLine();
+            int count = Math.Min(issues.Count, 6);
+            for (int i = 0; i < count; i++)
+            {
+                BatchPlotPreflightRow row = issues[i];
+                message.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}  {1}  {2}", SafeStr(row.Index), SafeStr(row.Target), SafeStr(row.Status)));
+            }
+            if (issues.Count > count)
+                message.AppendLine(string.Format(CultureInfo.InvariantCulture, "\u8FD8\u6709 {0} \u9879\u95EE\u9898\u672A\u663E\u793A\u3002", issues.Count - count));
+            message.AppendLine();
+            message.Append(hasBlocking ? "\u4ECD\u8981\u7EE7\u7EED\u6253\u5370\u5417\uFF1F" : "\u662F\u5426\u7EE7\u7EED\u6253\u5370\uFF1F");
+
+            return MessageBox.Show(message.ToString(), "\u6279\u91CF\u6253\u5370\u9884\u68C0", MessageBoxButtons.OKCancel, hasBlocking ? MessageBoxIcon.Warning : MessageBoxIcon.Information) == DialogResult.OK;
         }
 
         static string BuildBatchPlotPreflightStatus(BatchPlotFrame reference, BatchPlotFrame frame, string outputDirectory, string deviceName, string plotStyle)

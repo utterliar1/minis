@@ -27,7 +27,7 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("AlignLineSpacing", "0"),
             new KeyValuePair<string, string>("IsoLayerKeepLayer0", "false"),
             new KeyValuePair<string, string>("LayerStandardFallbackTo0", "false"),
-            new KeyValuePair<string, string>("LayerStandardWhitelist", "0,Defpoints,*\u56FE\u6846*,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*"),
+            new KeyValuePair<string, string>("LayerStandardWhitelist", "0,Defpoints,\u56FE\u6846\u7EBF\u6761,\u56FE\u6846\u6C49\u5B57,\u56FE\u6846\u82F1\u6587,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*,\u7B7E\u540D"),
             new KeyValuePair<string, string>("TextStyleFallbackToStandard", "false"),
             new KeyValuePair<string, string>("TextStyleFallbackStyle", "STANDARD-TEXT"),
             new KeyValuePair<string, string>("TextStyleWhitelist", "Standard,Annotative,*DIM*"),
@@ -80,27 +80,95 @@ namespace CadToolkit.Core
         static void EnsureRootDefaults()
         {
             var lines = new List<string>(File.ReadAllLines(IniPath, Encoding.UTF8));
-            int insertAt = lines.Count;
-            for (int i = 0; i < lines.Count; i++)
-            {
-                if (lines[i].Trim().StartsWith("["))
-                {
-                    insertAt = i;
-                    break;
-                }
-            }
-
-            bool changed = false;
-            foreach (var setting in DefaultRootSettings)
-            {
-                if (HasConfigKey(lines, setting.Key)) continue;
-                lines.Insert(insertAt, setting.Key + "=" + setting.Value);
-                insertAt++;
-                changed = true;
-            }
+            bool changed = NormalizeRootDefaults(lines);
 
             if (changed)
                 lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
+        }
+
+        static bool NormalizeRootDefaults(List<string> lines)
+        {
+            int firstSection = FindFirstSectionIndex(lines);
+            if (firstSection < 0) firstSection = lines.Count;
+
+            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < firstSection; i++)
+            {
+                string key;
+                string value;
+                if (TrySplitKeyValue(lines[i].Trim(), out key, out value))
+                    values[key] = value;
+            }
+
+            var rootBlock = BuildDefaultRootBlock(values);
+            bool same = rootBlock.Count == firstSection;
+            if (same)
+            {
+                for (int i = 0; i < firstSection; i++)
+                {
+                    if (!string.Equals(lines[i], rootBlock[i], StringComparison.Ordinal))
+                    {
+                        same = false;
+                        break;
+                    }
+                }
+            }
+            if (same) return false;
+
+            lines.RemoveRange(0, firstSection);
+            lines.InsertRange(0, rootBlock);
+            return true;
+        }
+
+        static List<string> BuildDefaultRootBlock(Dictionary<string, string> existingValues)
+        {
+            var result = new List<string>();
+            string[] templateLines = GetDefaultConfigText().Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            foreach (string line in templateLines)
+            {
+                string trimmed = line.Trim();
+                if (trimmed.StartsWith("["))
+                    break;
+
+                string key;
+                string value;
+                if (TrySplitKeyValue(trimmed, out key, out value) && IsDefaultRootKey(key) && existingValues != null && existingValues.ContainsKey(key))
+                    result.Add(key + "=" + existingValues[key]);
+                else
+                    result.Add(line);
+            }
+
+            while (result.Count > 0 && result[result.Count - 1].Length == 0)
+                result.RemoveAt(result.Count - 1);
+            result.Add("");
+            return result;
+        }
+
+        static bool IsDefaultRootKey(string key)
+        {
+            foreach (var setting in DefaultRootSettings)
+                if (setting.Key.Equals(key, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        static int FindFirstSectionIndex(List<string> lines)
+        {
+            for (int i = 0; i < lines.Count; i++)
+                if (lines[i].Trim().StartsWith("["))
+                    return i;
+            return -1;
+        }
+
+        static bool TrySplitKeyValue(string trimmed, out string key, out string value)
+        {
+            key = null;
+            value = null;
+            if (trimmed.Length == 0 || trimmed.StartsWith("#") || trimmed.StartsWith(";") || trimmed.StartsWith("[")) return false;
+            int eq = trimmed.IndexOf('=');
+            if (eq <= 0) return false;
+            key = trimmed.Substring(0, eq).Trim();
+            value = trimmed.Substring(eq + 1).Trim();
+            return key.Length > 0;
         }
 
         static void EnsureOfficialCommands()
@@ -113,6 +181,8 @@ namespace CadToolkit.Core
             changed |= MoveOfficialCommand(lines, "递增复制", "CT_INCCOPY", "文字编号");
             changed |= EnsureOfficialCommand(lines, "批量打印", "CT_BATCHPLOT", "快速标注");
             changed |= RemoveOfficialCommand(lines, "\u914D\u7F6E\u4F53\u68C0", "CT_CONFIGCHECK");
+            changed |= RemoveOfficialCommand(lines, "\u914D\u7F6E\u7EF4\u62A4", "CT_CONFIGMAINTAIN");
+            changed |= RemoveOfficialCommand(lines, "\u89C4\u8303\u4E2D\u5FC3", "CT_STANDARDCENTER");
             if (changed)
                 lock (_fileLock) { File.WriteAllLines(IniPath, lines.ToArray(), Encoding.UTF8); }
         }
@@ -308,7 +378,7 @@ namespace CadToolkit.Core
             sb.AppendLine("# LayerStandardWhitelist\uFF1A\u56FE\u5C42\u89C4\u8303\u767D\u540D\u5355\u3002\u547D\u4E2D\u540E\u4FDD\u6301\u539F\u6837\uFF0C\u4E0D\u8FC1\u79FB\u3001\u4E0D\u515C\u5E95\u5F52 0\u3002");
             sb.AppendLine("# \u767D\u540D\u5355\u89C4\u5219\u9ED8\u8BA4\u5168\u5B57\u5339\u914D\uFF1B\u9700\u8981\u5305\u542B\u3001\u524D\u7F00\u3001\u540E\u7F00\u5339\u914D\u65F6\u4F7F\u7528 * \u901A\u914D\u7B26\uFF0C\u4F8B\u5982 *\u56FE\u6846*\u3001A-*\u3001*-OLD\u3002");
             sb.AppendLine("LayerStandardFallbackTo0=false");
-            sb.AppendLine("LayerStandardWhitelist=0,Defpoints,*\u56FE\u6846*,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*");
+            sb.AppendLine("LayerStandardWhitelist=0,Defpoints,\u56FE\u6846\u7EBF\u6761,\u56FE\u6846\u6C49\u5B57,\u56FE\u6846\u82F1\u6587,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*,\u7B7E\u540D");
             sb.AppendLine();
             sb.AppendLine("# \u6587\u5B57\u89C4\u8303");
             sb.AppendLine("# TextStyleFallbackToStandard\uFF1A\u6587\u5B57\u89C4\u8303\u65F6\uFF0C\u672A\u8BC6\u522B\u4E14\u4E0D\u5728\u767D\u540D\u5355\u7684\u6587\u5B57\u6837\u5F0F\u662F\u5426\u5F52\u5230 TextStyleFallbackStyle\u3002");
@@ -401,6 +471,7 @@ namespace CadToolkit.Core
             sb.AppendLine("9-\u5EFA\u7B51=7|CONTINUOUS|Default|true");
             sb.AppendLine("10-\u975E\u6807=31|CONTINUOUS|Default|true");
             sb.AppendLine("11-\u586B\u5145=8|CONTINUOUS|Default|true");
+            sb.AppendLine("12-\u8F85\u52A9\u7EBF=8|CONTINUOUS|Default|true");
             sb.AppendLine();
             sb.AppendLine("[LayerMap]");
             sb.AppendLine("# \u56FE\u5C42\u6620\u5C04");
@@ -411,7 +482,7 @@ namespace CadToolkit.Core
             sb.AppendLine("0-\u8BBE\u5907\u5C42=*\u8BBE\u5907*,0-4,*VIS*");
             sb.AppendLine("1-\u4E2D\u5FC3\u7EBF\u5C42=*\u4E2D\u5FC3*,*\u4E2D\u5FC3\u7EBF*,*CENTER*,0-1,1,*AXIS*,*CLEARANCE*,ZX,ZXX");
             sb.AppendLine("2-\u865A\u7EBF\u5C42=*\u865A\u7EBF*,*HIDDEN,*DASH,*HID");
-            sb.AppendLine("3-\u6587\u5B57\u5C42=*\u6587\u5B57*,*\u8BF4\u660E*,*\u7F16\u53F7*,*TEXT,*txt");
+            sb.AppendLine("3-\u6587\u5B57\u5C42=*\u6587\u5B57*,*\u8BF4\u660E*,*\u7F16\u53F7*,*TEXT*,*txt*");
             sb.AppendLine("4-\u6807\u6CE8\u5C42=*\u6807\u6CE8*,*\u5C3A\u5BF8*,*DIM*,*dim*");
             sb.AppendLine("5-\u98CE\u7F51=*\u98CE\u7F51*,*\u98CE\u7BA1*,*\u98CE\u9053*,0-5,FW");
             sb.AppendLine("6-\u6E9C\u7BA1=*\u6E9C\u7BA1*,*\u538B\u8FD0*,*VIS5");
@@ -420,6 +491,7 @@ namespace CadToolkit.Core
             sb.AppendLine("9-\u5EFA\u7B51=*\u5EFA\u7B51*,*ARCH,*WALL");
             sb.AppendLine("10-\u975E\u6807=*\u975E\u6807*,*\u975E\u6807\u51C6*");
             sb.AppendLine("11-\u586B\u5145=*\u586B\u5145*,*HATCH,*PAT");
+            sb.AppendLine("12-\u8F85\u52A9\u7EBF=*\u8F85\u52A9\u7EBF*");
             sb.AppendLine();
             sb.AppendLine("[TextStyleStandard]");
             sb.AppendLine("# \u6587\u5B57\u6837\u5F0F\u6807\u51C6");
@@ -506,7 +578,7 @@ namespace CadToolkit.Core
         public static double AlignLineSpacing { get { double v; return double.TryParse(GetString("AlignLineSpacing", "0"), out v) ? v : 0; } set { SaveString("AlignLineSpacing", value.ToString()); } }
         public static bool IsoLayerKeepLayer0 { get { return GetBool("IsoLayerKeepLayer0", false); } }
         public static bool LayerStandardFallbackTo0 { get { return GetBool("LayerStandardFallbackTo0", false); } }
-        public static string LayerStandardWhitelist { get { return GetString("LayerStandardWhitelist", GetString("LayerStandardFallbackWhitelist", "0,Defpoints,*\u56FE\u6846*,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*")); } }
+        public static string LayerStandardWhitelist { get { return GetString("LayerStandardWhitelist", GetString("LayerStandardFallbackWhitelist", "0,Defpoints,\u56FE\u6846\u7EBF\u6761,\u56FE\u6846\u6C49\u5B57,\u56FE\u6846\u82F1\u6587,*\u89C6\u53E3*,*\u539F\u6709*,*\u65B0\u589E*,\u7B7E\u540D")); } }
         public static bool TextStyleFallbackToStandard { get { return GetBool("TextStyleFallbackToStandard", false); } }
         public static string TextStyleFallbackStyle { get { return GetString("TextStyleFallbackStyle", "STANDARD-TEXT"); } }
         public static string TextStyleWhitelist { get { return GetString("TextStyleWhitelist", "Standard,Annotative,*DIM*"); } }

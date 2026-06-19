@@ -2,7 +2,7 @@
 
 AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱。
 
-一个命令 `CC` 呼出分组面板，21 个日常工具 + 无限自定义扩展；规范和配置维护统一从齿轮入口进入。
+一个命令 `CC` 呼出分组面板，21 个内置日常工具 + 无限自定义扩展；规范和配置维护统一从齿轮入口进入。
 
 ## 支持平台
 
@@ -23,7 +23,7 @@ AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱。
 
 > 建议将 `autoload.lsp` 添加到 CAD 启动组，实现开机自动加载。
 
-## 内置功能（21 个）
+## 内置功能（21 个内置工具）
 
 ### 文字编辑（8 个）
 
@@ -185,7 +185,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:\CadToolkit\tools\check-co
 
 ```ini
 LayerStandardFallbackTo0=false
-LayerStandardWhitelist=0,Defpoints,*图框*,*视口*,*原有*,*新增*
+LayerStandardWhitelist=0,Defpoints,图框线条,图框汉字,图框英文,*视口*,*原有*,*新增*,签名
 ```
 
 | 配置项 | 说明 |
@@ -199,6 +199,7 @@ LayerStandardWhitelist=0,Defpoints,*图框*,*视口*,*原有*,*新增*
 |------|------|
 | `0` | 只匹配名为 `0` 的图层 |
 | `Defpoints` | 只匹配 `Defpoints` |
+| `图框线条` | 只匹配完整图层名 `图框线条` |
 | `*图框*` | 图层名中包含“图框” |
 | `*原有*` | 图层名中包含“原有” |
 | `A-*` | 以 `A-` 开头 |
@@ -237,13 +238,15 @@ LayerStandardWhitelist=0,Defpoints,*图框*,*视口*,*原有*,*新增*
 3-文字层=3|CONTINUOUS|Default|true
 4-标注层=3|CONTINUOUS|Default|true
 10-非标=31|CONTINUOUS|Default|true
+12-辅助线=8|CONTINUOUS|Default|true
 
 [LayerMap]
 0-设备层=*设备*,0-4,*VIS*
 1-中心线层=*中心*,*中心线*,*CENTER*,0-1,1,*AXIS*,*CLEARANCE*,ZX,ZXX
-3-文字层=*文字*,*说明*,*编号*,*TEXT,*txt
+3-文字层=*文字*,*说明*,*编号*,*TEXT*,*txt*
 4-标注层=*标注*,*尺寸*,*DIM*,*dim*
 5-风网=*风网*,*风管*,*风道*,0-5,FW
+12-辅助线=*辅助线*
 ```
 
 使用建议：
