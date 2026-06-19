@@ -95,6 +95,7 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("递增复制", "CT_INCCOPY"),
             new KeyValuePair<string, string>("文字规范", "CT_TEXTSTYLESTANDARD"),
             new KeyValuePair<string, string>("图层归零", "CT_SETLAYER0"),
+            new KeyValuePair<string, string>("配置维护", "CT_CONFIGMAINTAIN"),
             new KeyValuePair<string, string>("规范中心", "CT_STANDARDCENTER"),
             new KeyValuePair<string, string>("图层规范", "CT_LAYERSTANDARD"),
             new KeyValuePair<string, string>("孤立图层", "CT_ISOLAYER"),
