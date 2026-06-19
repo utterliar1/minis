@@ -36,6 +36,6 @@ Assert-Equal 'info line count' 3 $lines.Count
 Assert-Contains 'header includes version' $lines[0] 'v1.2.3'
 Assert-Contains 'header includes platform' $lines[0] 'GstarCAD'
 Assert-Contains 'library line includes path' $lines[1] 'D:\Blocks'
-Assert-Equal 'commands line preserves existing commands' ($commandPrefix + ': BB KLLQ BBADD BBEXPORT BBTHUMB') $lines[2]
+Assert-Equal 'commands line lists current commands' ($commandPrefix + ': BB KLLQ BBADD BBEXPORT BBMIRROR BBSYNC BBTHUMB BBINFO') $lines[2]
 
 Write-Host 'BlockBrowserInfoService.Tests.ps1 passed'

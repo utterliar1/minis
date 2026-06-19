@@ -29,7 +29,7 @@ namespace BlockBrowser
 
         public static BlockBrowserConfig CreateDefault(string pluginRoot)
         {
-            string libraryPath = Path.Combine(pluginRoot ?? "", "我的常用块");
+            string libraryPath = Path.Combine(pluginRoot ?? "", "\u6211\u7684\u5E38\u7528\u5757");
             var config = new BlockBrowserConfig
             {
                 LibraryPath = libraryPath,
@@ -45,7 +45,7 @@ namespace BlockBrowser
                 FormWidth = 1000,
                 FormHeight = 650
             };
-            config.ProtectedLocalCategories.Add("个人块");
+            config.ProtectedLocalCategories.Add("\u4E2A\u4EBA\u5757");
             return config;
         }
 

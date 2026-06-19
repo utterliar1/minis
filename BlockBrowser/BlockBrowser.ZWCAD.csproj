@@ -16,6 +16,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\x64\Release-ZWCAD\</OutputPath>
+    <IntermediateOutputPath>obj\x64\Release-ZWCAD\</IntermediateOutputPath>
     <DefineConstants>TRACE;ZWCAD</DefineConstants>
     <PlatformTarget>x64</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>

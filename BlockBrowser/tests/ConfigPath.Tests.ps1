@@ -53,6 +53,17 @@ function Assert-DoesNotThrow($name, [scriptblock]$action) {
     Write-Host "PASS $name"
 }
 
+function Assert-Contains($name, $text, $pattern) {
+    if ($text -notmatch $pattern) {
+        throw "$name did not find pattern: $pattern"
+    }
+    Write-Host "PASS $name"
+}
+
+$configOrderWarning = -join ([char[]](0x4E0D, 0x8981, 0x968F, 0x610F, 0x6539, 0x53D8, 0x914D, 0x7F6E, 0x9879, 0x987A, 0x5E8F))
+$currentActiveLibrary = -join ([char[]](0x5F53, 0x524D, 0x5B9E, 0x9645, 0x4F7F, 0x7528))
+$readOnlyFlag = -join ([char[]](0x0030, 0x003D, 0x53EA, 0x8BFB))
+
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('BlockBrowserConfigTests-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 
@@ -194,6 +205,10 @@ try {
     $loaded.RecentBlocks.Add('C:\C.dwg')
     $store.Save($loaded)
     $savedText = Get-Content -Encoding UTF8 -Path (Join-Path $pluginRoot 'config.ini') -Raw
+    Assert-Contains 'save keeps config order warning' $savedText ([regex]::Escape($configOrderWarning))
+    Assert-Contains 'save writes LibraryPath comment' $savedText ('LibraryPath[\s\S]*?' + [regex]::Escape($currentActiveLibrary))
+    Assert-Contains 'save writes AllowNasSync comment' $savedText ('AllowNasSync[\s\S]*?' + [regex]::Escape($readOnlyFlag))
+    Assert-Contains 'save writes window size comments' $savedText 'FormWidth[\s\S]*?FormHeight'
     Assert-True 'save writes relative library path' ($savedText -match 'LibraryPath=CustomBlocks')
     Assert-True 'save writes relative local mirror path' ($savedText -match 'LocalMirrorPath=Mirror')
     Assert-True 'save writes protected categories' ($savedText -match 'ProtectedLocalCategories=个人块;临时块')
