@@ -111,7 +111,8 @@ namespace CadToolkit.Core
             changed |= RenameOfficialCommandLabel(lines, "文字样式规范", "文字规范", "CT_TEXTSTYLESTANDARD");
             changed |= EnsureOfficialCommand(lines, "文字规范", "CT_TEXTSTYLESTANDARD", "文字编号");
             changed |= MoveOfficialCommand(lines, "递增复制", "CT_INCCOPY", "文字编号");
-            changed |= EnsureOfficialCommand(lines, "规范中心", "CT_STANDARDCENTER", "图层归零");
+            changed |= EnsureOfficialCommand(lines, "配置维护", "CT_CONFIGMAINTAIN", "图层归零");
+            changed |= EnsureOfficialCommand(lines, "规范中心", "CT_STANDARDCENTER", "配置维护");
             changed |= EnsureOfficialCommand(lines, "批量打印", "CT_BATCHPLOT", "快速标注");
             changed |= RemoveOfficialCommand(lines, "\u914D\u7F6E\u4F53\u68C0", "CT_CONFIGCHECK");
             if (changed)
