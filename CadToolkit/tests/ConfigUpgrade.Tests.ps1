@@ -41,6 +41,10 @@ $textNumberCommand = (-join ([char[]](0x6587, 0x5B57, 0x7F16, 0x53F7))) + '=CT_T
 $incCopyCommand = (-join ([char[]](0x9012, 0x589E, 0x590D, 0x5236))) + '=CT_INCCOPY'
 $batchPlotCommand = (-join ([char[]](0x6279, 0x91CF, 0x6253, 0x5370))) + '=CT_BATCHPLOT'
 $flattenCommand = 'Z' + (-join ([char[]](0x8F74, 0x5F52, 0x96F6))) + '=CT_FLATTEN'
+$layerZeroCommand = (-join ([char[]](0x56FE, 0x5C42, 0x5F52, 0x96F6))) + '=CT_SETLAYER0'
+$standardCenterCommand = (-join ([char[]](0x89C4, 0x8303, 0x4E2D, 0x5FC3))) + '=CT_STANDARDCENTER'
+$layerStandardCommand = (-join ([char[]](0x56FE, 0x5C42, 0x89C4, 0x8303))) + '=CT_LAYERSTANDARD'
+$standardCenterPattern = '(?m)^' + [regex]::Escape($standardCenterCommand) + '$'
 
 $tmpRoot = Join-Path ([IO.Path]::GetTempPath()) ('CadToolkitConfigUpgrade-' + [Guid]::NewGuid().ToString('N'))
 $platformDir = Join-Path $tmpRoot 'acad'
@@ -56,6 +60,8 @@ try {
         'Custom=MY_CUSTOM_CMD',
         $textNumberCommand,
         $oldTextStyleCommand,
+        $layerZeroCommand,
+        $layerStandardCommand,
         $batchPlotCommand,
         $incCopyCommand,
         $flattenCommand,
@@ -89,6 +95,7 @@ try {
     Assert-Before 'upgrade keeps scalar defaults before sections' $upgraded 'DeleteOriginal=true' '[Commands]'
     Assert-Contains 'upgrade preserves custom command section' $upgraded '(?m)^Custom=MY_CUSTOM_CMD$'
     Assert-Contains 'upgrade appends missing official new command' $upgraded $changeBasepointPattern
+    Assert-Contains 'upgrade appends missing standard center command' $upgraded $standardCenterPattern
     Assert-Contains 'upgrade renames official text style command label' $upgraded $textStyleCommandPattern
     Assert-NotContains 'upgrade removes old text style command label' $upgraded ('(?m)^' + [regex]::Escape($oldTextStyleCommand) + '$')
     Assert-Contains 'upgrade preserves increment copy command' $upgraded ('(?m)^' + [regex]::Escape($incCopyCommand) + '$')
@@ -97,6 +104,8 @@ try {
     Assert-Before 'upgrade moves increment copy into text group after text number' $upgraded $textNumberCommand $incCopyCommand
     Assert-Before 'upgrade places increment copy before text style standard' $upgraded $incCopyCommand $textStyleCommand
     Assert-Before 'upgrade keeps batch plot after quick dim instead of before increment copy' $upgraded $incCopyCommand $batchPlotCommand
+    Assert-Before 'upgrade places standard center after layer zero' $upgraded $layerZeroCommand $standardCenterCommand
+    Assert-Before 'upgrade places standard center before layer standard' $upgraded $standardCenterCommand $layerStandardCommand
     Assert-Contains 'upgrade preserves custom layer standard' $upgraded '(?m)^CUSTOM-LAYER=2\|CONTINUOUS\|Default\|true$'
     Assert-Contains 'upgrade preserves custom layer map' $upgraded '(?m)^CUSTOM-LAYER=CUSTOM$'
     Assert-NotContains 'upgrade does not merge default text style standard section into existing user config' $upgraded '(?m)^\[TextStyleStandard\]$'
