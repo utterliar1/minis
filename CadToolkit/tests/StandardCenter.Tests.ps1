@@ -18,6 +18,7 @@ $layerStandardLabel = -join ([char[]](0x56FE, 0x5C42, 0x89C4, 0x8303))
 $textStandardLabel = -join ([char[]](0x6587, 0x5B57, 0x89C4, 0x8303))
 $configCheckLabel = -join ([char[]](0x914D, 0x7F6E, 0x4F53, 0x68C0))
 $standardToolsGroup = -join ([char[]](0x89C4, 0x8303, 0x5DE5, 0x5177))
+$configToolsGroup = -join ([char[]](0x914D, 0x7F6E, 0x5DE5, 0x5177))
 $standardCenterCommand = $standardCenterLabel + '=CT_STANDARDCENTER'
 
 function Assert-Match($name, $text, $pattern) {
@@ -25,8 +26,18 @@ function Assert-Match($name, $text, $pattern) {
     Write-Host "PASS $name"
 }
 
+function Assert-NotMatch($name, $text, $pattern) {
+    if ($text -match $pattern) { throw "$name unexpectedly found pattern: $pattern" }
+    Write-Host "PASS $name"
+}
+
 function Assert-Literal($name, $text, $literal) {
     if (-not $text.Contains($literal)) { throw "$name did not find literal: $literal" }
+    Write-Host "PASS $name"
+}
+
+function Assert-NotLiteral($name, $text, $literal) {
+    if ($text.Contains($literal)) { throw "$name unexpectedly found literal: $literal" }
     Write-Host "PASS $name"
 }
 
@@ -39,13 +50,11 @@ function Assert-Before($name, $text, $first, $second) {
     Write-Host "PASS $name"
 }
 
-Assert-Literal 'project config contains standard center command' $projectConfig $standardCenterCommand
-Assert-Literal 'default config contains standard center command' $defaultConfig $standardCenterCommand
-Assert-Match 'embedded default contains standard center command' $config 'CT_STANDARDCENTER'
+Assert-NotLiteral 'project config omits standard center from panel commands' $projectConfig $standardCenterCommand
+Assert-NotLiteral 'default config omits standard center from panel commands' $defaultConfig $standardCenterCommand
+Assert-NotLiteral 'embedded default omits standard center from panel commands' $config $standardCenterCommand
 Assert-Literal 'diagnostics knows standard center label' $diagnostics $standardCenterLabel
 Assert-Literal 'diagnostics knows CT_STANDARDCENTER' $diagnostics 'CT_STANDARDCENTER'
-Assert-Before 'standard center is before layer standard in default config' $defaultConfig $standardCenterCommand ($layerStandardLabel + '=CT_LAYERSTANDARD')
-Assert-Before 'standard center is before layer standard in project config' $projectConfig $standardCenterCommand ($layerStandardLabel + '=CT_LAYERSTANDARD')
 
 Assert-Match 'standard center command file exists with command method' $standardCommands '\[CommandMethod\("CT_STANDARDCENTER"\)\]'
 Assert-Literal 'standard center dialog class exists' $standardCommands 'StandardCenterForm'
@@ -56,10 +65,13 @@ Assert-Literal 'standard center has config check action' $standardCommands 'CT_C
 Assert-Literal 'standard center shows layer standard label' $standardCommands $layerStandardLabel
 Assert-Literal 'standard center shows text standard label' $standardCommands $textStandardLabel
 Assert-Literal 'standard center shows config check label' $standardCommands $configCheckLabel
+Assert-Literal 'standard center shows standard tools group' $standardCommands $standardToolsGroup
+Assert-Literal 'standard center shows config tools group' $standardCommands $configToolsGroup
 Assert-Match 'standard center dispatches commands after dialog closes' $standardCommands 'SendStringToExecute\(commandName \+ " "'
 
-Assert-Literal 'panel action has standard center kind' $panel 'STANDARDCENTER'
-Assert-Literal 'panel tooltip exposes standard center' $panel $standardCenterLabel
+Assert-Match 'panel gear opens standard center' $panel 'btnConfigCheck\.Click \+= delegate \{ result = new PanelAction \{ Kind = "STANDARDCENTER" \}'
+Assert-Literal 'panel gear tooltip exposes standard center' $panel $standardCenterLabel
+Assert-NotMatch 'panel has no separate standard center button' $panel 'btnStandardCenter'
 Assert-Match 'plugin dispatches standard center panel action' $plugin 'action\.Kind == "STANDARDCENTER"'
 Assert-Match 'plugin sends standard center command' $plugin 'SendStringToExecute\("CT_STANDARDCENTER "'
 
