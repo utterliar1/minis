@@ -703,6 +703,16 @@ namespace CadToolkit
                 };
                 CadApp.Idle += idle;
             }
+            else if (action.Kind == "STANDARDCENTER")
+            {
+                System.EventHandler idle = null;
+                idle = delegate(object sender, System.EventArgs ea)
+                {
+                    try { CadApp.Idle -= idle; } catch {}
+                    CadApp.DocumentManager.MdiActiveDocument.SendStringToExecute("CT_STANDARDCENTER ", true, false, true);
+                };
+                CadApp.Idle += idle;
+            }
             else if (action.Kind == "ADD")
             {
                 using (var dlg = new AddCommandDialog())

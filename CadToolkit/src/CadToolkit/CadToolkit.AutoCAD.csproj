@@ -35,6 +35,7 @@
     <Compile Include="DrawCommands.cs" />
     <Compile Include="BatchPlotCommands.cs" />
     <Compile Include="ConfigCommands.cs" />
+    <Compile Include="StandardCenterCommands.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CadToolkit.Core\CadToolkit.Core.csproj"><Name>CadToolkit.Core</Name></ProjectReference>

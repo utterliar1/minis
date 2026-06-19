@@ -49,7 +49,7 @@
   <p>AutoCAD / 中望CAD / 浩辰CAD 三平台通用插件工具箱。输入 <code>CC</code> 打开面板，常用绘图、文字、图层、图块和打印操作集中处理。</p>
   <div class="tags">
     <span class="tag">v1.26</span>
-    <span class="tag">21 个内置命令</span>
+    <span class="tag">22 个内置命令</span>
     <span class="tag">三端共用配置</span>
     <span class="tag">支持自定义命令</span>
   </div>
@@ -72,7 +72,7 @@
     <div><strong>面板执行</strong>输入 <code>CC</code>，点击对应按钮。</div>
     <div><strong>命令行执行</strong>直接输入具体命令，例如 <code>CT_BATCHPLOT</code>。</div>
     <div><strong>预选对象</strong>先选对象，再输入 <code>CC</code>，支持预选的命令会直接使用当前选择集。</div>
-    <div><strong>配置体检</strong>点击面板加号左侧齿轮，或输入 <code>CT_CONFIGCHECK</code>。</div>
+    <div><strong>规范中心</strong>点击面板底部 <code>规</code> 按钮，或输入 <code>CT_STANDARDCENTER</code>。</div>
   </div>
   <p>面板命令来自 <code>CadToolkit.ini</code> 的 <code>[Commands]</code> 段。可以用面板底部 <code>+</code> 添加自定义命令，用 <code>-</code> 管理已有命令。</p>
 </div>
@@ -92,10 +92,11 @@
     <tr><td>文字规范</td><td><span class="cmd">CT_TEXTSTYLESTANDARD</span></td><td>按配置把旧文字样式归并到标准文字样式。</td></tr>
   </table>
 
-  <h3>图层管理，5 个</h3>
+  <h3>图层管理，6 个</h3>
   <table>
     <tr><th>面板名称</th><th>命令</th><th>用途</th></tr>
     <tr><td>图层归零</td><td><span class="cmd">CT_SETLAYER0</span></td><td>把选中对象及可处理的块内对象移到 0 层。</td></tr>
+    <tr><td>规范中心</td><td><span class="cmd">CT_STANDARDCENTER</span></td><td>统一进入图层规范、文字规范和配置体检。</td></tr>
     <tr><td>图层规范</td><td><span class="cmd">CT_LAYERSTANDARD</span></td><td>按标准图层和旧图层别名迁移对象，执行前有预览。</td></tr>
     <tr><td>孤立图层</td><td><span class="cmd">CT_ISOLAYER</span></td><td>只保留选中对象所在图层可见，再次执行恢复。</td></tr>
     <tr><td>按层选择</td><td><span class="cmd">CT_SELECTBYLAYER</span></td><td>按源对象图层选择同层对象。</td></tr>
@@ -122,13 +123,25 @@
 </div>
 
 <div class="card">
-  <h2>4. 图层规范</h2>
+  <h2>4. 规范工具</h2>
+  <p><code>CT_STANDARDCENTER</code> 是规范类功能的统一入口。当前包含图层规范、文字规范和配置体检，后续如果增加标注规范、线型规范、颜色规范，也会优先放到这里。</p>
+  <p>在 <code>CC</code> 面板中可以点击底部 <code>规</code> 按钮快速打开，也可以在命令行直接输入 <code>CT_STANDARDCENTER</code>。</p>
+  <table>
+    <tr><th>入口</th><th>用途</th></tr>
+    <tr><td>图层规范</td><td>规范图层、预览迁移、处理白名单。</td></tr>
+    <tr><td>文字规范</td><td>合并文字样式，按需处理块属性和块定义。</td></tr>
+    <tr><td>配置体检</td><td>检查配置缺项、命令错位和映射错误。</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>5. 图层规范</h2>
   <p><code>CT_LAYERSTANDARD</code> 适合在接收外部图纸、整理出图图层、统一团队图层标准时使用。</p>
   <ol class="flow">
     <li>执行 <code>CT_LAYERSTANDARD</code>。</li>
     <li>插件按 <code>[LayerStandard]</code> 准备标准图层属性。</li>
     <li>插件按 <code>[LayerMap]</code> 识别旧图层。别名默认全字匹配，需要包含、前缀、后缀匹配时使用 <code>*</code>。</li>
-    <li>预览窗口会列出将迁移、未识别、白名单三类图层。筛选或搜索时会自动展开结果。</li>
+    <li>预览窗口会列出将迁移、未识别、白名单三类图层。筛选或搜索时会自动展开结果，也可以点“复制当前”复制当前视图。</li>
     <li>确认后才会修改图纸。</li>
   </ol>
   <table>
@@ -146,15 +159,19 @@
     <tr><td><code>*-OLD</code></td><td>匹配 -OLD 结尾的图层。</td></tr>
   </table>
   <pre>[LayerStandard]
+0-设备层=4|CONTINUOUS|Default|true
+1-中心线层=1|CENTER|Default|true
 5-风网=200|CONTINUOUS|Default|true
 
 [LayerMap]
+0-设备层=*设备*,0-4,*VIS*
+1-中心线层=*中心*,*中心线*,*CENTER*,0-1,1,*AXIS*,*CLEARANCE*,ZX,ZXX
 5-风网=*风网*,*风管*,*风道*,0-5,FW</pre>
   <div class="note">第一次整理某类图纸时，建议先不勾选“未识别归 0”，把预览结果复制出来，补全映射后再正式执行。</div>
 </div>
 
 <div class="card">
-  <h2>5. 文字规范</h2>
+  <h2>6. 文字规范</h2>
   <p><code>CT_TEXTSTYLESTANDARD</code> 用于把不同来源图纸里的旧文字样式归并为标准样式。它会处理普通文字、多行文字、块属性，并可选处理块定义内文字。</p>
   <ol class="flow">
     <li>在 <code>[TextStyleStandard]</code> 中定义标准文字样式。</li>
@@ -182,7 +199,7 @@ TITLE-TEXT=*标题*,TITLE</pre>
 </div>
 
 <div class="card">
-  <h2>6. 批量打印</h2>
+  <h2>7. 批量打印</h2>
   <p><code>CT_BATCHPLOT</code> 适合模型空间内多张图框连续出图。最新逻辑是先选一个图框块作为模板，再框选本次要打印的范围，插件只收集范围内同名图框块。</p>
   <ol class="flow">
     <li>执行 <code>CT_BATCHPLOT</code>。</li>
@@ -223,7 +240,7 @@ TITLE-TEXT=*标题*,TITLE</pre>
 </div>
 
 <div class="card">
-  <h2>7. 配置文件和升级</h2>
+  <h2>8. 配置文件和升级</h2>
   <p>配置文件位于插件根目录。AutoCAD、中望CAD、浩辰CAD 三端共享同一份 <code>CadToolkit.ini</code>。</p>
   <table>
     <tr><th>文件</th><th>作用</th></tr>
@@ -239,7 +256,7 @@ TITLE-TEXT=*标题*,TITLE</pre>
     <li>不会覆盖你的图层标准、图层映射、文字样式标准、文字样式映射和自定义命令值。</li>
   </ul>
   <h3>配置体检</h3>
-  <p>输入 <code>CT_CONFIGCHECK</code> 或点击面板齿轮按钮。体检窗口会用中文说明问题和可修复项，支持 <code>Esc</code> 关闭。</p>
+  <p>输入 <code>CT_STANDARDCENTER</code> 可从规范中心进入配置体检；也可以输入 <code>CT_CONFIGCHECK</code> 或点击面板齿轮按钮直接打开。体检窗口会用中文说明问题和可修复项，支持 <code>Esc</code> 关闭。</p>
   <pre>powershell -NoProfile -ExecutionPolicy Bypass -File C:\CadToolkit\tools\check-config.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File C:\CadToolkit\tools\check-config.ps1 -Fix</pre>
   <h3>常用配置项</h3>
@@ -261,7 +278,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:\CadToolkit\tools\check-co
 </div>
 
 <div class="card">
-  <h2>8. 安装、迁移和平台</h2>
+  <h2>9. 安装、迁移和平台</h2>
   <table>
     <tr><th>平台</th><th>最低版本</th><th>说明</th></tr>
     <tr><td>AutoCAD</td><td>2020+</td><td>使用 AutoCAD 专用 DLL。</td></tr>
@@ -278,7 +295,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:\CadToolkit\tools\check-co
 </div>
 
 <div class="card qa">
-  <h2>9. 常见问题</h2>
+  <h2>10. 常见问题</h2>
   <div class="q">Q：输入 CC 没有反应？</div>
   <div class="a">A：先执行 <code>(load "C:/CadToolkit/autoload.lsp")</code>。如果提示 DLL 被拦截，对插件目录执行 <code>Unblock-File</code>。</div>
 
