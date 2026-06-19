@@ -339,7 +339,7 @@ Assert-ContainsLiteral 'text style preview cancel button label' $textStyleComman
 Assert-Contains 'text style preview copies current tree' $textStyleCommandsSource 'Clipboard\.SetText'
 Assert-Contains 'text style preview rebuilds tree on keyword change' $textStyleCommandsSource 'TextChanged\s*\+='
 Assert-Contains 'text style standard preview helper expands focused preview tree' $standardPreviewUi 'tree\.ExpandAll\s*\('
-Assert-Contains 'text style searched tree delegates to shared helper' $textStyleCommandsSource 'FilterStandardPreviewNodes'
+Assert-Contains 'text style searched tree delegates to shared helper' $textStyleCommandsSource 'BuildSearchedStandardPreviewTreeNodes'
 Assert-Contains 'text style tree report delegates to shared helper' $textStyleCommandsSource 'FormatStandardPreviewTreeReport'
 Assert-Contains 'text style current-space scope defaults checked' $textStyleCommandsSource 'chkCurrentSpace\.Checked\s*=\s*true'
 Assert-Contains 'text style attribute scope defaults unchecked' $textStyleCommandsSource 'chkAttributes\.Checked\s*=\s*false'

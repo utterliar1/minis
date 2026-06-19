@@ -278,7 +278,7 @@ Assert-Contains 'layer standard preview has whitelist filter button' $layerComma
 Assert-Contains 'layer standard preview has copy current button' $layerCommands '\\u590d\\u5236\\u5f53\\u524d'
 Assert-Contains 'layer standard copy report uses clipboard' $layerCommands 'Clipboard\.SetText'
 Assert-Contains 'layer standard copy report formats current tree' $layerCommands 'FormatLayerPlanTreeReport'
-Assert-Contains 'layer standard searched tree delegates to shared helper' (Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit\Plugin.cs') -Raw) 'FilterStandardPreviewNodes'
+Assert-Contains 'layer standard searched tree delegates to shared helper' (Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit\Plugin.cs') -Raw) 'BuildSearchedStandardPreviewTreeNodes'
 Assert-Contains 'layer standard report delegates to shared helper' (Get-Content -Encoding UTF8 (Join-Path $src 'CadToolkit\Plugin.cs') -Raw) 'FormatStandardPreviewTreeReport'
 Assert-NotContains 'layer standard copy report no longer copies full plan directly' $layerCommands 'Clipboard\.SetText\(FormatLayerPlan\('
 Assert-NotContains 'layer standard no longer creates text preview variable' $layerCommands 'var\s+txt\s*=\s*new\s+TextBox\s*\('

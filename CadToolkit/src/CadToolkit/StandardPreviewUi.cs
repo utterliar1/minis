@@ -18,6 +18,36 @@ namespace CadToolkit
             public TextBox Search;
         }
 
+        class StandardPreviewItem
+        {
+            public string SourceText;
+            public string TargetText;
+            public string TargetLabel;
+            public int Count;
+            public string Reason;
+        }
+
+        class StandardPreviewTargetGroup
+        {
+            public string TargetText;
+            public string TargetLabel;
+            public int Count;
+            public List<StandardPreviewItem> Items = new List<StandardPreviewItem>();
+        }
+
+        class StandardPreviewModel
+        {
+            public string SummaryText;
+            public string UnknownTitle;
+            public string MigrationTitle;
+            public string WhitelistTitle;
+            public bool UnknownMovesToTarget;
+            public string UnknownTargetText;
+            public List<StandardPreviewItem> UnknownItems = new List<StandardPreviewItem>();
+            public List<StandardPreviewItem> MigrationItems = new List<StandardPreviewItem>();
+            public List<StandardPreviewItem> WhitelistItems = new List<StandardPreviewItem>();
+        }
+
         static Form CreateStandardPreviewForm(string title)
         {
             var f = new Form();
@@ -80,6 +110,121 @@ namespace CadToolkit
             button.FlatStyle = FlatStyle.System;
             button.DialogResult = dialogResult;
             return button;
+        }
+
+        static TreeNode[] BuildStandardPreviewTreeNodes(StandardPreviewModel model, bool preserveUnknown)
+        {
+            var nodes = new List<TreeNode>();
+            if (model == null) model = new StandardPreviewModel();
+
+            nodes.Add(new TreeNode(SafeStr(model.SummaryText)));
+
+            var unknown = new TreeNode(SafeStr(model.UnknownTitle));
+            foreach (var item in SortStandardPreviewItemsByCount(model.UnknownItems))
+            {
+                string text = model.UnknownMovesToTarget
+                    ? string.Format("{0} -> {1}    {2} 对象    {3}", SafeStr(item.SourceText), SafeStr(model.UnknownTargetText), item.Count, SafeStr(item.Reason))
+                    : string.Format("{0}    {1} 对象    保持原样    {2}", SafeStr(item.SourceText), item.Count, SafeStr(item.Reason));
+                if (!ContainsNonAscii(model.UnknownTitle))
+                {
+                    text = model.UnknownMovesToTarget
+                        ? string.Format("{0} -> {1}    {2} objects    {3}", SafeStr(item.SourceText), SafeStr(model.UnknownTargetText), item.Count, SafeStr(item.Reason))
+                        : string.Format("{0}    {1} objects    preserve    {2}", SafeStr(item.SourceText), item.Count, SafeStr(item.Reason));
+                }
+                unknown.Nodes.Add(new TreeNode(text));
+            }
+            if (preserveUnknown) unknown.Expand();
+            nodes.Add(unknown);
+
+            var migration = new TreeNode(SafeStr(model.MigrationTitle));
+            foreach (var group in BuildStandardPreviewTargetGroups(model.MigrationItems))
+            {
+                string groupText = string.Format("{0}（{1} 项 / {2} 对象）", SafeStr(group.TargetLabel), group.Items.Count, group.Count);
+                if (!ContainsNonAscii(model.MigrationTitle))
+                    groupText = string.Format("{0} ({1} items / {2} objects)", SafeStr(group.TargetLabel), group.Items.Count, group.Count);
+                var groupNode = new TreeNode(groupText);
+                foreach (var item in SortStandardPreviewItemsByCount(group.Items))
+                {
+                    string text = string.Format("{0} -> {1}    {2} 对象    {3}", SafeStr(item.SourceText), SafeStr(item.TargetText), item.Count, SafeStr(item.Reason));
+                    if (!ContainsNonAscii(model.MigrationTitle))
+                        text = string.Format("{0} -> {1}    {2} objects    {3}", SafeStr(item.SourceText), SafeStr(item.TargetText), item.Count, SafeStr(item.Reason));
+                    groupNode.Nodes.Add(new TreeNode(text));
+                }
+                migration.Nodes.Add(groupNode);
+            }
+            nodes.Add(migration);
+
+            var whitelist = new TreeNode(SafeStr(model.WhitelistTitle));
+            foreach (var item in SortStandardPreviewItemsByCount(model.WhitelistItems))
+            {
+                string text = string.Format("{0}    {1} 对象    {2}", SafeStr(item.SourceText), item.Count, SafeStr(item.Reason));
+                if (!ContainsNonAscii(model.WhitelistTitle))
+                    text = string.Format("{0}    {1} objects    {2}", SafeStr(item.SourceText), item.Count, SafeStr(item.Reason));
+                whitelist.Nodes.Add(new TreeNode(text));
+            }
+            nodes.Add(whitelist);
+
+            return nodes.ToArray();
+        }
+
+        static TreeNode[] BuildFilteredStandardPreviewTreeNodes(StandardPreviewModel model, int filter, bool preserveUnknown)
+        {
+            var allNodes = BuildStandardPreviewTreeNodes(model, preserveUnknown);
+            if (filter == 0) return allNodes;
+
+            var nodes = new List<TreeNode>();
+            nodes.Add((TreeNode)allNodes[0].Clone());
+            if (filter == 1) nodes.Add((TreeNode)allNodes[1].Clone());
+            if (filter == 2) nodes.Add((TreeNode)allNodes[2].Clone());
+            if (filter == 3) nodes.Add((TreeNode)allNodes[3].Clone());
+            return nodes.ToArray();
+        }
+
+        static TreeNode[] BuildSearchedStandardPreviewTreeNodes(StandardPreviewModel model, int filter, string searchText, bool preserveUnknown)
+        {
+            return FilterStandardPreviewNodes(BuildFilteredStandardPreviewTreeNodes(model, filter, preserveUnknown), searchText);
+        }
+
+        static List<StandardPreviewTargetGroup> BuildStandardPreviewTargetGroups(List<StandardPreviewItem> items)
+        {
+            var byTarget = new Dictionary<string, StandardPreviewTargetGroup>(StringComparer.OrdinalIgnoreCase);
+            if (items != null)
+            {
+                foreach (var item in items)
+                {
+                    if (item == null) continue;
+                    string target = SafeStr(item.TargetText);
+                    StandardPreviewTargetGroup group;
+                    if (!byTarget.TryGetValue(target, out group))
+                    {
+                        group = new StandardPreviewTargetGroup { TargetText = target, TargetLabel = string.IsNullOrEmpty(item.TargetLabel) ? target : item.TargetLabel };
+                        byTarget[target] = group;
+                    }
+                    group.Count += item.Count;
+                    group.Items.Add(item);
+                }
+            }
+
+            var groups = new List<StandardPreviewTargetGroup>(byTarget.Values);
+            groups.Sort(delegate(StandardPreviewTargetGroup a, StandardPreviewTargetGroup b)
+            {
+                int byCount = b.Count.CompareTo(a.Count);
+                if (byCount != 0) return byCount;
+                return SafeStr(a.TargetLabel).CompareTo(SafeStr(b.TargetLabel));
+            });
+            return groups;
+        }
+
+        static List<StandardPreviewItem> SortStandardPreviewItemsByCount(List<StandardPreviewItem> items)
+        {
+            var sorted = items == null ? new List<StandardPreviewItem>() : new List<StandardPreviewItem>(items);
+            sorted.Sort(delegate(StandardPreviewItem a, StandardPreviewItem b)
+            {
+                int byCount = b.Count.CompareTo(a.Count);
+                if (byCount != 0) return byCount;
+                return SafeStr(a.SourceText).CompareTo(SafeStr(b.SourceText));
+            });
+            return sorted;
         }
 
         static TreeNode[] FilterStandardPreviewNodes(TreeNode[] filtered, string searchText)
@@ -147,6 +292,13 @@ namespace CadToolkit
             }
             if (selfMatches || clone.Nodes.Count > 0) return clone;
             return null;
+        }
+
+        static bool ContainsNonAscii(string text)
+        {
+            foreach (char c in SafeStr(text))
+                if (c > 127) return true;
+            return false;
         }
     }
 }
