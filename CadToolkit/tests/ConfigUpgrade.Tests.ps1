@@ -47,6 +47,8 @@ $standardCenterCommand = (-join ([char[]](0x89C4, 0x8303, 0x4E2D, 0x5FC3))) + '=
 $layerStandardCommand = (-join ([char[]](0x56FE, 0x5C42, 0x89C4, 0x8303))) + '=CT_LAYERSTANDARD'
 $configMaintenancePattern = '(?m)^' + [regex]::Escape($configMaintenanceCommand) + '$'
 $standardCenterPattern = '(?m)^' + [regex]::Escape($standardCenterCommand) + '$'
+$batchPlotComment = '# ' + (-join ([char[]](0x6279, 0x91CF, 0x6253, 0x5370)))
+$commandListComment = '# ' + (-join ([char[]](0x547D, 0x4EE4, 0x5217, 0x8868)))
 
 $tmpRoot = Join-Path ([IO.Path]::GetTempPath()) ('CadToolkitConfigUpgrade-' + [Guid]::NewGuid().ToString('N'))
 $platformDir = Join-Path $tmpRoot 'acad'
@@ -63,6 +65,7 @@ try {
         $textNumberCommand,
         $oldTextStyleCommand,
         $layerZeroCommand,
+        $standardCenterCommand,
         $layerStandardCommand,
         $batchPlotCommand,
         $incCopyCommand,
@@ -95,10 +98,14 @@ try {
     Assert-Contains 'upgrade appends missing text style normalize color default' $upgraded '(?m)^TextStyleNormalizeColorByLayer=false$'
     Assert-Contains 'upgrade appends missing text style delete default' $upgraded '(?m)^TextStyleDeleteUnusedOldStyles=false$'
     Assert-Before 'upgrade keeps scalar defaults before sections' $upgraded 'DeleteOriginal=true' '[Commands]'
+    Assert-Before 'upgrade writes batch plot comment before batch settings' $upgraded $batchPlotComment 'BatchPlotDevice='
+    Assert-Before 'upgrade keeps batch settings before command comments' $upgraded 'BatchPlotSortReverse=' $commandListComment
+    Assert-Before 'upgrade keeps command comments before commands section' $upgraded $commandListComment '[Commands]'
     Assert-Contains 'upgrade preserves custom command section' $upgraded '(?m)^Custom=MY_CUSTOM_CMD$'
     Assert-Contains 'upgrade appends missing official new command' $upgraded $changeBasepointPattern
     Assert-NotContains 'upgrade does not add config maintenance to panel commands' $upgraded $configMaintenancePattern
     Assert-NotContains 'upgrade does not add standard center to panel commands' $upgraded $standardCenterPattern
+    Assert-NotContains 'upgrade removes old standard center panel command' $upgraded $standardCenterPattern
     Assert-Contains 'upgrade renames official text style command label' $upgraded $textStyleCommandPattern
     Assert-NotContains 'upgrade removes old text style command label' $upgraded ('(?m)^' + [regex]::Escape($oldTextStyleCommand) + '$')
     Assert-Contains 'upgrade preserves increment copy command' $upgraded ('(?m)^' + [regex]::Escape($incCopyCommand) + '$')

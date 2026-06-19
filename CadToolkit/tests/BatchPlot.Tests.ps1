@@ -20,7 +20,7 @@ $sizeMismatchWarning = -join ([char[]](0x68C0, 0x6D4B, 0x5230, 0x56FE, 0x6846, 0
 $sendToPrinterText = -join ([char[]](0x53D1, 0x9001, 0x5230, 0x6253, 0x5370, 0x673A))
 $outputPdfText = -join ([char[]](0x8F93, 0x51FA, 0xFF1A, 0x50, 0x44, 0x46))
 $outputPrinterText = -join ([char[]](0x8F93, 0x51FA, 0xFF1A, 0x6253, 0x5370, 0x673A))
-$builtInCountText = '22 ' + (-join ([char[]](0x4E2A, 0x5185, 0x7F6E)))
+$builtInCountText = '21 ' + (-join ([char[]](0x4E2A, 0x5185, 0x7F6E)))
 $positionSortRuleText = -join ([char[]](0x5148, 0x6309, 0x5DE6, 0x53F3, 0x5217, 0xFF0C, 0x518D, 0x6309, 0x540C, 0x4E00, 0x5217, 0x4ECE, 0x4E0A, 0x5230, 0x4E0B))
 $quickStartText = -join ([char[]](0x5FEB, 0x901F, 0x5F00, 0x59CB))
 $featureOverviewText = -join ([char[]](0x529F, 0x80FD, 0x603B, 0x89C8))
@@ -132,9 +132,10 @@ Assert-Match 'batch plot dialog has file name mode label' $dialogs '\\u6587\\u4E
 Assert-Match 'batch plot dialog has file name mode combo' $dialogs 'cmbFileNameMode'
 Assert-Match 'batch plot dialog has sort mode combo' $dialogs 'cmbSortMode'
 Assert-Match 'batch plot dialog supports selection order sort mode' $dialogs 'AddFileNameMode\(cmbSortMode,\s*"SelectionOrder",\s*"\\u9009\\u62E9\\u987A\\u5E8F"\)'
-Assert-Match 'batch plot dialog has sort forward radio' $dialogs 'rbSortForward'
-Assert-Match 'batch plot dialog has sort reverse radio' $dialogs 'rbSortReverse'
-Assert-Match 'batch plot dialog places sort direction under plot toggles' $dialogs 'rbSortForward\.Left\s*=\s*430;\s*rbSortForward\.Top\s*=\s*170[\s\S]*rbSortReverse\.Left\s*=\s*500;\s*rbSortReverse\.Top\s*=\s*170'
+Assert-Match 'batch plot dialog has sort forward checkbox' $dialogs 'var\s+chkSortForward\s*=\s*new\s+CheckBox\(\)'
+Assert-Match 'batch plot dialog has sort reverse checkbox' $dialogs 'var\s+chkSortReverse\s*=\s*new\s+CheckBox\(\)'
+Assert-Match 'batch plot dialog aligns sort direction with plot toggles' $dialogs 'chkRotate\.Left\s*=\s*430;\s*chkRotate\.Top\s*=\s*146[\s\S]*chkCenter\.Left\s*=\s*540;\s*chkCenter\.Top\s*=\s*146[\s\S]*chkSortForward\.Left\s*=\s*430;\s*chkSortForward\.Top\s*=\s*170[\s\S]*chkSortReverse\.Left\s*=\s*540;\s*chkSortReverse\.Top\s*=\s*170'
+Assert-Match 'batch plot dialog uses same font for sort direction checkboxes' $dialogs 'chkSortForward\.Font\s*=\s*new\s+System\.Drawing\.Font\("Microsoft YaHei",\s*9\.5f\)[\s\S]*chkSortReverse\.Font\s*=\s*new\s+System\.Drawing\.Font\("Microsoft YaHei",\s*9\.5f\)'
 Assert-NotMatch 'batch plot dialog does not show duplicate lower summary' $dialogs '\\u6458\\u8981'
 Assert-NotMatch 'batch plot dialog top summary is not ellipsized' $dialogs 'lblInfo\.AutoEllipsis\s*=\s*true'
 Assert-Match 'batch plot dialog has preflight list view' $dialogs 'new\s+ListView\s*\('
@@ -159,7 +160,7 @@ Assert-Match 'batch plot dialog explains position sort rule' $dialogs '\\u4ECE\\
 Assert-Match 'batch plot dialog explains sheet number sort rule' $dialogs '\\u6309\\u56FE\\u53F7[\s\S]*\\u56FE\\u540D[\s\S]*\\u4F4D\\u7F6E'
 Assert-Match 'batch plot dialog explains selection order sort rule' $dialogs '\\u6309\\u9009\\u62E9\\u56FE\\u6846\\u7684\\u5148\\u540E\\u987A\\u5E8F'
 Assert-Match 'batch plot dialog refreshes on sort mode change' $dialogs 'cmbSortMode\.SelectedIndexChanged\s*\+='
-Assert-Match 'batch plot dialog passes sort mode and direction into refresh' $dialogs 'RefreshBatchPlotPreflight\(lblInfo,\s*lblSortRule,\s*preflightList,\s*preflightRows,\s*frameBlockName,\s*frameCount,\s*drawingName,\s*cmbDevice\.Text,\s*GetDialogSelectedFileNameMode\(cmbFileNameMode\),\s*GetDialogSelectedFileNameMode\(cmbSortMode\),\s*rbSortReverse\.Checked\)'
+Assert-Match 'batch plot dialog passes sort mode and direction into refresh' $dialogs 'RefreshBatchPlotPreflight\(lblInfo,\s*lblSortRule,\s*preflightList,\s*preflightRows,\s*frameBlockName,\s*frameCount,\s*drawingName,\s*cmbDevice\.Text,\s*GetDialogSelectedFileNameMode\(cmbFileNameMode\),\s*GetDialogSelectedFileNameMode\(cmbSortMode\),\s*chkSortReverse\.Checked\)'
 Assert-Match 'batch plot dialog refresh helper accepts sort rule label mode and direction' $dialogs 'RefreshBatchPlotPreflight\(Label\s+summary,\s*Label\s+sortRule,\s*ListView\s+list,\s*List<BatchPlotPreflightRow>\s+rows,[\s\S]*string\s+fileNameMode,\s*string\s+sortMode,\s*bool\s+reverseOrder\)'
 Assert-Match 'batch plot dialog sorts preflight rows by selected mode' $dialogs 'SortDialogBatchPlotPreflightRows\(rows,\s*sortMode\)'
 Assert-Match 'batch plot dialog reverses preflight rows when requested' $dialogs 'if\s*\(reverseOrder\)\s*rows\.Reverse\(\)'
@@ -266,6 +267,15 @@ Assert-Match 'batch plot detects duplicate output filenames' $batchPlotCommands 
 Assert-Match 'batch plot preflight marks normal status' $batchPlotCommands '\\u6B63\\u5E38'
 Assert-Match 'batch plot preflight marks duplicate filename status' $batchPlotCommands '\\u6587\\u4EF6\\u540D\\u91CD\\u590D'
 Assert-Match 'batch plot preflight marks size mismatch status' $batchPlotCommands '\\u5C3A\\u5BF8\\u5F02\\u5E38'
+Assert-Match 'batch plot detects blocking preflight helper exists' $batchPlotCommands 'static\s+bool\s+HasBatchPlotBlockingPreflightIssue\(List<BatchPlotPreflightRow>\s+rows\)'
+Assert-Match 'batch plot detects blocking status helper exists' $batchPlotCommands 'static\s+bool\s+IsBatchPlotBlockingStatus\(string\s+status\)'
+Assert-Match 'batch plot confirms preflight issues before printing' $batchPlotCommands 'static\s+bool\s+ConfirmBatchPlotPreflightIssues\(List<BatchPlotPreflightRow>\s+rows\)'
+Assert-Match 'batch plot treats directory issue as blocking' $batchPlotCommands 'IsBatchPlotBlockingStatus[\s\S]*\\u76EE\\u5F55\\u5F02\\u5E38'
+Assert-Match 'batch plot treats duplicate filename as blocking' $batchPlotCommands 'IsBatchPlotBlockingStatus[\s\S]*\\u6587\\u4EF6\\u540D\\u91CD\\u590D'
+Assert-Match 'batch plot treats missing device as blocking' $batchPlotCommands 'IsBatchPlotBlockingStatus[\s\S]*\\u8BBE\\u5907\\u7F3A\\u5931'
+Assert-Match 'batch plot treats missing style as blocking' $batchPlotCommands 'IsBatchPlotBlockingStatus[\s\S]*\\u6837\\u5F0F\\u7F3A\\u5931'
+Assert-Order 'batch plot confirms preflight before gstar plotting' $batchPlotCommands 'ConfirmBatchPlotPreflightIssues(preflightRows)' 'RunGstarBatchPlotWithPlotCommand'
+Assert-Order 'batch plot confirms preflight before normal plotting' $batchPlotCommands 'ConfirmBatchPlotPreflightIssues(preflightRows)' 'PlotFrameToPdf'
 Assert-Match 'batch plot rejects drive-only output directory' $batchPlotCommands 'IsDriveOnlyPath'
 Assert-Match 'batch plot validates pdf file header' $batchPlotCommands 'IsValidPdfFile'
 Assert-Match 'batch plot requires pdf header marker' $batchPlotCommands '%PDF'

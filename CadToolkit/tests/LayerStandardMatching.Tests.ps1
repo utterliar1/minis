@@ -295,7 +295,7 @@ $localConfig = if (Test-Path -LiteralPath $localConfigPath) { Get-Content -Encod
 $equipmentLinePattern = '0-\u8BBE\u5907\u5C42=\*\u8BBE\u5907\*,0-4,\*VIS\*'
 $localEquipmentLinePattern = '0-\u8BBE\u5907\u5C42=\*\u8BBE\u5907\*,0-4,\*VIS\*'
 $centerLinePattern = '1-\u4E2D\u5FC3\u7EBF\u5C42=\*\u4E2D\u5FC3\*,\*\u4E2D\u5FC3\u7EBF\*,\*CENTER\*,0-1,1,\*AXIS\*,\*CLEARANCE\*,ZX,ZXX'
-$textLinePattern = '3-\u6587\u5B57\u5C42=\*\u6587\u5B57\*,\*\u8BF4\u660E\*,\*\u7F16\u53F7\*,\*TEXT,\*txt'
+$textLinePattern = '3-\u6587\u5B57\u5C42=\*\u6587\u5B57\*,\*\u8BF4\u660E\*,\*\u7F16\u53F7\*,\*TEXT\*,\*txt\*'
 $embeddedCenterLinePattern = '1-\\u4E2D\\u5FC3\\u7EBF\\u5C42=\*\\u4E2D\\u5FC3\*,\*\\u4E2D\\u5FC3\\u7EBF\*,\*CENTER\*,0-1,1,\*AXIS\*,\*CLEARANCE\*,ZX,ZXX'
 $oldEquipmentLinePattern = '(?m)^0-\u8BBE\u5907\u5C42=\u8BBE\u5907,0-4,VIS35$'
 $embeddedEquipmentLinePattern = '0-\\u8BBE\\u5907\\u5C42=\*\\u8BBE\\u5907\*,0-4,\*VIS\*'
@@ -325,3 +325,25 @@ Assert-Contains 'readme documents copying current layer preview' $readme '\u590D
 Assert-Contains 'manual documents copying current layer preview' $manual '\u590D\u5236\u5F53\u524D'
 Assert-NotContains 'readme removes old contains alias wording' $readme '\u53EA\u8981\u5305\u542B\u67D0\u4E2A\u522B\u540D'
 Assert-NotContains 'manual removes old contains alias wording' $manual '\u53EA\u8981\u5305\u542B\u67D0\u4E2A\u522B\u540D'
+
+$localLayerWhitelistPattern = 'LayerStandardWhitelist=0,Defpoints,\u56FE\u6846\u7EBF\u6761,\u56FE\u6846\u6C49\u5B57,\u56FE\u6846\u82F1\u6587,\*\u89C6\u53E3\*,\*\u539F\u6709\*,\*\u65B0\u589E\*,\u7B7E\u540D'
+$embeddedLocalLayerWhitelistPattern = 'LayerStandardWhitelist=0,Defpoints,\\u56FE\\u6846\\u7EBF\\u6761,\\u56FE\\u6846\\u6C49\\u5B57,\\u56FE\\u6846\\u82F1\\u6587,\*\\u89C6\\u53E3\*,\*\\u539F\\u6709\*,\*\\u65B0\\u589E\*,\\u7B7E\\u540D'
+$auxLayerStandardPattern = '12-\u8F85\u52A9\u7EBF=8\|CONTINUOUS\|Default\|true'
+$embeddedAuxLayerStandardPattern = '12-\\u8F85\\u52A9\\u7EBF=8\|CONTINUOUS\|Default\|true'
+$localTextLayerPattern = '3-\u6587\u5B57\u5C42=\*\u6587\u5B57\*,\*\u8BF4\u660E\*,\*\u7F16\u53F7\*,\*TEXT\*,\*txt\*'
+$embeddedLocalTextLayerPattern = '3-\\u6587\\u5B57\\u5C42=\*\\u6587\\u5B57\*,\*\\u8BF4\\u660E\*,\*\\u7F16\\u53F7\*,\*TEXT\*,\*txt\*'
+$auxLayerMapPattern = '12-\u8F85\u52A9\u7EBF=\*\u8F85\u52A9\u7EBF\*'
+$embeddedAuxLayerMapPattern = '12-\\u8F85\\u52A9\\u7EBF=\*\\u8F85\\u52A9\\u7EBF\*'
+
+Assert-Contains 'project config syncs local layer whitelist' $projectConfig $localLayerWhitelistPattern
+Assert-Contains 'default config syncs local layer whitelist' $defaultConfig $localLayerWhitelistPattern
+Assert-Contains 'embedded default syncs local layer whitelist' $configSource $embeddedLocalLayerWhitelistPattern
+Assert-Contains 'project config includes auxiliary layer standard' $projectConfig $auxLayerStandardPattern
+Assert-Contains 'default config includes auxiliary layer standard' $defaultConfig $auxLayerStandardPattern
+Assert-Contains 'embedded default includes auxiliary layer standard' $configSource $embeddedAuxLayerStandardPattern
+Assert-Contains 'project config syncs local text wildcard aliases' $projectConfig $localTextLayerPattern
+Assert-Contains 'default config syncs local text wildcard aliases' $defaultConfig $localTextLayerPattern
+Assert-Contains 'embedded default syncs local text wildcard aliases' $configSource $embeddedLocalTextLayerPattern
+Assert-Contains 'project config includes auxiliary layer map' $projectConfig $auxLayerMapPattern
+Assert-Contains 'default config includes auxiliary layer map' $defaultConfig $auxLayerMapPattern
+Assert-Contains 'embedded default includes auxiliary layer map' $configSource $embeddedAuxLayerMapPattern

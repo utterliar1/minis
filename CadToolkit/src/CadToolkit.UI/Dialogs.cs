@@ -424,17 +424,17 @@ namespace CadToolkit.UI
             chkCenter.Checked = CenterPlot;
             chkCenter.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
 
-            var rbSortForward = new RadioButton();
-            rbSortForward.Text = "\u987A\u5E8F";
-            rbSortForward.Left = 430; rbSortForward.Top = 170; rbSortForward.Width = 64;
-            rbSortForward.Checked = !ReverseOrder;
-            rbSortForward.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var chkSortForward = new CheckBox();
+            chkSortForward.Text = "\u987A\u5E8F";
+            chkSortForward.Left = 430; chkSortForward.Top = 170; chkSortForward.Width = 96;
+            chkSortForward.Checked = !ReverseOrder;
+            chkSortForward.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
 
-            var rbSortReverse = new RadioButton();
-            rbSortReverse.Text = "\u5012\u5E8F";
-            rbSortReverse.Left = 500; rbSortReverse.Top = 170; rbSortReverse.Width = 64;
-            rbSortReverse.Checked = ReverseOrder;
-            rbSortReverse.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+            var chkSortReverse = new CheckBox();
+            chkSortReverse.Text = "\u5012\u5E8F";
+            chkSortReverse.Left = 540; chkSortReverse.Top = 170; chkSortReverse.Width = 94;
+            chkSortReverse.Checked = ReverseOrder;
+            chkSortReverse.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
 
             var lblSortRule = new Label();
             lblSortRule.Left = 16; lblSortRule.Top = 146; lblSortRule.Width = 388; lblSortRule.Height = 20;
@@ -483,13 +483,31 @@ namespace CadToolkit.UI
             };
             outputDirectoryToolTip.SetToolTip(copyPreflight, "\u590D\u5236\u9884\u68C0\u5217\u8868\u5230\u526A\u8D34\u677F");
 
-            EventHandler refreshPreflight = delegate { RefreshBatchPlotPreflight(lblInfo, lblSortRule, preflightList, preflightRows, frameBlockName, frameCount, drawingName, cmbDevice.Text, GetDialogSelectedFileNameMode(cmbFileNameMode), GetDialogSelectedFileNameMode(cmbSortMode), rbSortReverse.Checked); };
+            bool updatingSortDirection = false;
+            EventHandler refreshPreflight = delegate { RefreshBatchPlotPreflight(lblInfo, lblSortRule, preflightList, preflightRows, frameBlockName, frameCount, drawingName, cmbDevice.Text, GetDialogSelectedFileNameMode(cmbFileNameMode), GetDialogSelectedFileNameMode(cmbSortMode), chkSortReverse.Checked); };
+            EventHandler syncSortDirection = delegate(object sender, EventArgs e)
+            {
+                if (updatingSortDirection) return;
+                updatingSortDirection = true;
+                if (sender == chkSortReverse)
+                {
+                    if (chkSortReverse.Checked) chkSortForward.Checked = false;
+                    else if (!chkSortForward.Checked) chkSortForward.Checked = true;
+                }
+                else
+                {
+                    if (chkSortForward.Checked) chkSortReverse.Checked = false;
+                    else if (!chkSortReverse.Checked) chkSortReverse.Checked = true;
+                }
+                updatingSortDirection = false;
+                refreshPreflight(sender, e);
+            };
             cmbDevice.TextChanged += refreshPreflight;
             cmbFileNameMode.SelectedIndexChanged += refreshPreflight;
             cmbSortMode.SelectedIndexChanged += refreshPreflight;
-            rbSortForward.CheckedChanged += refreshPreflight;
-            rbSortReverse.CheckedChanged += refreshPreflight;
-            RefreshBatchPlotPreflight(lblInfo, lblSortRule, preflightList, preflightRows, frameBlockName, frameCount, drawingName, cmbDevice.Text, GetDialogSelectedFileNameMode(cmbFileNameMode), GetDialogSelectedFileNameMode(cmbSortMode), rbSortReverse.Checked);
+            chkSortForward.CheckedChanged += syncSortDirection;
+            chkSortReverse.CheckedChanged += syncSortDirection;
+            RefreshBatchPlotPreflight(lblInfo, lblSortRule, preflightList, preflightRows, frameBlockName, frameCount, drawingName, cmbDevice.Text, GetDialogSelectedFileNameMode(cmbFileNameMode), GetDialogSelectedFileNameMode(cmbSortMode), chkSortReverse.Checked);
 
             var ok = new Button();
             ok.Text = "\u786E\u5B9A";
@@ -517,7 +535,7 @@ namespace CadToolkit.UI
                 MarginPercent = MarginMm;
                 FileNameMode = GetSelectedFileNameMode(cmbFileNameMode);
                 SortMode = GetSelectedFileNameMode(cmbSortMode);
-                ReverseOrder = rbSortReverse.Checked;
+                ReverseOrder = chkSortReverse.Checked;
                 Config.BatchPlotDevice = DeviceName;
                 Config.BatchPlotPaper = PaperName;
                 Config.BatchPlotStyle = PlotStyle;
@@ -530,7 +548,7 @@ namespace CadToolkit.UI
                 Config.BatchPlotSortReverse = ReverseOrder;
             };
 
-            Controls.AddRange(new Control[] { lblInfo, lblDir, txtDir, lblDevice, cmbDevice, lblPaper, cmbPaper, lblStyle, cmbStyle, lblMargin, txtMargin, lblMarginUnit, lblFileName, cmbFileNameMode, lblSortMode, cmbSortMode, chkRotate, chkCenter, rbSortForward, rbSortReverse, lblSortRule, lblNote, preflightList, lblWarning, copyPreflight, ok, cancel });
+            Controls.AddRange(new Control[] { lblInfo, lblDir, txtDir, lblDevice, cmbDevice, lblPaper, cmbPaper, lblStyle, cmbStyle, lblMargin, txtMargin, lblMarginUnit, lblFileName, cmbFileNameMode, lblSortMode, cmbSortMode, chkRotate, chkCenter, chkSortForward, chkSortReverse, lblSortRule, lblNote, preflightList, lblWarning, copyPreflight, ok, cancel });
             AcceptButton = ok; CancelButton = cancel;
             Shown += delegate { cmbDevice.Focus(); };
             DpiUtil.Apply(this);

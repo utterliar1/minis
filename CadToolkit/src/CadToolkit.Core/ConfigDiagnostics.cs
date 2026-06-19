@@ -63,7 +63,7 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("AlignLineSpacing", "0"),
             new KeyValuePair<string, string>("IsoLayerKeepLayer0", "false"),
             new KeyValuePair<string, string>("LayerStandardFallbackTo0", "false"),
-            new KeyValuePair<string, string>("LayerStandardWhitelist", "0,Defpoints,*图框*,*视口*,*原有*,*新增*"),
+            new KeyValuePair<string, string>("LayerStandardWhitelist", "0,Defpoints,图框线条,图框汉字,图框英文,*视口*,*原有*,*新增*,签名"),
             new KeyValuePair<string, string>("TextStyleFallbackToStandard", "false"),
             new KeyValuePair<string, string>("TextStyleFallbackStyle", "STANDARD-TEXT"),
             new KeyValuePair<string, string>("TextStyleWhitelist", "Standard,Annotative,*DIM*"),
@@ -270,6 +270,7 @@ namespace CadToolkit.Core
             var output = new List<string>();
             string[] rawLines = source.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
             var rootKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var rootValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var sections = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             bool insertedRootSettings = false;
             string currentSection = null;
@@ -281,7 +282,7 @@ namespace CadToolkit.Core
 
                 if (!insertedRootSettings && isSection)
                 {
-                    AddMissingRootSettings(output, rootKeys);
+                    NormalizeRootSettings(output, rootKeys, rootValues);
                     insertedRootSettings = true;
                 }
 
@@ -295,14 +296,17 @@ namespace CadToolkit.Core
                     string key;
                     string value;
                     if (TrySplitKeyValue(trimmed, out key, out value))
+                    {
                         rootKeys.Add(key);
+                        rootValues[key] = value;
+                    }
                 }
 
                 output.Add(rawLine);
             }
 
             if (!insertedRootSettings)
-                AddMissingRootSettings(output, rootKeys);
+                NormalizeRootSettings(output, rootKeys, rootValues);
 
             if (!sections.Contains("Commands"))
             {
@@ -529,16 +533,37 @@ namespace CadToolkit.Core
                 .Replace(" text style maps.", " 个文字样式映射。");
         }
 
-        static void AddMissingRootSettings(List<string> lines, HashSet<string> rootKeys)
+        static void NormalizeRootSettings(List<string> lines, HashSet<string> rootKeys, Dictionary<string, string> rootValues)
         {
+            lines.Clear();
+            foreach (string line in BuildDefaultRootBlock(rootValues))
+                lines.Add(line);
             foreach (KeyValuePair<string, string> setting in RootSettings)
-            {
-                if (rootKeys.Contains(setting.Key))
-                    continue;
-
-                lines.Add(setting.Key + "=" + setting.Value);
                 rootKeys.Add(setting.Key);
+        }
+
+        static List<string> BuildDefaultRootBlock(Dictionary<string, string> existingValues)
+        {
+            var result = new List<string>();
+            string[] templateLines = Config.DefaultConfigText.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            foreach (string line in templateLines)
+            {
+                string trimmed = line.Trim();
+                if (IsSectionHeader(trimmed))
+                    break;
+
+                string key;
+                string value;
+                if (TrySplitKeyValue(trimmed, out key, out value) && existingValues != null && existingValues.ContainsKey(key))
+                    result.Add(key + "=" + existingValues[key]);
+                else
+                    result.Add(line);
             }
+
+            while (result.Count > 0 && result[result.Count - 1].Length == 0)
+                result.RemoveAt(result.Count - 1);
+            result.Add("");
+            return result;
         }
 
         static void RepairCommandsSection(List<string> lines)
@@ -578,6 +603,20 @@ namespace CadToolkit.Core
 
                 if (!TrySplitKeyValue(trimmed, out key, out value))
                     continue;
+
+                if (value.Equals("CT_CONFIGMAINTAIN", StringComparison.OrdinalIgnoreCase) && key.Equals("配置维护", StringComparison.OrdinalIgnoreCase))
+                {
+                    lines.RemoveAt(i);
+                    commandsEnd--;
+                    continue;
+                }
+
+                if (value.Equals("CT_STANDARDCENTER", StringComparison.OrdinalIgnoreCase) && key.Equals("规范中心", StringComparison.OrdinalIgnoreCase))
+                {
+                    lines.RemoveAt(i);
+                    commandsEnd--;
+                    continue;
+                }
 
                 if (value.Equals("CT_TEXTSTYLESTANDARD", StringComparison.OrdinalIgnoreCase) && key.Equals("文字样式规范", StringComparison.OrdinalIgnoreCase))
                 {
