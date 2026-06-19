@@ -69,7 +69,7 @@ namespace BlockBrowser
             }
             catch (System.Exception ex)
             {
-                MessageBox.Show("鎵撳紑澶辫触:\n" + ex.Message, "鍧楁祻瑙堝櫒", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("\u6253\u5F00\u5931\u8D25:\n" + ex.Message, "\u5757\u6D4F\u89C8\u5668", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }

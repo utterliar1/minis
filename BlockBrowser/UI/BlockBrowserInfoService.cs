@@ -8,7 +8,7 @@ namespace BlockBrowser
             {
                 "=== 块浏览器 v" + appVersion + " (" + platformName + ") ===",
                 "库: " + libraryPath,
-                "命令: BB KLLQ BBADD BBEXPORT BBTHUMB"
+                "命令: BB KLLQ BBADD BBEXPORT BBMIRROR BBSYNC BBTHUMB BBINFO"
             };
         }
     }

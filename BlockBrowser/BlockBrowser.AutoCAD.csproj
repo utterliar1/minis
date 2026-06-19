@@ -16,6 +16,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\acad\</OutputPath>
+    <IntermediateOutputPath>obj\x64\Release-AutoCAD\</IntermediateOutputPath>
     <DefineConstants>TRACE;AUTOCAD</DefineConstants>
     <PlatformTarget>x64</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>

@@ -36,6 +36,16 @@ $localChangeCount = -join ([char[]](0x672C, 0x5730, 0x53D8, 0x66F4, 0x8BB0, 0x5F
 $thumbnailCacheCount = -join ([char[]](0x7F29, 0x7565, 0x56FE, 0x7F13, 0x5B58))
 $rightClickThumbnail = -join ([char[]](0x53F3, 0x952E, 0x7F29, 0x7565, 0x56FE))
 $openFolder = -join ([char[]](0x6253, 0x5F00, 0x6587, 0x4EF6, 0x5939))
+$toolbarInsertSettings = -join ([char[]](0x5DE5, 0x5177, 0x680F, 0x300C, 0x63D2, 0x5165, 0x8BBE, 0x7F6E, 0x300D))
+$oldInsertSettingsTip = -join ([char[]](0x63D2, 0x5165, 0x6BD4, 0x4F8B, 0x548C, 0x89D2, 0x5EA6, 0x53EF, 0x5728, 0x300C, 0x8BBE, 0x7F6E, 0x300D, 0x4E2D, 0x9884, 0x8BBE))
+$ordinaryUser = -join ([char[]](0x666E, 0x901A, 0x540C, 0x4E8B))
+$businessTripOffline = -join ([char[]](0x51FA, 0x5DEE, 0x002F, 0x79BB, 0x7EBF))
+$configurationOrderWarning = -join ([char[]](0x4E0D, 0x8981, 0x968F, 0x610F, 0x6539, 0x53D8, 0x914D, 0x7F6E, 0x9879, 0x987A, 0x5E8F))
+$internalCompatCommand = -join ([char[]](0x5185, 0x90E8, 0x517C, 0x5BB9, 0x547D, 0x4EE4))
+$manualAudience = -join ([char[]](0x8FD9, 0x4EFD, 0x624B, 0x518C, 0x5199, 0x7ED9))
+$doNotEditInternalFolders = -join ([char[]](0x4E0D, 0x8981, 0x624B, 0x52A8, 0x4FEE, 0x6539))
+$closeCadReload = -join ([char[]](0x5B8C, 0x5168, 0x5173, 0x95ED, 0x0020, 0x0043, 0x0041, 0x0044, 0x0020, 0x540E, 0x91CD, 0x65B0, 0x6253, 0x5F00))
+$firstUseChecklist = -join ([char[]](0x9996, 0x6B21, 0x914D, 0x7F6E, 0x6E05, 0x5355))
 
 function Assert-Contains($name, $text, $pattern) {
     if ($text -notmatch $pattern) {
@@ -89,5 +99,18 @@ Assert-Contains 'manual explains open folder in library menu' $manual ([regex]::
 Assert-Contains 'manual explains search only matches block names' $manual ([regex]::Escape($searchBlockNameOnly))
 Assert-Contains 'manual explains search ignores categories' $manual ([regex]::Escape($searchIgnoresCategory))
 Assert-Contains 'manual explains space separated search keywords' $manual ([regex]::Escape($searchExample))
+Assert-NotContains 'manual does not contain stale v1.25 status' $manual 'v1\.25'
+Assert-Contains 'manual status example uses current version' $manual 'v1\.3\.3\s*\|\s*WLUP'
+Assert-Contains 'manual points insert scale to toolbar insert settings' $manual ([regex]::Escape($toolbarInsertSettings))
+Assert-NotContains 'manual does not say insertion is preset in settings dialog' $manual ([regex]::Escape($oldInsertSettingsTip))
+Assert-Contains 'manual names its target audience' $manual ([regex]::Escape($manualAudience))
+Assert-Contains 'manual has first-use checklist' $manual ([regex]::Escape($firstUseChecklist))
+Assert-Contains 'manual separates ordinary user role' $manual ([regex]::Escape($ordinaryUser))
+Assert-Contains 'manual separates business trip offline role' $manual ([regex]::Escape($businessTripOffline))
+Assert-Contains 'manual explains BBPANEL internal compatibility command' $manual ('BBPANEL[\s\S]*?' + [regex]::Escape($internalCompatCommand))
+Assert-Contains 'manual tells AutoCAD users to fully close CAD after plugin update' $manual ([regex]::Escape($closeCadReload))
+Assert-Contains 'manual warns not to change config order' $manual ([regex]::Escape($configurationOrderWarning))
+Assert-Contains 'manual warns not to manually edit internal folders' $manual ([regex]::Escape($doNotEditInternalFolders))
+Assert-Contains 'manual includes config keys in template order' $manual 'LibraryPath[\s\S]*?NasLibraryPath[\s\S]*?LocalMirrorPath[\s\S]*?ProtectedLocalCategories[\s\S]*?PreferLocalWhenNasUnavailable[\s\S]*?AllowNasSync[\s\S]*?CurrentLibraryMode[\s\S]*?UserName[\s\S]*?ThumbSize[\s\S]*?InsertScale[\s\S]*?InsertRotation[\s\S]*?FormWidth[\s\S]*?FormHeight'
 
 Write-Host 'ManualContent.Tests.ps1 passed'

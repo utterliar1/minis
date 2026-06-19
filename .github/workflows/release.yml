@@ -103,7 +103,8 @@ jobs:
           }
 
           Copy-Item "$SRC\autoload.lsp" "$pkg\" -ErrorAction SilentlyContinue
-          Copy-Item "$SRC\config.ini" "$pkg\" -ErrorAction SilentlyContinue
+          Copy-Item "$SRC\BlockBrowser.default.ini" "$pkg\" -ErrorAction Stop
+          Copy-Item "$SRC\BlockBrowser.default.ini" "$pkg\config.ini" -ErrorAction Stop
           Copy-Item "$SRC\使用手册.html" "$pkg\" -ErrorAction Stop
 
           $zip = "$out\BlockBrowser-v$ver.zip"
@@ -135,7 +136,7 @@ jobs:
             | 浩辰CAD | `gcad/BlockBrowser.dll` |
             | AutoCAD | `acad/BlockBrowser.dll` |
             | 中望CAD | `zwcad/BlockBrowser.dll` |
-            | 通用文件 | `autoload.lsp`、`config.ini`、`使用手册.html` |
+            | 通用文件 | `autoload.lsp`、`BlockBrowser.default.ini`、`config.ini`（由 `BlockBrowser.default.ini` 生成）、`使用手册.html` |
 
             ### 命令
             | 命令 | 功能 |
@@ -143,6 +144,8 @@ jobs:
             | `BB` | 打开块浏览器 |
             | `BBADD` | 添加选中对象到库 |
             | `BBEXPORT` | 导出当前图纸块到库 |
+            | `BBMIRROR` | 从 NAS 更新本地图库 |
+            | `BBSYNC` | 打开同步中心 |
             | `BBTHUMB` | 清除缩略图缓存 |
             | `BBINFO` | 显示版本信息 |
 
