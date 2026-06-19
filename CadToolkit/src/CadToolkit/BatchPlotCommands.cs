@@ -41,6 +41,7 @@ namespace CadToolkit
             public double MarginMm;
             public string FileNameMode;
             public string SortMode;
+            public bool ReverseOrder;
             public string OutputDirectory;
             public string DrawingName;
         }
@@ -54,6 +55,7 @@ namespace CadToolkit
             public double MaxY;
             public string SheetNumber;
             public string SheetName;
+            public int SelectionOrder;
 
             public double Width { get { return MaxX - MinX; } }
             public double Height { get { return MaxY - MinY; } }
@@ -106,13 +108,14 @@ namespace CadToolkit
 
             string outputDirectory = GetBatchPlotOutputDirectory();
             string drawingName = GetBatchPlotDrawingName();
-            SortPlotFrames(frames, Config.BatchPlotSortMode);
+            SortPlotFrames(frames, "Position");
             List<BatchPlotPreflightRow> preflightRows = BuildBatchPlotPreflightRows(frames, outputDirectory, drawingName, Config.BatchPlotFileNameMode, Config.BatchPlotDevice, Config.BatchPlotStyle);
             using (var dlg = new BatchPlotDialog(frames.Count, frameBlockKey.DisplayName, preflightRows, outputDirectory, drawingName))
             {
                 if (dlg.ShowDialog() != DialogResult.OK) return;
 
                 SortPlotFrames(frames, dlg.SortMode);
+                if (dlg.ReverseOrder) frames.Reverse();
                 var settings = new BatchPlotSettings();
                 settings.DeviceName = dlg.DeviceName;
                 settings.PaperName = dlg.PaperName;
@@ -123,18 +126,24 @@ namespace CadToolkit
                 settings.MarginMm = dlg.MarginMm;
                 settings.FileNameMode = dlg.FileNameMode;
                 settings.SortMode = dlg.SortMode;
+                settings.ReverseOrder = dlg.ReverseOrder;
                 settings.OutputDirectory = outputDirectory;
                 settings.DrawingName = drawingName;
 
                 bool outputToFile = IsPdfPlotDevice(settings.DeviceName);
                 int success = 0;
                 int failed = 0;
+#if GSTARCAD
+                success = RunGstarBatchPlotWithPlotCommand(frames, settings, outputToFile);
+                failed = Math.Max(0, frames.Count - success);
+#else
                 for (int i = 0; i < frames.Count; i++)
                 {
                     string path = outputToFile ? BuildBatchPlotOutputPath(settings.OutputDirectory, settings.DrawingName, i + 1, settings.FileNameMode, frames[i]) : null;
                     if (outputToFile ? PlotFrameToPdf(frames[i], settings, path) : PlotFrameToDevice(frames[i], settings)) success++;
                     else failed++;
                 }
+#endif
 
                 string target = outputToFile ? "\u8F93\u51FA\u76EE\u5F55\uFF1A" + settings.OutputDirectory : "\u5DF2\u53D1\u9001\u5230\u6253\u5370\u673A\uFF1A" + settings.DeviceName;
                 Ed.WriteMessage(string.Format("\n批量打印完成：成功 {0} 张，失败 {1} 张。{2}", success, failed, target));
@@ -162,7 +171,9 @@ namespace CadToolkit
                     Orientation = frame.Width >= frame.Height ? "\u6A2A\u5411" : "\u7EB5\u5411",
                     Target = target,
                     SizeMismatched = IsBatchPlotFrameSizeMismatched(reference, frame),
-                    Status = BuildBatchPlotPreflightStatus(reference, frame, outputDirectory, deviceName, plotStyle)
+                    Status = BuildBatchPlotPreflightStatus(reference, frame, outputDirectory, deviceName, plotStyle),
+                    PositionOrder = i,
+                    SelectionOrder = frame.SelectionOrder
                 });
             }
             MarkDuplicateBatchPlotTargets(rows, outputToFile);
@@ -294,6 +305,7 @@ namespace CadToolkit
         static List<BatchPlotFrame> CollectPlotFrames(ObjectId[] selectedIds)
         {
             var frames = new List<BatchPlotFrame>();
+            int selectionOrder = 0;
             using (var tr = Db.TransactionManager.StartTransaction())
             {
                 foreach (ObjectId id in selectedIds)
@@ -311,6 +323,7 @@ namespace CadToolkit
                         frame.MinY = ext.MinPoint.Y;
                         frame.MaxX = ext.MaxPoint.X;
                         frame.MaxY = ext.MaxPoint.Y;
+                        frame.SelectionOrder = selectionOrder++;
                         ReadBatchPlotTitleBlockAttributes(ent as BlockReference, frame, tr);
                         frames.Add(frame);
                     }
@@ -386,6 +399,11 @@ namespace CadToolkit
 
         static void SortPlotFrames(List<BatchPlotFrame> frames, string sortMode)
         {
+            if (SafeStr(sortMode).Equals("SelectionOrder", StringComparison.OrdinalIgnoreCase))
+            {
+                SortPlotFramesBySelectionOrder(frames);
+                return;
+            }
             if (SafeStr(sortMode).Equals("SheetNumber", StringComparison.OrdinalIgnoreCase))
             {
                 SortPlotFramesBySheetNumber(frames);
@@ -398,9 +416,9 @@ namespace CadToolkit
         {
             frames.Sort(delegate(BatchPlotFrame a, BatchPlotFrame b)
             {
-                int byTop = b.MaxY.CompareTo(a.MaxY);
-                if (byTop != 0) return byTop;
-                return a.MinX.CompareTo(b.MinX);
+                int byLeft = a.MinX.CompareTo(b.MinX);
+                if (byLeft != 0) return byLeft;
+                return b.MaxY.CompareTo(a.MaxY);
             });
         }
 
@@ -415,6 +433,16 @@ namespace CadToolkit
                 int byTop = b.MaxY.CompareTo(a.MaxY);
                 if (byTop != 0) return byTop;
                 return a.MinX.CompareTo(b.MinX);
+            });
+        }
+
+        static void SortPlotFramesBySelectionOrder(List<BatchPlotFrame> frames)
+        {
+            frames.Sort(delegate(BatchPlotFrame a, BatchPlotFrame b)
+            {
+                int left = a == null ? int.MaxValue : a.SelectionOrder;
+                int right = b == null ? int.MaxValue : b.SelectionOrder;
+                return left.CompareTo(right);
             });
         }
 
@@ -601,6 +629,36 @@ namespace CadToolkit
         }
 
 #if GSTARCAD
+        static int RunGstarBatchPlotWithPlotCommand(List<BatchPlotFrame> frames, BatchPlotSettings settings, bool outputToFile)
+        {
+            if (frames == null || settings == null) return 0;
+            try
+            {
+                BatchPlotSettings resolvedSettings = ResolveGstarPlotCommandSettings(settings);
+                for (int i = 0; i < frames.Count; i++)
+                {
+                    string outputPath = null;
+                    if (outputToFile)
+                    {
+                        outputPath = BuildBatchPlotOutputPath(settings.OutputDirectory, settings.DrawingName, i + 1, settings.FileNameMode, frames[i]);
+                        string dir = Path.GetDirectoryName(outputPath);
+                        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                        if (File.Exists(outputPath)) File.Delete(outputPath);
+                    }
+
+                    SendGstarPlotCommand(BuildGstarPlotCommand(frames[i], resolvedSettings, outputPath));
+                }
+
+                DebugBatchPlotLog("BatchPlot -PLOT batch commands submitted: Count=" + frames.Count.ToString(CultureInfo.InvariantCulture) + "; " + DescribeBatchPlotSettings(resolvedSettings));
+                return frames.Count;
+            }
+            catch (System.Exception ex)
+            {
+                Log("BatchPlot -PLOT batch command failed: " + DescribeBatchPlotSettings(settings) + " " + ex);
+                return 0;
+            }
+        }
+
         static bool PlotFrameToPdfWithPlotCommand(BatchPlotFrame frame, BatchPlotSettings settings, string outputPath)
         {
             try
@@ -654,7 +712,7 @@ namespace CadToolkit
             inputs.Add(QuoteGstarLispString("W"));
             inputs.Add(QuoteGstarLispString(FormatGstarPlotPoint(plotFrame.MinX, plotFrame.MinY)));
             inputs.Add(QuoteGstarLispString(FormatGstarPlotPoint(plotFrame.MaxX, plotFrame.MaxY)));
-            inputs.Add(QuoteGstarLispString("F"));
+            inputs.Add(QuoteGstarLispString(BuildGstarPlotScaleInput(frame, settings)));
             inputs.Add(QuoteGstarLispString(settings.CenterPlot ? "C" : "0,0"));
             inputs.Add(QuoteGstarLispString("Y"));
             inputs.Add(QuoteGstarLispString(settings.PlotStyle));
@@ -672,7 +730,7 @@ namespace CadToolkit
                 inputs.Add(QuoteGstarLispString("N"));
                 inputs.Add(QuoteGstarLispString("Y"));
             }
-            return "(command " + string.Join(" ", inputs.ToArray()) + ")\n";
+            return "(ct-plot (list " + string.Join(" ", inputs.ToArray()) + "))\n";
         }
 
         static BatchPlotSettings ResolveGstarPlotCommandSettings(BatchPlotSettings settings)
@@ -910,7 +968,12 @@ namespace CadToolkit
         static void SendGstarPlotCommand(string commandText)
         {
             DebugBatchPlotLog("BatchPlot -PLOT command text: " + commandText.Replace("\r", "\\r").Replace("\n", "\\n"));
-            string quietCommandText = "(progn (setvar \"CMDECHO\" 0) " + commandText.Trim() + " (setvar \"CMDECHO\" 1) (princ))\n";
+            string quietCommandText = "(progn"
+                + " (defun ct-has-func (_ctName) (member _ctName (atoms-family 1)))"
+                + " (defun ct-plot (_ctArgs) (cond ((ct-has-func \"VL-CMDF\") (apply 'vl-cmdf _ctArgs)) ((ct-has-func \"COMMAND-S\") (apply 'command-s _ctArgs)) (T (apply 'command _ctArgs))))"
+                + " (setq _ctOldBgPlot (getvar \"BACKGROUNDPLOT\")) (setvar \"CMDECHO\" 0) (setvar \"BACKGROUNDPLOT\" 0) "
+                + commandText.Trim()
+                + " (setvar \"BACKGROUNDPLOT\" _ctOldBgPlot) (setvar \"CMDECHO\" 1) (princ))\n";
             CadApp.DocumentManager.MdiActiveDocument.SendStringToExecute(quietCommandText, true, false, false);
         }
 
@@ -948,6 +1011,28 @@ namespace CadToolkit
         static string GetGstarPlotShadeInput()
         {
             return "W";
+        }
+
+        static string BuildGstarPlotScaleInput(BatchPlotFrame frame, BatchPlotSettings settings)
+        {
+            if (frame == null || settings == null) return "F";
+            double marginMm = Math.Max(0, settings.MarginMm);
+            if (marginMm <= 0 || frame.Width <= 0 || frame.Height <= 0) return "F";
+
+            double paperWidthMm;
+            double paperHeightMm;
+            if (!TryGetBatchPlotPaperSizeMm(settings.PaperName, out paperWidthMm, out paperHeightMm)) return "F";
+
+            bool landscape = IsBatchPlotLandscape(frame, settings);
+            double usableWidth = landscape ? Math.Max(paperWidthMm, paperHeightMm) : Math.Min(paperWidthMm, paperHeightMm);
+            double usableHeight = landscape ? Math.Min(paperWidthMm, paperHeightMm) : Math.Max(paperWidthMm, paperHeightMm);
+            double contentWidth = usableWidth - (2 * marginMm);
+            double contentHeight = usableHeight - (2 * marginMm);
+            if (contentWidth <= 0 || contentHeight <= 0) return "F";
+
+            double scale = Math.Min(contentWidth / frame.Width, contentHeight / frame.Height);
+            if (scale <= 0) return "F";
+            return scale.ToString("0.########", CultureInfo.InvariantCulture);
         }
 #endif
 

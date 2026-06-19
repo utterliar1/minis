@@ -44,7 +44,8 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("BatchPlotMarginPercent", "2"),
             new KeyValuePair<string, string>("BatchPlotMarginMm", "5"),
             new KeyValuePair<string, string>("BatchPlotFileNameMode", "DrawingDashIndex"),
-            new KeyValuePair<string, string>("BatchPlotSortMode", "Position")
+            new KeyValuePair<string, string>("BatchPlotSortMode", "Position"),
+            new KeyValuePair<string, string>("BatchPlotSortReverse", "false")
         };
         static string _dir;
         public static string ConfigPath { get { return IniPath; } }
@@ -336,7 +337,8 @@ namespace CadToolkit.Core
             sb.AppendLine("# BatchPlotMarginPercent\uFF1A\u6279\u91CF\u6253\u5370\u9875\u8FB9\u8DDD\u767E\u5206\u6BD4\uFF0C\u9ED8\u8BA4 2\uFF0C0 \u8868\u793A\u4E0D\u989D\u5916\u589E\u52A0\u9875\u8FB9\u8DDD\u3002");
             sb.AppendLine("# BatchPlotMarginMm\uFF1A\u6279\u91CF\u6253\u5370\u9875\u8FB9\u8DDD\uFF08mm\uFF09\uFF0C\u9ED8\u8BA4 5\u3002");
             sb.AppendLine("# BatchPlotFileNameMode\uFF1APDF \u6587\u4EF6\u540D\u89C4\u5219\uFF0CDrawingDashIndex=\u56FE\u540D-001\uFF0CDrawingUnderscoreIndex=\u56FE\u540D_001\uFF0CIndexOnly=001\uFF0CSheetNumberName=\u56FE\u53F7 \u56FE\u540D\u3002");
-            sb.AppendLine("# BatchPlotSortMode\uFF1A\u6279\u91CF\u6253\u5370\u6392\u5E8F\uFF0CPosition=\u4F4D\u7F6E\u6392\u5E8F\uFF0CSheetNumber=\u56FE\u53F7\u6392\u5E8F\u3002");
+            sb.AppendLine("# BatchPlotSortMode\uFF1A\u6279\u91CF\u6253\u5370\u6392\u5E8F\uFF0CPosition=\u4F4D\u7F6E\u6392\u5E8F\uFF0CSheetNumber=\u56FE\u53F7\u6392\u5E8F\uFF0CSelectionOrder=\u9009\u62E9\u987A\u5E8F\u3002");
+            sb.AppendLine("# BatchPlotSortReverse\uFF1A\u662F\u5426\u6309\u5F53\u524D\u6392\u5E8F\u5012\u5E8F\u6253\u5370\u3002");
             sb.AppendLine("BatchPlotDevice=DWG To PDF.pc3");
             sb.AppendLine("BatchPlotPaper=A3");
             sb.AppendLine("BatchPlotStyle=monochrome.ctb");
@@ -346,6 +348,7 @@ namespace CadToolkit.Core
             sb.AppendLine("BatchPlotMarginMm=5");
             sb.AppendLine("BatchPlotFileNameMode=DrawingDashIndex");
             sb.AppendLine("BatchPlotSortMode=Position");
+            sb.AppendLine("BatchPlotSortReverse=false");
             sb.AppendLine();
             sb.AppendLine("# \u547D\u4EE4\u5217\u8868");
             sb.AppendLine("# \u683C\u5F0F\uFF1A\u663E\u793A\u540D\u79F0=CAD\u547D\u4EE4");
@@ -521,6 +524,7 @@ namespace CadToolkit.Core
         public static double BatchPlotMarginMm { get { double v; return double.TryParse(GetString("BatchPlotMarginMm", "5"), out v) ? Math.Max(0, v) : 5; } set { SaveString("BatchPlotMarginMm", Math.Max(0, value).ToString()); } }
         public static string BatchPlotFileNameMode { get { return GetString("BatchPlotFileNameMode", "DrawingDashIndex"); } set { SaveString("BatchPlotFileNameMode", value); } }
         public static string BatchPlotSortMode { get { return GetString("BatchPlotSortMode", "Position"); } set { SaveString("BatchPlotSortMode", value); } }
+        public static bool BatchPlotSortReverse { get { return GetBool("BatchPlotSortReverse", false); } set { SaveBool("BatchPlotSortReverse", value); } }
 
         static void SaveString(string key, string val)
         {

@@ -80,7 +80,8 @@ namespace CadToolkit.Core
             new KeyValuePair<string, string>("BatchPlotMarginPercent", "2"),
             new KeyValuePair<string, string>("BatchPlotMarginMm", "5"),
             new KeyValuePair<string, string>("BatchPlotFileNameMode", "DrawingDashIndex"),
-            new KeyValuePair<string, string>("BatchPlotSortMode", "Position")
+            new KeyValuePair<string, string>("BatchPlotSortMode", "Position"),
+            new KeyValuePair<string, string>("BatchPlotSortReverse", "false")
         };
 
         static readonly KeyValuePair<string, string>[] OfficialCommands = new KeyValuePair<string, string>[]

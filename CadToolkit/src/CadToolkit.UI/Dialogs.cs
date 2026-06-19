@@ -268,6 +268,8 @@ namespace CadToolkit.UI
         public string Target;
         public string Status;
         public bool SizeMismatched;
+        public int PositionOrder;
+        public int SelectionOrder;
     }
 
     public class BatchPlotDialog : Form
@@ -281,6 +283,7 @@ namespace CadToolkit.UI
         public double MarginMm;
         public string FileNameMode;
         public string SortMode;
+        public bool ReverseOrder;
         readonly ToolTip outputDirectoryToolTip = new ToolTip();
 
         public BatchPlotDialog(int frameCount, string frameBlockName, List<BatchPlotPreflightRow> preflightRows, string outputDirectory, string drawingName)
@@ -294,6 +297,7 @@ namespace CadToolkit.UI
             MarginMm = Config.BatchPlotMarginMm;
             FileNameMode = Config.BatchPlotFileNameMode;
             SortMode = Config.BatchPlotSortMode;
+            ReverseOrder = Config.BatchPlotSortReverse;
 
             Text = "\u6279\u91CF\u6253\u5370";
             StartPosition = FormStartPosition.CenterParent;
@@ -405,6 +409,7 @@ namespace CadToolkit.UI
             cmbSortMode.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
             AddFileNameMode(cmbSortMode, "Position", "\u4F4D\u7F6E\u6392\u5E8F");
             AddFileNameMode(cmbSortMode, "SheetNumber", "\u56FE\u53F7\u6392\u5E8F");
+            AddFileNameMode(cmbSortMode, "SelectionOrder", "\u9009\u62E9\u987A\u5E8F");
             SelectFileNameMode(cmbSortMode, SortMode);
 
             var chkRotate = new CheckBox();
@@ -419,9 +424,26 @@ namespace CadToolkit.UI
             chkCenter.Checked = CenterPlot;
             chkCenter.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
 
+            var rbSortForward = new RadioButton();
+            rbSortForward.Text = "\u987A\u5E8F";
+            rbSortForward.Left = 430; rbSortForward.Top = 170; rbSortForward.Width = 64;
+            rbSortForward.Checked = !ReverseOrder;
+            rbSortForward.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var rbSortReverse = new RadioButton();
+            rbSortReverse.Text = "\u5012\u5E8F";
+            rbSortReverse.Left = 500; rbSortReverse.Top = 170; rbSortReverse.Width = 64;
+            rbSortReverse.Checked = ReverseOrder;
+            rbSortReverse.Font = new System.Drawing.Font("Microsoft YaHei", 9.5f);
+
+            var lblSortRule = new Label();
+            lblSortRule.Left = 16; lblSortRule.Top = 146; lblSortRule.Width = 388; lblSortRule.Height = 20;
+            lblSortRule.ForeColor = Color.FromArgb(90, 90, 90);
+            lblSortRule.Font = new System.Drawing.Font("Microsoft YaHei", 8.5f);
+
             var lblNote = new Label();
             lblNote.Text = "\u9884\u68C0\uFF1A\u8BF7\u6838\u5BF9\u56FE\u53F7\u3001\u56FE\u540D\u3001\u76EE\u6807\u548C\u72B6\u6001\u540E\u518D\u6253\u5370\u3002";
-            lblNote.Left = 16; lblNote.Top = 170; lblNote.Width = 648; lblNote.Height = 22;
+            lblNote.Left = 16; lblNote.Top = 170; lblNote.Width = 388; lblNote.Height = 22;
             lblNote.ForeColor = Color.FromArgb(90, 90, 90);
             lblNote.Font = new System.Drawing.Font("Microsoft YaHei", 8.5f);
 
@@ -439,17 +461,7 @@ namespace CadToolkit.UI
             preflightList.Columns.Add("\u65B9\u5411", 55);
             preflightList.Columns.Add("\u76EE\u6807", 120);
             preflightList.Columns.Add("\u72B6\u6001", 80);
-            foreach (BatchPlotPreflightRow row in preflightRows ?? new List<BatchPlotPreflightRow>())
-            {
-                var item = new ListViewItem(row.Index ?? "");
-                item.SubItems.Add(row.SheetNumber ?? "");
-                item.SubItems.Add(row.SheetName ?? "");
-                item.SubItems.Add(row.Size ?? "");
-                item.SubItems.Add(row.Orientation ?? "");
-                item.SubItems.Add(row.Target ?? "");
-                item.SubItems.Add(row.Status ?? "");
-                preflightList.Items.Add(item);
-            }
+            RebuildDialogBatchPlotPreflightList(preflightList, preflightRows);
 
             var lblWarning = new Label();
             lblWarning.Text = "\u68C0\u6D4B\u5230\u56FE\u6846\u5C3A\u5BF8\u4E0D\u4E00\u81F4\uFF0C\u8BF7\u786E\u8BA4\u662F\u5426\u6DF7\u9009\u3002";
@@ -471,10 +483,13 @@ namespace CadToolkit.UI
             };
             outputDirectoryToolTip.SetToolTip(copyPreflight, "\u590D\u5236\u9884\u68C0\u5217\u8868\u5230\u526A\u8D34\u677F");
 
-            EventHandler refreshPreflight = delegate { RefreshBatchPlotPreflight(lblInfo, preflightList, preflightRows, frameBlockName, frameCount, drawingName, cmbDevice.Text, GetDialogSelectedFileNameMode(cmbFileNameMode)); };
+            EventHandler refreshPreflight = delegate { RefreshBatchPlotPreflight(lblInfo, lblSortRule, preflightList, preflightRows, frameBlockName, frameCount, drawingName, cmbDevice.Text, GetDialogSelectedFileNameMode(cmbFileNameMode), GetDialogSelectedFileNameMode(cmbSortMode), rbSortReverse.Checked); };
             cmbDevice.TextChanged += refreshPreflight;
             cmbFileNameMode.SelectedIndexChanged += refreshPreflight;
-            RefreshBatchPlotPreflight(lblInfo, preflightList, preflightRows, frameBlockName, frameCount, drawingName, cmbDevice.Text, GetDialogSelectedFileNameMode(cmbFileNameMode));
+            cmbSortMode.SelectedIndexChanged += refreshPreflight;
+            rbSortForward.CheckedChanged += refreshPreflight;
+            rbSortReverse.CheckedChanged += refreshPreflight;
+            RefreshBatchPlotPreflight(lblInfo, lblSortRule, preflightList, preflightRows, frameBlockName, frameCount, drawingName, cmbDevice.Text, GetDialogSelectedFileNameMode(cmbFileNameMode), GetDialogSelectedFileNameMode(cmbSortMode), rbSortReverse.Checked);
 
             var ok = new Button();
             ok.Text = "\u786E\u5B9A";
@@ -502,6 +517,7 @@ namespace CadToolkit.UI
                 MarginPercent = MarginMm;
                 FileNameMode = GetSelectedFileNameMode(cmbFileNameMode);
                 SortMode = GetSelectedFileNameMode(cmbSortMode);
+                ReverseOrder = rbSortReverse.Checked;
                 Config.BatchPlotDevice = DeviceName;
                 Config.BatchPlotPaper = PaperName;
                 Config.BatchPlotStyle = PlotStyle;
@@ -511,9 +527,10 @@ namespace CadToolkit.UI
                 Config.BatchPlotMarginMm = MarginMm;
                 Config.BatchPlotFileNameMode = FileNameMode;
                 Config.BatchPlotSortMode = SortMode;
+                Config.BatchPlotSortReverse = ReverseOrder;
             };
 
-            Controls.AddRange(new Control[] { lblInfo, lblDir, txtDir, lblDevice, cmbDevice, lblPaper, cmbPaper, lblStyle, cmbStyle, lblMargin, txtMargin, lblMarginUnit, lblFileName, cmbFileNameMode, lblSortMode, cmbSortMode, chkRotate, chkCenter, lblNote, preflightList, lblWarning, copyPreflight, ok, cancel });
+            Controls.AddRange(new Control[] { lblInfo, lblDir, txtDir, lblDevice, cmbDevice, lblPaper, cmbPaper, lblStyle, cmbStyle, lblMargin, txtMargin, lblMarginUnit, lblFileName, cmbFileNameMode, lblSortMode, cmbSortMode, chkRotate, chkCenter, rbSortForward, rbSortReverse, lblSortRule, lblNote, preflightList, lblWarning, copyPreflight, ok, cancel });
             AcceptButton = ok; CancelButton = cancel;
             Shown += delegate { cmbDevice.Focus(); };
             DpiUtil.Apply(this);
@@ -532,29 +549,101 @@ namespace CadToolkit.UI
             return string.Join(Environment.NewLine, lines.ToArray());
         }
 
-        static void RefreshBatchPlotPreflight(Label summary, ListView list, List<BatchPlotPreflightRow> rows, string frameBlockName, int frameCount, string drawingName, string deviceName, string fileNameMode)
+        static void RefreshBatchPlotPreflight(Label summary, Label sortRule, ListView list, List<BatchPlotPreflightRow> rows, string frameBlockName, int frameCount, string drawingName, string deviceName, string fileNameMode, string sortMode, bool reverseOrder)
         {
             bool outputToFile = IsDialogPdfPlotDevice(deviceName);
             string outputMode = outputToFile ? "\u8F93\u51FA\uFF1APDF" : "\u8F93\u51FA\uFF1A\u6253\u5370\u673A";
             summary.Text = string.Format("\u56FE\u6846\u5757\uFF1A{0}\uFF1B\u6570\u91CF\uFF1A{1}\uFF1B{2}", string.IsNullOrEmpty(frameBlockName) ? "\u672A\u77E5" : frameBlockName, frameCount, outputMode);
+            if (sortRule != null) sortRule.Text = GetDialogBatchPlotSortRule(sortMode);
 
             if (rows == null || list == null) return;
+            SortDialogBatchPlotPreflightRows(rows, sortMode);
+            if (reverseOrder) rows.Reverse();
             ResetDialogDuplicateStatuses(rows);
             for (int i = 0; i < rows.Count; i++)
             {
                 BatchPlotPreflightRow row = rows[i];
+                row.Index = (i + 1).ToString("D3");
                 row.Target = outputToFile ? BuildDialogBatchPlotOutputFileName(drawingName, i + 1, fileNameMode, row) : "\u53D1\u9001\u5230\u6253\u5370\u673A";
             }
             MarkDialogDuplicateTargets(rows, outputToFile);
-            for (int i = 0; i < rows.Count; i++)
+            RebuildDialogBatchPlotPreflightList(list, rows);
+        }
+
+        static string GetDialogBatchPlotSortRule(string sortMode)
+        {
+            if (string.Equals(sortMode, "SelectionOrder", StringComparison.OrdinalIgnoreCase))
+                return "\u6392\u5E8F\u89C4\u5219\uFF1A\u6309\u9009\u62E9\u56FE\u6846\u7684\u5148\u540E\u987A\u5E8F\u6392\u5E8F\u3002";
+            if (string.Equals(sortMode, "SheetNumber", StringComparison.OrdinalIgnoreCase))
+                return "\u6392\u5E8F\u89C4\u5219\uFF1A\u6309\u56FE\u53F7\u3001\u56FE\u540D\u6392\u5E8F\uFF1B\u7F3A\u5931\u65F6\u6309\u4F4D\u7F6E\u515C\u5E95\u3002";
+            return "\u6392\u5E8F\u89C4\u5219\uFF1A\u6309\u4F4D\u7F6E\u9010\u5217\u6392\u5E8F\uFF0C\u540C\u4E00\u5217\u4ECE\u4E0A\u5230\u4E0B\uFF0C\u518D\u4ECE\u5DE6\u5230\u53F3\u3002";
+        }
+
+        static void SortDialogBatchPlotPreflightRows(List<BatchPlotPreflightRow> rows, string sortMode)
+        {
+            if (rows == null) return;
+            if (string.Equals(sortMode, "SelectionOrder", StringComparison.OrdinalIgnoreCase))
             {
-                BatchPlotPreflightRow row = rows[i];
-                if (i < list.Items.Count && list.Items[i].SubItems.Count > 6)
+                rows.Sort(CompareDialogSelectionOrder);
+                return;
+            }
+            if (string.Equals(sortMode, "SheetNumber", StringComparison.OrdinalIgnoreCase))
+            {
+                rows.Sort(delegate(BatchPlotPreflightRow a, BatchPlotPreflightRow b)
                 {
-                    list.Items[i].SubItems[5].Text = row.Target;
-                    list.Items[i].SubItems[6].Text = row.Status;
+                    int bySheetNumber = string.Compare(SafeDialogString(a == null ? null : a.SheetNumber), SafeDialogString(b == null ? null : b.SheetNumber), StringComparison.OrdinalIgnoreCase);
+                    if (bySheetNumber != 0) return bySheetNumber;
+                    int bySheetName = string.Compare(SafeDialogString(a == null ? null : a.SheetName), SafeDialogString(b == null ? null : b.SheetName), StringComparison.OrdinalIgnoreCase);
+                    if (bySheetName != 0) return bySheetName;
+                    return CompareDialogPositionOrder(a, b);
+                });
+                return;
+            }
+            rows.Sort(CompareDialogPositionOrder);
+        }
+
+        static int CompareDialogSelectionOrder(BatchPlotPreflightRow a, BatchPlotPreflightRow b)
+        {
+            int left = a == null ? int.MaxValue : a.SelectionOrder;
+            int right = b == null ? int.MaxValue : b.SelectionOrder;
+            return left.CompareTo(right);
+        }
+
+        static int CompareDialogPositionOrder(BatchPlotPreflightRow a, BatchPlotPreflightRow b)
+        {
+            int left = a == null ? int.MaxValue : a.PositionOrder;
+            int right = b == null ? int.MaxValue : b.PositionOrder;
+            return left.CompareTo(right);
+        }
+
+        static void RebuildDialogBatchPlotPreflightList(ListView list, List<BatchPlotPreflightRow> rows)
+        {
+            if (list == null) return;
+            list.BeginUpdate();
+            try
+            {
+                list.Items.Clear();
+                foreach (BatchPlotPreflightRow row in rows ?? new List<BatchPlotPreflightRow>())
+                {
+                    var item = new ListViewItem(row.Index ?? "");
+                    item.SubItems.Add(row.SheetNumber ?? "");
+                    item.SubItems.Add(row.SheetName ?? "");
+                    item.SubItems.Add(row.Size ?? "");
+                    item.SubItems.Add(row.Orientation ?? "");
+                    item.SubItems.Add(row.Target ?? "");
+                    item.SubItems.Add(row.Status ?? "");
+                    list.Items.Add(item);
                 }
             }
+            finally
+            {
+                list.EndUpdate();
+            }
+        }
+
+        static string SafeDialogString(string value)
+        {
+            return string.IsNullOrEmpty(value) ? "" : value.Trim();
         }
 
         static void ResetDialogDuplicateStatuses(List<BatchPlotPreflightRow> rows)
