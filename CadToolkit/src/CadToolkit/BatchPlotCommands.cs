@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using System.Windows.Forms;
 using CadToolkit.Core;
 using CadToolkit.UI;
@@ -12,6 +13,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
+using CadApp = Autodesk.AutoCAD.ApplicationServices.Application;
 #elif GSTARCAD
 using GrxCAD.ApplicationServices;
 using GrxCAD.DatabaseServices;
@@ -24,6 +26,7 @@ using ZwSoft.ZwCAD.DatabaseServices;
 using ZwSoft.ZwCAD.EditorInput;
 using ZwSoft.ZwCAD.Geometry;
 using ZwSoft.ZwCAD.Runtime;
+using CadApp = ZwSoft.ZwCAD.ApplicationServices.Application;
 #endif
 
 namespace CadToolkit
@@ -69,6 +72,8 @@ namespace CadToolkit
         }
 
         const long MinimumValidPdfBytes = 1024;
+        const int PlotWaitTimeoutMs = 30000;
+        const int PlotWaitIntervalMs = 100;
 
 [CommandMethod("CT_BATCHPLOT", CommandFlags.UsePickSet)]
         public void BatchPlot()
@@ -136,7 +141,7 @@ namespace CadToolkit
 
                 int success = 0;
                 int failed = 0;
-#if GSTARCAD
+#if GSTARCAD || ZWCAD
                 success = RunGstarBatchPlotWithPlotCommand(frames, settings, outputToFile);
                 failed = Math.Max(0, frames.Count - success);
 #else
@@ -517,7 +522,6 @@ namespace CadToolkit
         {
             if (frame == null || settings == null) return frame;
             double marginMm = Math.Max(0, settings.MarginMm);
-            if (marginMm <= 0) return frame;
 
             double paperWidthMm;
             double paperHeightMm;
@@ -545,6 +549,34 @@ namespace CadToolkit
             expanded.MaxX = frame.MaxX + dx;
             expanded.MaxY = frame.MaxY + dy;
             return expanded;
+        }
+
+        static bool TryGetBatchPlotScale(BatchPlotFrame frame, BatchPlotSettings settings, out double scale)
+        {
+            scale = 0;
+            if (frame == null || settings == null || frame.Width <= 0 || frame.Height <= 0) return false;
+
+            double paperWidthMm;
+            double paperHeightMm;
+            if (!TryGetBatchPlotPaperSizeMm(settings.PaperName, out paperWidthMm, out paperHeightMm)) return false;
+
+            double marginMm = Math.Max(0, settings.MarginMm);
+            bool landscape = IsBatchPlotLandscape(frame, settings);
+            double usableWidth = landscape ? Math.Max(paperWidthMm, paperHeightMm) : Math.Min(paperWidthMm, paperHeightMm);
+            double usableHeight = landscape ? Math.Min(paperWidthMm, paperHeightMm) : Math.Max(paperWidthMm, paperHeightMm);
+            double contentWidth = usableWidth - (2 * marginMm);
+            double contentHeight = usableHeight - (2 * marginMm);
+            if (contentWidth <= 0 || contentHeight <= 0) return false;
+
+            scale = Math.Min(contentWidth / frame.Width, contentHeight / frame.Height);
+            return scale > 0;
+        }
+
+        static string BuildBatchPlotScaleInput(BatchPlotFrame frame, BatchPlotSettings settings)
+        {
+            double scale;
+            if (!TryGetBatchPlotScale(frame, settings, out scale)) return "F";
+            return scale.ToString("0.########", CultureInfo.InvariantCulture);
         }
 
         static bool TryGetBatchPlotPaperSizeMm(string paperName, out double widthMm, out double heightMm)
@@ -634,7 +666,7 @@ namespace CadToolkit
 
         static bool PlotFrameToPdf(BatchPlotFrame frame, BatchPlotSettings settings, string outputPath)
         {
-#if GSTARCAD
+#if GSTARCAD || ZWCAD || AUTOCAD
             return PlotFrameToPdfWithPlotCommand(frame, settings, outputPath);
 #else
             try
@@ -645,7 +677,7 @@ namespace CadToolkit
 
                 var api = BatchPlotApi.Create();
                 api.PlotFrame(frame, settings, outputPath);
-                if (!IsValidPdfFile(outputPath))
+                if (!WaitForValidPdfFile(outputPath))
                 {
                     Log("BatchPlot output is not a valid PDF: " + outputPath + ": " + DescribeBatchPlotSettings(settings));
                     return false;
@@ -662,7 +694,7 @@ namespace CadToolkit
 
         static bool PlotFrameToDevice(BatchPlotFrame frame, BatchPlotSettings settings)
         {
-#if GSTARCAD
+#if GSTARCAD || ZWCAD || AUTOCAD
             return PlotFrameToDeviceWithPlotCommand(frame, settings);
 #else
             try
@@ -679,7 +711,7 @@ namespace CadToolkit
 #endif
         }
 
-#if GSTARCAD
+#if GSTARCAD || ZWCAD || AUTOCAD
         static int RunGstarBatchPlotWithPlotCommand(List<BatchPlotFrame> frames, BatchPlotSettings settings, bool outputToFile)
         {
             if (frames == null || settings == null) return 0;
@@ -751,6 +783,8 @@ namespace CadToolkit
         static string BuildGstarPlotCommand(BatchPlotFrame frame, BatchPlotSettings settings, string outputPath)
         {
             BatchPlotFrame plotFrame = ExpandBatchPlotFrameByMarginMm(frame, settings);
+            string scaleInput = BuildGstarPlotScaleInput(frame, settings);
+            LogGstarPlotGeometry(frame, plotFrame, settings, scaleInput);
             var inputs = new List<string>();
             inputs.Add(QuoteGstarLispString("_.-PLOT"));
             inputs.Add(QuoteGstarLispString("Y"));
@@ -763,7 +797,7 @@ namespace CadToolkit
             inputs.Add(QuoteGstarLispString("W"));
             inputs.Add(QuoteGstarLispString(FormatGstarPlotPoint(plotFrame.MinX, plotFrame.MinY)));
             inputs.Add(QuoteGstarLispString(FormatGstarPlotPoint(plotFrame.MaxX, plotFrame.MaxY)));
-            inputs.Add(QuoteGstarLispString(BuildGstarPlotScaleInput(frame, settings)));
+            inputs.Add(QuoteGstarLispString(scaleInput));
             inputs.Add(QuoteGstarLispString(settings.CenterPlot ? "C" : "0,0"));
             inputs.Add(QuoteGstarLispString("Y"));
             inputs.Add(QuoteGstarLispString(settings.PlotStyle));
@@ -782,6 +816,14 @@ namespace CadToolkit
                 inputs.Add(QuoteGstarLispString("Y"));
             }
             return "(ct-plot (list " + string.Join(" ", inputs.ToArray()) + "))\n";
+        }
+
+        static void LogGstarPlotGeometry(BatchPlotFrame frame, BatchPlotFrame plotFrame, BatchPlotSettings settings, string scaleInput)
+        {
+            Log("BatchPlot geometry: Original=" + DescribeBatchPlotFrame(frame)
+                + "; PlotWindow=" + DescribeBatchPlotFrame(plotFrame)
+                + "; Scale=" + SafeStr(scaleInput)
+                + "; " + DescribeBatchPlotSettings(settings));
         }
 
         static BatchPlotSettings ResolveGstarPlotCommandSettings(BatchPlotSettings settings)
@@ -845,11 +887,15 @@ namespace CadToolkit
                 if (candidate.Equals(fallback, StringComparison.OrdinalIgnoreCase)) return candidate;
 
                 string normalized = NormalizeDeviceName(candidate);
+                string normalizedCandidateBase = NormalizeDeviceName(Path.GetFileNameWithoutExtension(candidate));
                 if (normalized.Equals(normalizedNeedle, StringComparison.OrdinalIgnoreCase)) return candidate;
                 if (!string.IsNullOrEmpty(normalizedBaseNeedle) && normalized.Equals(normalizedBaseNeedle, StringComparison.OrdinalIgnoreCase)) return candidate;
+                if (!string.IsNullOrEmpty(normalizedBaseNeedle) && normalizedCandidateBase.Equals(normalizedBaseNeedle, StringComparison.OrdinalIgnoreCase)) return candidate;
                 if (firstContains == null && normalized.IndexOf(normalizedNeedle, StringComparison.OrdinalIgnoreCase) >= 0)
                     firstContains = candidate;
                 if (firstContains == null && !string.IsNullOrEmpty(normalizedBaseNeedle) && normalized.IndexOf(normalizedBaseNeedle, StringComparison.OrdinalIgnoreCase) >= 0)
+                    firstContains = candidate;
+                if (firstContains == null && !string.IsNullOrEmpty(normalizedBaseNeedle) && normalizedCandidateBase.IndexOf(normalizedBaseNeedle, StringComparison.OrdinalIgnoreCase) >= 0)
                     firstContains = candidate;
             }
 
@@ -975,12 +1021,40 @@ namespace CadToolkit
         static string ToGstarPlotCommandMediaInput(string matchedMediaName, string configuredPaperName, string commandFallback, bool expandPaperName)
         {
             string matched = string.IsNullOrEmpty(matchedMediaName) ? configuredPaperName : matchedMediaName.Trim();
+            string zwcad = ToZwcadPlotCommandMediaInput(matched);
+            if (!string.IsNullOrEmpty(zwcad)) return zwcad;
             if (!expandPaperName) return matched;
             string normalizedMatched = NormalizeMediaName(matched);
             string normalizedConfigured = NormalizeMediaName(configuredPaperName);
             if (normalizedMatched == normalizedConfigured && IsIsoSeriesShortPaperName(normalizedMatched))
                 return commandFallback;
             return matched;
+        }
+
+        static string ToZwcadPlotCommandMediaInput(string matchedMediaName)
+        {
+            string matched = SafeStr(matchedMediaName).Trim();
+            if (matched.Equals("ISO_full_bleed_A4_(297.00_x_210.00_MM)", StringComparison.OrdinalIgnoreCase))
+                return "ISO full bleed A4 (297.00 x 210.00 毫米)";
+            if (matched.Equals("ISO_full_bleed_A3_(420.00_x_297.00_MM)", StringComparison.OrdinalIgnoreCase))
+                return "ISO full bleed A3 (420.00 x 297.00 毫米)";
+            if (matched.Equals("ISO_full_bleed_A2_(594.00_x_420.00_MM)", StringComparison.OrdinalIgnoreCase))
+                return "ISO full bleed A2 (594.00 x 420.00 毫米)";
+            if (matched.Equals("ISO_full_bleed_A1_(841.00_x_594.00_MM)", StringComparison.OrdinalIgnoreCase))
+                return "ISO full bleed A1 (841.00 x 594.00 毫米)";
+            if (matched.Equals("ISO_full_bleed_A0_(1189.00_x_841.00_MM)", StringComparison.OrdinalIgnoreCase))
+                return "ISO full bleed A0 (1189.00 x 841.00 毫米)";
+            if (matched.Equals("ISO_expand_A4_(297.00_x_210.00_MM)", StringComparison.OrdinalIgnoreCase))
+                return "ISO expand A4 (297.00 x 210.00 毫米)";
+            if (matched.Equals("ISO_expand_A3_(420.00_x_297.00_MM)", StringComparison.OrdinalIgnoreCase))
+                return "ISO expand A3 (420.00 x 297.00 毫米)";
+            if (matched.Equals("ISO_expand_A2_(594.00_x_420.00_MM)", StringComparison.OrdinalIgnoreCase))
+                return "ISO expand A2 (594.00 x 420.00 毫米)";
+            if (matched.Equals("ISO_expand_A1_(841.00_x_594.00_MM)", StringComparison.OrdinalIgnoreCase))
+                return "ISO expand A1 (841.00 x 594.00 毫米)";
+            if (matched.Equals("ISO_expand_A0_(1189.00_x_841.00_MM)", StringComparison.OrdinalIgnoreCase))
+                return "ISO expand A0 (1189.00 x 841.00 毫米)";
+            return null;
         }
 
         static bool IsIsoSeriesShortPaperName(string normalizedPaperName)
@@ -1025,7 +1099,30 @@ namespace CadToolkit
                 + " (setq _ctOldBgPlot (getvar \"BACKGROUNDPLOT\")) (setvar \"CMDECHO\" 0) (setvar \"BACKGROUNDPLOT\" 0) "
                 + commandText.Trim()
                 + " (setvar \"BACKGROUNDPLOT\" _ctOldBgPlot) (setvar \"CMDECHO\" 1) (princ))\n";
+            if (TrySendPlotCommandWithCom(quietCommandText)) return;
             CadApp.DocumentManager.MdiActiveDocument.SendStringToExecute(quietCommandText, true, false, false);
+        }
+
+        static bool TrySendPlotCommandWithCom(string quietCommandText)
+        {
+#if AUTOCAD
+            try
+            {
+                object acadApp = CadApp.AcadApplication;
+                if (acadApp == null) return false;
+                object activeDocument = acadApp.GetType().InvokeMember("ActiveDocument", BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance, null, acadApp, null);
+                if (activeDocument == null) return false;
+                activeDocument.GetType().InvokeMember("SendCommand", BindingFlags.InvokeMethod | BindingFlags.Public | BindingFlags.Instance, null, activeDocument, new object[] { quietCommandText });
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                Log("BatchPlot COM SendCommand failed: " + ex.Message);
+                return false;
+            }
+#else
+            return false;
+#endif
         }
 
         [System.Diagnostics.Conditional("BATCHPLOT_DEBUG")]
@@ -1066,24 +1163,7 @@ namespace CadToolkit
 
         static string BuildGstarPlotScaleInput(BatchPlotFrame frame, BatchPlotSettings settings)
         {
-            if (frame == null || settings == null) return "F";
-            double marginMm = Math.Max(0, settings.MarginMm);
-            if (marginMm <= 0 || frame.Width <= 0 || frame.Height <= 0) return "F";
-
-            double paperWidthMm;
-            double paperHeightMm;
-            if (!TryGetBatchPlotPaperSizeMm(settings.PaperName, out paperWidthMm, out paperHeightMm)) return "F";
-
-            bool landscape = IsBatchPlotLandscape(frame, settings);
-            double usableWidth = landscape ? Math.Max(paperWidthMm, paperHeightMm) : Math.Min(paperWidthMm, paperHeightMm);
-            double usableHeight = landscape ? Math.Min(paperWidthMm, paperHeightMm) : Math.Max(paperWidthMm, paperHeightMm);
-            double contentWidth = usableWidth - (2 * marginMm);
-            double contentHeight = usableHeight - (2 * marginMm);
-            if (contentWidth <= 0 || contentHeight <= 0) return "F";
-
-            double scale = Math.Min(contentWidth / frame.Width, contentHeight / frame.Height);
-            if (scale <= 0) return "F";
-            return scale.ToString("0.########", CultureInfo.InvariantCulture);
+            return BuildBatchPlotScaleInput(frame, settings);
         }
 #endif
 
@@ -1102,13 +1182,32 @@ namespace CadToolkit
 
         static bool IsValidPdfFile(string path)
         {
+            return IsValidPdfFile(path, true);
+        }
+
+        static bool WaitForValidPdfFile(string path)
+        {
+            DateTime deadline = DateTime.UtcNow.AddMilliseconds(PlotWaitTimeoutMs);
+            while (DateTime.UtcNow <= deadline)
+            {
+                if (IsValidPdfFile(path, false)) return true;
+                System.Windows.Forms.Application.DoEvents();
+                Thread.Sleep(PlotWaitIntervalMs);
+            }
+
+            return IsValidPdfFile(path);
+        }
+
+        static bool IsValidPdfFile(string path, bool logFailures)
+        {
             try
             {
                 if (string.IsNullOrEmpty(path) || !File.Exists(path)) return false;
                 FileInfo info = new FileInfo(path);
                 if (info.Length < MinimumValidPdfBytes)
                 {
-                    Log("BatchPlot PDF is too small and may be blank: " + path + "; Length=" + info.Length.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    if (logFailures)
+                        Log("BatchPlot PDF is too small and may be blank: " + path + "; Length=" + info.Length.ToString(System.Globalization.CultureInfo.InvariantCulture));
                     return false;
                 }
                 using (var stream = File.OpenRead(path))
@@ -1122,7 +1221,8 @@ namespace CadToolkit
             }
             catch (System.Exception ex)
             {
-                Log("BatchPlot PDF validation failed: " + path + ": " + ex.Message);
+                if (logFailures)
+                    Log("BatchPlot PDF validation failed: " + path + ": " + ex.Message);
                 return false;
             }
         }
@@ -1135,6 +1235,29 @@ namespace CadToolkit
                 + "; Style=" + SafeStr(settings.PlotStyle)
                 + "; MarginMm=" + settings.MarginMm.ToString(CultureInfo.InvariantCulture)
                 + "; FileNameMode=" + SafeStr(settings.FileNameMode);
+        }
+
+        static string DescribeBatchPlotFrame(BatchPlotFrame frame)
+        {
+            if (frame == null) return "";
+            return "Min=(" + FormatBatchPlotNumber(frame.MinX) + "," + FormatBatchPlotNumber(frame.MinY)
+                + "); Max=(" + FormatBatchPlotNumber(frame.MaxX) + "," + FormatBatchPlotNumber(frame.MaxY)
+                + "); Size=" + FormatBatchPlotNumber(frame.Width)
+                + "x" + FormatBatchPlotNumber(frame.Height)
+                + "; Ratio=" + (frame.Height <= 0 ? "0" : FormatBatchPlotNumber(frame.Width / frame.Height));
+        }
+
+        static string FormatBatchPlotNumber(double value)
+        {
+            return value.ToString("0.########", CultureInfo.InvariantCulture);
+        }
+
+        static void LogBatchPlotGeometry(string prefix, BatchPlotFrame frame, BatchPlotFrame plotFrame, BatchPlotSettings settings, string scaleInput)
+        {
+            Log(prefix + ": Original=" + DescribeBatchPlotFrame(frame)
+                + "; PlotWindow=" + DescribeBatchPlotFrame(plotFrame)
+                + "; Scale=" + SafeStr(scaleInput)
+                + "; " + DescribeBatchPlotSettings(settings));
         }
 
         static ObjectId GetCurrentLayoutId()
@@ -1293,13 +1416,13 @@ namespace CadToolkit
 
                 api.PlotSettingsType = RequiredTypeFromCandidates(dbNs + ".PlotSettings", GetGstarPlotFallback("PlotSettings"));
                 api.PlotSettingsValidatorType = RequiredTypeFromCandidates(dbNs + ".PlotSettingsValidator", GetGstarPlotFallback("PlotSettingsValidator"));
-                api.PlotInfoType = RequiredTypeFromCandidates(dbNs + ".PlotInfo", GetGstarPlotFallback("PlotInfo"));
-                api.PlotInfoValidatorType = RequiredTypeFromCandidates(dbNs + ".PlotInfoValidator", GetGstarPlotFallback("PlotInfoValidator"));
+                api.PlotInfoType = RequiredTypeFromCandidates(plotNs + ".PlotInfo", GetGstarPlotFallback("PlotInfo"));
+                api.PlotInfoValidatorType = RequiredTypeFromCandidates(plotNs + ".PlotInfoValidator", GetGstarPlotFallback("PlotInfoValidator"));
                 api.PlotTypeEnum = RequiredType(dbNs + ".PlotType");
                 api.StdScaleTypeEnum = RequiredType(dbNs + ".StdScaleType");
                 api.PlotRotationEnum = RequiredType(dbNs + ".PlotRotation");
                 api.MatchingPolicyEnum = OptionalTypeFromCandidates(dbNs + ".MatchingPolicy", GetGstarPlotFallback("MatchingPolicy"));
-                api.Extents2dType = RequiredTypeFromCandidates(geoNs + ".Extents2d", GetGstarPlotFallback("Extents2d"));
+                api.Extents2dType = RequiredTypeFromCandidates(dbNs + ".Extents2d", GetBatchPlotExtentsFallback(geoNs));
                 api.Point2dType = RequiredTypeFromCandidates(geoNs + ".Point2d", GetGstarPlotFallback("Point2d"));
                 api.PlotFactoryType = RequiredTypeFromCandidates(plotNs + ".PlotFactory", GetGstarPlotFallback("PlotFactory"));
                 api.PlotPageInfoType = RequiredTypeFromCandidates(plotNs + ".PlotPageInfo", GetGstarPlotFallback("PlotPageInfo"));
@@ -1366,6 +1489,19 @@ namespace CadToolkit
                 return new string[0];
             }
 
+            static string[] GetBatchPlotExtentsFallback(string geoNs)
+            {
+                var names = new List<string>();
+                if (!string.IsNullOrEmpty(geoNs))
+                {
+                    names.Add(geoNs + ".Extents2d");
+                    names.Add(geoNs + ".Extents2D");
+                }
+
+                names.AddRange(GetGstarPlotFallback("Extents2d"));
+                return names.ToArray();
+            }
+
             internal void PlotFrame(BatchPlotFrame frame, BatchPlotSettings settings, string outputPath)
             {
                 object plotSettings = Activator.CreateInstance(PlotSettingsType, new object[] { true });
@@ -1374,13 +1510,20 @@ namespace CadToolkit
                 object validator = GetStaticProperty(PlotSettingsValidatorType, "Current");
 
                 string deviceName = ResolvePlotDeviceName(validator, plotSettings, settings.DeviceName);
+                BindPlotDeviceForMediaLookup(validator, plotSettings, deviceName);
                 string mediaName = ResolveCanonicalMediaName(validator, plotSettings, settings.PaperName);
                 Invoke(validator, "SetPlotConfigurationName", plotSettings, deviceName, mediaName);
                 SafeInvoke(validator, "RefreshLists", plotSettings);
-                Invoke(validator, "SetPlotWindowArea", plotSettings, CreateExtents2d(ExpandBatchPlotFrameByMarginMm(frame, settings)));
+                BatchPlotFrame plotFrame = ExpandBatchPlotFrameByMarginMm(frame, settings);
+                string scaleInput = BuildBatchPlotScaleInput(frame, settings);
+                LogBatchPlotGeometry("BatchPlot API geometry", frame, plotFrame, settings, scaleInput);
+                Invoke(validator, "SetPlotWindowArea", plotSettings, CreateExtents2d(plotFrame));
                 Invoke(validator, "SetPlotType", plotSettings, ParseEnum(PlotTypeEnum, "Window"));
-                Invoke(validator, "SetUseStandardScale", plotSettings, true);
-                Invoke(validator, "SetStdScaleType", plotSettings, ParseEnum(StdScaleTypeEnum, "ScaleToFit"));
+                if (!SetCustomBatchPlotScale(validator, plotSettings, frame, settings))
+                {
+                    Invoke(validator, "SetUseStandardScale", plotSettings, true);
+                    Invoke(validator, "SetStdScaleType", plotSettings, ParseEnum(StdScaleTypeEnum, "ScaleToFit"));
+                }
                 Invoke(validator, "SetPlotCentered", plotSettings, settings.CenterPlot);
                 Invoke(validator, "SetPlotRotation", plotSettings, ParseEnum(PlotRotationEnum, GetRotationName(frame, settings)));
                 if (!string.IsNullOrEmpty(settings.PlotStyle))
@@ -1395,29 +1538,87 @@ namespace CadToolkit
                     SafeSetProperty(plotInfoValidator, "MediaMatchingPolicy", ParseEnum(MatchingPolicyEnum, "MatchEnabled"));
                 Invoke(plotInfoValidator, "Validate", plotInfo);
 
-                object state = GetStaticProperty(PlotFactoryType, "ProcessPlotState");
-                if (!state.Equals(ParseEnum(ProcessPlotStateEnum, "NotPlotting")))
-                    throw new InvalidOperationException("CAD is already plotting.");
-
-                object engine = InvokeStatic(PlotFactoryType, "CreatePublishEngine");
+                object oldBackgroundPlot = null;
+                bool restoreBackgroundPlot = false;
                 try
                 {
-                    Invoke(engine, "BeginPlot", null, null);
-                    bool plotToFile = !string.IsNullOrEmpty(outputPath);
-                    Invoke(engine, "BeginDocument", plotInfo, settings.DrawingName, null, 1, plotToFile, outputPath);
-                    object pageInfo = Activator.CreateInstance(PlotPageInfoType);
-                    Invoke(engine, "BeginPage", pageInfo, plotInfo, true, null);
-                    SafeInvoke(engine, "BeginGenerateGraphics");
-                    SafeInvoke(engine, "EndGenerateGraphics");
-                    Invoke(engine, "EndPage", null);
-                    Invoke(engine, "EndDocument", null);
-                    Invoke(engine, "EndPlot", null);
+                    oldBackgroundPlot = CadApp.GetSystemVariable("BACKGROUNDPLOT");
+                    CadApp.SetSystemVariable("BACKGROUNDPLOT", 0);
+                    restoreBackgroundPlot = true;
+                }
+                catch (System.Exception ex)
+                {
+                    Log("BatchPlot set BACKGROUNDPLOT failed: " + ex.Message);
+                }
+
+                try
+                {
+                    object state = GetStaticProperty(PlotFactoryType, "ProcessPlotState");
+                    if (!state.Equals(ParseEnum(ProcessPlotStateEnum, "NotPlotting")))
+                        throw new InvalidOperationException("CAD is already plotting.");
+
+                    object engine = InvokeStatic(PlotFactoryType, "CreatePublishEngine");
+                    try
+                    {
+                        Invoke(engine, "BeginPlot", null, null);
+                        bool plotToFile = !string.IsNullOrEmpty(outputPath);
+                        Invoke(engine, "BeginDocument", plotInfo, settings.DrawingName, null, 1, plotToFile, outputPath);
+                        object pageInfo = Activator.CreateInstance(PlotPageInfoType);
+                        Invoke(engine, "BeginPage", pageInfo, plotInfo, true, null);
+                        SafeInvokeOptionalMethod(engine, "BeginGenerateGraphics", new object[] { null });
+                        SafeInvokeOptionalMethod(engine, "EndGenerateGraphics", new object[] { null });
+                        InvokeOptionalMethod(engine, "EndPage", new object[] { null });
+                        InvokeOptionalMethod(engine, "EndDocument", new object[] { null });
+                        InvokeOptionalMethod(engine, "EndPlot", new object[] { null });
+                    }
+                    finally
+                    {
+                        IDisposable disposable = engine as IDisposable;
+                        if (disposable != null) disposable.Dispose();
+                    }
                 }
                 finally
                 {
-                    IDisposable disposable = engine as IDisposable;
-                    if (disposable != null) disposable.Dispose();
+                    if (restoreBackgroundPlot)
+                    {
+                        try { CadApp.SetSystemVariable("BACKGROUNDPLOT", oldBackgroundPlot); }
+                        catch (System.Exception ex) { Log("BatchPlot restore BACKGROUNDPLOT failed: " + ex.Message); }
+                    }
                 }
+            }
+
+            bool SetCustomBatchPlotScale(object validator, object plotSettings, BatchPlotFrame frame, BatchPlotSettings settings)
+            {
+                double scale;
+                if (!TryGetBatchPlotScale(frame, settings, out scale)) return false;
+
+                try
+                {
+                    object customScale = CreateCustomScale(scale);
+                    if (customScale == null) return false;
+                    Invoke(validator, "SetUseStandardScale", plotSettings, false);
+                    Invoke(validator, "SetCustomPrintScale", plotSettings, customScale);
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    Log("BatchPlot SetCustomPrintScale failed: " + ex.Message);
+                    return false;
+                }
+            }
+
+            object CreateCustomScale(double scale)
+            {
+                Type customScaleType = OptionalTypeFromCandidates(GetDatabaseNamespace() + ".CustomScale", GetGstarPlotFallback("CustomScale"));
+                if (customScaleType == null) return null;
+
+                ConstructorInfo ctor = customScaleType.GetConstructor(new Type[] { typeof(double), typeof(double) });
+                if (ctor != null) return ctor.Invoke(new object[] { scale, 1.0 });
+
+                object customScale = Activator.CreateInstance(customScaleType);
+                SafeSetProperty(customScale, "Numerator", scale);
+                SafeSetProperty(customScale, "Denominator", 1.0);
+                return customScale;
             }
 
             void CopyFromCurrentLayout(object plotSettings, ObjectId layoutId)
@@ -1471,6 +1672,21 @@ namespace CadToolkit
                 return fallback;
             }
 
+            bool BindPlotDeviceForMediaLookup(object validator, object plotSettings, string deviceName)
+            {
+                try
+                {
+                    Invoke(validator, "SetPlotConfigurationName", plotSettings, deviceName, null);
+                    SafeInvoke(validator, "RefreshLists", plotSettings);
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    Log("BatchPlot device bind for media lookup failed: " + SafeStr(deviceName) + ": " + ex.Message);
+                    return false;
+                }
+            }
+
             string ResolveCanonicalMediaName(object validator, object plotSettings, string paperName)
             {
                 string fallback = string.IsNullOrEmpty(paperName) ? "A3" : paperName;
@@ -1484,9 +1700,12 @@ namespace CadToolkit
                     string normalizedNeedle = NormalizeMediaName(fallback);
                     string looseNeedle = fallback.Replace(" ", "").Replace("_", "").ToUpperInvariant();
                     string firstContains = null;
+                    var available = new List<string>();
                     foreach (object item in enumerable)
                     {
                         string candidate = Convert.ToString(item);
+                        if (string.IsNullOrEmpty(candidate)) continue;
+                        available.Add(candidate);
                         if (candidate.Equals(fallback, StringComparison.OrdinalIgnoreCase)) return candidate;
                         string normalized = NormalizeMediaName(candidate);
                         if (normalized.Equals(normalizedNeedle, StringComparison.OrdinalIgnoreCase)) return candidate;
@@ -1494,6 +1713,7 @@ namespace CadToolkit
                             firstContains = candidate;
                     }
                     if (firstContains != null) return firstContains;
+                    Log("BatchPlot media not found: " + fallback + "; AvailableMedia=" + string.Join("|", available.ToArray()));
                 }
                 catch (System.Exception ex)
                 {
@@ -1543,6 +1763,41 @@ namespace CadToolkit
                 }
             }
 
+            void InvokeOptionalMethod(object target, string name, params object[] args)
+            {
+                try
+                {
+                    InvokeMethodByArgumentCount(target, name, args);
+                }
+                catch (TargetParameterCountException)
+                {
+                    InvokeMethodByArgumentCount(target, name, new object[0]);
+                }
+                catch (MissingMethodException)
+                {
+                    InvokeMethodByArgumentCount(target, name, new object[0]);
+                }
+            }
+
+            object InvokeMethodByArgumentCount(object target, string name, object[] args)
+            {
+                object[] actualArgs = args ?? new object[0];
+                foreach (MethodInfo method in target.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance))
+                {
+                    if (!method.Name.Equals(name, StringComparison.Ordinal)) continue;
+                    if (method.GetParameters().Length == actualArgs.Length)
+                        return method.Invoke(target, actualArgs);
+                }
+
+                return Invoke(target, name, actualArgs);
+            }
+
+            void SafeInvokeOptionalMethod(object target, string name, params object[] args)
+            {
+                try { InvokeOptionalMethod(target, name, args); }
+                catch (System.Exception ex) { Log("BatchPlot optional call failed: " + name + ": " + ex.Message); }
+            }
+
             string GetRotationName(BatchPlotFrame frame, BatchPlotSettings settings)
             {
                 if (settings.AutoRotate && frame.Width > frame.Height) return "Degrees090";
@@ -1560,6 +1815,7 @@ namespace CadToolkit
                 try { SetProperty(target, name, value); }
                 catch (System.Exception ex) { Log("BatchPlot optional property failed: " + name + ": " + ex.Message); }
             }
+
         }
     }
 }

@@ -366,7 +366,7 @@ namespace CadToolkit.UI
             {
                 cmbStyle.Items.Add(style);
             }
-            cmbStyle.Text = PlotStyle;
+            SelectAvailablePlotStyle(cmbStyle, PlotStyle);
 
             var lblMargin = new Label();
             lblMargin.Text = "\u9875\u8FB9\u8DDD\uFF1A";
@@ -788,7 +788,6 @@ namespace CadToolkit.UI
             var names = new List<string>();
             AddCadPlotStyleNames(names);
 
-            AddPlotStyleName(names, Config.BatchPlotStyle);
             AddPlotStyleName(names, "monochrome.ctb");
             AddPlotStyleName(names, "acad.ctb");
             AddPlotStyleName(names, "grayscale.ctb");
@@ -819,11 +818,12 @@ namespace CadToolkit.UI
         {
             try
             {
-                Type validatorType = FindCadType("Autodesk.AutoCAD.DatabaseServices.PlotSettingsValidator")
-                    ?? FindCadType("GrxCAD.DatabaseServices.PlotSettingsValidator")
-                    ?? FindCadType("ZwSoft.ZwCAD.DatabaseServices.PlotSettingsValidator")
-                    ?? FindCadType("GcDb.PlotSettingsValidator")
-                    ?? FindCadType("OdDbPlotSettingsValidator");
+                Type validatorType = null;
+                foreach (string typeName in GetCadPlotSettingsValidatorTypeNames())
+                {
+                    validatorType = FindCadType(typeName);
+                    if (validatorType != null) break;
+                }
                 if (validatorType == null) return;
 
                 object validator = validatorType.InvokeMember("Current", BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Static, null, null, null);
@@ -839,6 +839,65 @@ namespace CadToolkit.UI
                 }
             }
             catch { }
+        }
+
+        static IEnumerable<string> GetCadPlotSettingsValidatorTypeNames()
+        {
+            string host = GetCurrentCadHostKey();
+            if (host == "ZWCAD")
+            {
+                yield return "ZwSoft.ZwCAD.DatabaseServices.PlotSettingsValidator";
+                yield return "GrxCAD.DatabaseServices.PlotSettingsValidator";
+                yield return "Autodesk.AutoCAD.DatabaseServices.PlotSettingsValidator";
+            }
+            else if (host == "GSTARCAD")
+            {
+                yield return "GrxCAD.DatabaseServices.PlotSettingsValidator";
+                yield return "ZwSoft.ZwCAD.DatabaseServices.PlotSettingsValidator";
+                yield return "Autodesk.AutoCAD.DatabaseServices.PlotSettingsValidator";
+            }
+            else
+            {
+                yield return "Autodesk.AutoCAD.DatabaseServices.PlotSettingsValidator";
+                yield return "ZwSoft.ZwCAD.DatabaseServices.PlotSettingsValidator";
+                yield return "GrxCAD.DatabaseServices.PlotSettingsValidator";
+            }
+            yield return "GcDb.PlotSettingsValidator";
+            yield return "OdDbPlotSettingsValidator";
+        }
+
+        static string GetCurrentCadHostKey()
+        {
+            foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                string name = asm.GetName().Name;
+                if (string.Equals(name, "ZwManaged", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(name, "ZwDatabaseMgd", StringComparison.OrdinalIgnoreCase)) return "ZWCAD";
+                if (string.Equals(name, "gmap", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(name, "gmdb", StringComparison.OrdinalIgnoreCase)) return "GSTARCAD";
+                if (string.Equals(name, "acmgd", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(name, "acdbmgd", StringComparison.OrdinalIgnoreCase)) return "AUTOCAD";
+            }
+            return "";
+        }
+
+        static void SelectAvailablePlotStyle(ComboBox combo, string configuredStyle)
+        {
+            if (combo == null) return;
+            if (!string.IsNullOrEmpty(configuredStyle))
+            {
+                foreach (object item in combo.Items)
+                {
+                    string text = Convert.ToString(item);
+                    if (string.Equals(text, configuredStyle, StringComparison.OrdinalIgnoreCase))
+                    {
+                        combo.Text = text;
+                        return;
+                    }
+                }
+            }
+            if (combo.Items.Count > 0) combo.Text = Convert.ToString(combo.Items[0]);
+            else combo.Text = configuredStyle ?? "";
         }
 
         static Type FindCadType(string fullName)
