@@ -30,6 +30,13 @@
     <Compile Include="LayerCommands.cs" />
     <Compile Include="BlockCommands.cs" />
     <Compile Include="DrawCommands.cs" />
+    <Compile Include="BatchPlotModels.cs" />
+    <Compile Include="BatchPlotFrameService.cs" />
+    <Compile Include="BatchPlotLayoutService.cs" />
+    <Compile Include="BatchPlotPreflightService.cs" />
+    <Compile Include="BatchPlotHost.cs" />
+    <Compile Include="BatchPlotCommandPrinter.cs" />
+    <Compile Include="BatchPlotApiPrinter.cs" />
     <Compile Include="BatchPlotCommands.cs" />
     <Compile Include="ConfigCommands.cs" />
     <Compile Include="StandardCenterCommands.cs" />

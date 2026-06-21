@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $config = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit.Core\Config.cs') -Raw
@@ -6,6 +6,25 @@ $diagnostics = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadTo
 $dialogs = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit.UI\Dialogs.cs') -Raw
 $batchPlotCommandsPath = Join-Path $repo 'CadToolkit\src\CadToolkit\BatchPlotCommands.cs'
 $batchPlotCommands = if (Test-Path $batchPlotCommandsPath) { Get-Content -Encoding UTF8 $batchPlotCommandsPath -Raw } else { '' }
+$batchPlotSourceDir = Join-Path $repo 'CadToolkit\src\CadToolkit'
+$batchPlotRefactorFiles = @(
+    'BatchPlotModels.cs',
+    'BatchPlotFrameService.cs',
+    'BatchPlotLayoutService.cs',
+    'BatchPlotPreflightService.cs',
+    'BatchPlotHost.cs',
+    'BatchPlotCommandPrinter.cs',
+    'BatchPlotApiPrinter.cs'
+)
+$batchPlotAllSource = $batchPlotCommands
+foreach ($file in $batchPlotRefactorFiles) {
+    $path = Join-Path $batchPlotSourceDir $file
+    if (Test-Path $path) { $batchPlotAllSource += "`n" + (Get-Content -Encoding UTF8 $path -Raw) }
+}
+$batchPlotCommands = $batchPlotAllSource
+$autocadProject = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit\CadToolkit.AutoCAD.csproj') -Raw
+$zwcadProject = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit\CadToolkit.ZWCAD.csproj') -Raw
+$gstarProject = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\src\CadToolkit\CadToolkit.GstarCAD.csproj') -Raw
 $projectConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.ini') -Raw
 $defaultConfig = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\CadToolkit.default.ini') -Raw
 $readme = Get-Content -Encoding UTF8 (Join-Path $repo 'CadToolkit\README.md') -Raw
@@ -209,6 +228,23 @@ Assert-Match 'batch plot dialog removes duplicate printer names' $dialogs 'Conta
 
 Assert-Match 'batch plot command file registers command with pickfirst' $batchPlotCommands '\[CommandMethod\("CT_BATCHPLOT",\s*CommandFlags\.UsePickSet\)\]'
 Assert-Match 'batch plot command method exists' $batchPlotCommands 'public\s+void\s+BatchPlot\s*\('
+foreach ($file in $batchPlotRefactorFiles) {
+    $path = Join-Path $batchPlotSourceDir $file
+    if (-not (Test-Path $path)) { throw "batch plot refactor file missing: $file" }
+    Write-Host "PASS batch plot refactor file exists: $file"
+}
+Assert-Match 'batch plot models file owns settings model' (Get-Content -Encoding UTF8 (Join-Path $batchPlotSourceDir 'BatchPlotModels.cs') -Raw) 'class\s+BatchPlotSettings'
+Assert-Match 'batch plot frame service owns frame collection' (Get-Content -Encoding UTF8 (Join-Path $batchPlotSourceDir 'BatchPlotFrameService.cs') -Raw) 'CollectPlotFrames'
+Assert-Match 'batch plot layout service owns sorting' (Get-Content -Encoding UTF8 (Join-Path $batchPlotSourceDir 'BatchPlotLayoutService.cs') -Raw) 'SortPlotFrames'
+Assert-Match 'batch plot preflight service owns preflight rows' (Get-Content -Encoding UTF8 (Join-Path $batchPlotSourceDir 'BatchPlotPreflightService.cs') -Raw) 'BuildBatchPlotPreflightRows'
+Assert-Match 'batch plot host owns cad namespace helpers' (Get-Content -Encoding UTF8 (Join-Path $batchPlotSourceDir 'BatchPlotHost.cs') -Raw) 'GetDatabaseNamespace'
+Assert-Match 'batch plot command printer owns command path' (Get-Content -Encoding UTF8 (Join-Path $batchPlotSourceDir 'BatchPlotCommandPrinter.cs') -Raw) 'RunBatchPlotWithPlotCommand'
+Assert-Match 'batch plot api printer owns legacy api path' (Get-Content -Encoding UTF8 (Join-Path $batchPlotSourceDir 'BatchPlotApiPrinter.cs') -Raw) 'class\s+BatchPlotApi'
+Assert-Match 'batch plot all source uses neutral command runner' $batchPlotAllSource 'RunBatchPlotWithPlotCommand'
+Assert-Match 'batch plot all source uses neutral command builder' $batchPlotAllSource 'BuildPlotCommand'
+Assert-Match 'batch plot all source uses neutral settings resolver' $batchPlotAllSource 'ResolvePlotCommandSettings'
+Assert-Match 'batch plot all source uses neutral command sender' $batchPlotAllSource 'SendPlotCommand'
+Assert-NotMatch 'batch plot production shared command names are not gstar-specific' $batchPlotAllSource 'RunGstarBatchPlotWithPlotCommand|BuildGstarPlotCommand|ResolveGstarPlotCommandSettings|SendGstarPlotCommand'
 Assert-Match 'batch plot command prompts for frame block template' $batchPlotCommands ('PromptEntityOptions\("\\n' + [regex]::Escape($frameBlockTemplatePrompt) + '"\)')
 Assert-Match 'batch plot command restricts template to block references' $batchPlotCommands 'AddAllowedClass\(typeof\(BlockReference\),\s*true\)'
 Assert-Match 'batch plot command prompts for frame scope' $batchPlotCommands ('MessageForAdding\s*=\s*"\\n' + [regex]::Escape($batchPlotScopePrompt) + '"')
@@ -240,7 +276,7 @@ Assert-Match 'batch plot reads file name mode from dialog' $batchPlotCommands 's
 Assert-Match 'batch plot reads sort mode from dialog' $batchPlotCommands 'settings\.SortMode\s*=\s*dlg\.SortMode'
 Assert-Match 'batch plot reads reverse order from dialog' $batchPlotCommands 'settings\.ReverseOrder\s*=\s*dlg\.ReverseOrder'
 Assert-Match 'batch plot reverses final frame order when requested' $batchPlotCommands 'if\s*\(dlg\.ReverseOrder\)\s*frames\.Reverse\(\)'
-Assert-Match 'batch plot uses command path for compatible cad multiple frames' $batchPlotCommands 'RunGstarBatchPlotWithPlotCommand\(frames,\s*settings,\s*outputToFile\)'
+Assert-Match 'batch plot uses command path for compatible cad multiple frames' $batchPlotCommands 'RunBatchPlotWithPlotCommand\(frames,\s*settings,\s*outputToFile\)'
 Assert-Match 'batch plot collects geometric extents' $batchPlotCommands 'GeometricExtents'
 Assert-Match 'batch plot reads title block attributes' $batchPlotCommands 'ReadBatchPlotTitleBlockAttributes'
 Assert-Match 'batch plot detects sheet number attribute tags' $batchPlotCommands 'IsBatchPlotSheetNumberTag'
@@ -277,7 +313,7 @@ Assert-Match 'batch plot treats directory issue as blocking' $batchPlotCommands 
 Assert-Match 'batch plot treats duplicate filename as blocking' $batchPlotCommands 'IsBatchPlotBlockingStatus[\s\S]*\\u6587\\u4EF6\\u540D\\u91CD\\u590D'
 Assert-Match 'batch plot treats missing device as blocking' $batchPlotCommands 'IsBatchPlotBlockingStatus[\s\S]*\\u8BBE\\u5907\\u7F3A\\u5931'
 Assert-Match 'batch plot treats missing style as blocking' $batchPlotCommands 'IsBatchPlotBlockingStatus[\s\S]*\\u6837\\u5F0F\\u7F3A\\u5931'
-Assert-Order 'batch plot confirms preflight before command plotting' $batchPlotCommands 'ConfirmBatchPlotPreflightIssues(preflightRows)' 'RunGstarBatchPlotWithPlotCommand'
+Assert-Order 'batch plot confirms preflight before command plotting' $batchPlotCommands 'ConfirmBatchPlotPreflightIssues(preflightRows)' 'RunBatchPlotWithPlotCommand'
 Assert-Order 'batch plot confirms preflight before normal plotting' $batchPlotCommands 'ConfirmBatchPlotPreflightIssues(preflightRows)' 'PlotFrameToPdf'
 Assert-Match 'batch plot rejects drive-only output directory' $batchPlotCommands 'IsDriveOnlyPath'
 Assert-Match 'batch plot validates pdf file header' $batchPlotCommands 'IsValidPdfFile'
@@ -300,17 +336,17 @@ Assert-Match 'api plot binds device before resolving media list' $batchPlotComma
 Assert-Match 'api plot has device-only media lookup binding helper' $batchPlotCommands 'bool\s+BindPlotDeviceForMediaLookup\s*\('
 Assert-Match 'api plot only uses null media for device prebind helper' $batchPlotCommands 'BindPlotDeviceForMediaLookup[\s\S]*SetPlotConfigurationName"\s*,\s*plotSettings\s*,\s*deviceName\s*,\s*null'
 Assert-Order 'api plot final device and media binding happens after media resolution' $batchPlotCommands 'ResolveCanonicalMediaName(validator, plotSettings, settings.PaperName)' 'SetPlotConfigurationName", plotSettings, deviceName, mediaName'
-Assert-Match 'batch plot binds gstar device with non-empty media candidate' $batchPlotCommands 'TrySetGstarPlotConfigurationWithMediaCandidate'
+Assert-Match 'batch plot binds gstar device with non-empty media candidate' $batchPlotCommands 'TrySetPlotCommandConfigurationWithMediaCandidate'
 Assert-Match 'batch plot tries full gstar a3 media name before listing media' $batchPlotCommands 'ISO A3 \(420\.00 x 297\.00'
-Assert-Match 'batch plot falls back to gstar command paper name' $batchPlotCommands 'GetGstarPlotCommandFallbackMediaName'
+Assert-Match 'batch plot falls back to gstar command paper name' $batchPlotCommands 'GetPlotCommandFallbackMediaName'
 Assert-Match 'batch plot command fallback uses full bleed a3 paper name' $batchPlotCommands 'ISO full bleed A3 \(420\.00 x 297\.00'
-Assert-Match 'batch plot only expands gstar paper names for dwg to pdf device' $batchPlotCommands 'ShouldUseGstarExpandedPaperName'
+Assert-Match 'batch plot only expands gstar paper names for dwg to pdf device' $batchPlotCommands 'ShouldUsePlotCommandExpandedPaperName'
 Assert-Match 'batch plot recognizes dwg to pdf pc3 for expanded paper names' $batchPlotCommands 'DWG To PDF'
-Assert-Match 'batch plot converts gstar api media to command input' $batchPlotCommands 'ToGstarPlotCommandMediaInput'
-$gstarPaperLookup = [regex]::Match($batchPlotCommands, 'static\s+string\s+ResolveGstarPlotCommandPaperName[\s\S]*?static\s+bool\s+TrySetGstarPlotConfigurationWithMediaCandidate').Value
-Assert-NotMatch 'gstar paper lookup does not return raw fallback after api failure' $gstarPaperLookup 'return fallback;'
-Assert-Match 'gstar paper lookup does not return raw matched media directly' $gstarPaperLookup 'ToGstarPlotCommandMediaInput\(matched,\s*fallback,\s*commandFallback,\s*expandPaperName\)'
-Assert-Match 'zwcad command paper converts canonical expand names to display names' $batchPlotCommands 'ToZwcadPlotCommandMediaInput'
+Assert-Match 'batch plot converts gstar api media to command input' $batchPlotCommands 'ToPlotCommandMediaInput'
+$gstarPaperLookup = [regex]::Match($batchPlotCommands, 'static\s+string\s+ResolvePlotCommandPaperName[\s\S]*?static\s+bool\s+TrySetPlotCommandConfigurationWithMediaCandidate').Value
+Assert-NotMatch 'plot command paper lookup does not return raw fallback after api failure' $gstarPaperLookup 'return fallback;'
+Assert-Match 'plot command paper lookup does not return raw matched media directly' $gstarPaperLookup 'ToPlotCommandMediaInput\(matched,\s*fallback,\s*commandFallback,\s*expandPaperName\)'
+Assert-Match 'plot command paper converts canonical expand names to display names' $batchPlotCommands 'ToPlotCommandMediaInputDisplayName'
 Assert-Match 'zwcad command paper keeps expand A3 media for zero margin' $batchPlotCommands 'ISO_expand_A3_\(420\.00_x_297\.00_MM\)[\s\S]*ISO expand A3 \(420\.00 x 297\.00'
 Assert-Match 'plot command paper converts canonical full bleed A3 to display name' $batchPlotCommands 'ISO_full_bleed_A3_\(420\.00_x_297\.00_MM\)[\s\S]*ISO full bleed A3 \(420\.00 x 297\.00'
 Assert-NotMatch 'zwcad command paper should not downgrade expand A3 to normal ISO A3' $batchPlotCommands 'ISO_expand_A3_\(420\.00_x_297\.00_MM\)[\s\S]*return\s+"ISO A3 \(420\.00 x 297\.00'
@@ -352,75 +388,75 @@ Assert-Match 'zwcad pdf plot uses plot command path because PlotInfo is unavaila
 Assert-Match 'zwcad device plot uses plot command path because PlotInfo is unavailable' $batchPlotCommands '#if\s+GSTARCAD\s*\|\|\s*ZWCAD\s*\|\|\s*AUTOCAD\s+return\s+PlotFrameToDeviceWithPlotCommand\(frame,\s*settings\);'
 Assert-Match 'plot command helpers compile for autocad too' $batchPlotCommands '#if\s+GSTARCAD\s*\|\|\s*ZWCAD\s*\|\|\s*AUTOCAD'
 Assert-Match 'autocad plot command prefers synchronous COM SendCommand when available' $batchPlotCommands 'TrySendPlotCommandWithCom\(quietCommandText\)'
-Assert-Match 'zwcad batch plot uses command path for multiple frames' $batchPlotCommands '#if\s+GSTARCAD\s*\|\|\s*ZWCAD\s+success\s*=\s*RunGstarBatchPlotWithPlotCommand\(frames,\s*settings,\s*outputToFile\);'
-Assert-Match 'gstarcad plot command pdf helper exists' $batchPlotCommands 'static\s+bool\s+PlotFrameToPdfWithPlotCommand\s*\('
-Assert-Match 'gstarcad plot command printer helper exists' $batchPlotCommands 'static\s+bool\s+PlotFrameToDeviceWithPlotCommand\s*\('
-Assert-Match 'gstarcad batch plot helper exists' $batchPlotCommands 'static\s+int\s+RunGstarBatchPlotWithPlotCommand\s*\('
-Assert-Match 'gstarcad batch plot resolves settings once' $batchPlotCommands 'BatchPlotSettings\s+resolvedSettings\s*=\s*ResolveGstarPlotCommandSettings\(settings\)'
-Assert-NotMatch 'gstarcad batch plot does not send one combined command' $batchPlotCommands 'SendGstarPlotCommand\(string\.Join\(Environment\.NewLine,\s*commands\.ToArray\(\)\)\)'
-Assert-Match 'gstarcad batch plot submits each sheet independently' $batchPlotCommands 'SendGstarPlotCommand\(BuildGstarPlotCommand\(frames\[i\],\s*resolvedSettings,\s*outputPath\)\)'
-Assert-Match 'gstarcad plot command resolves settings before build' $batchPlotCommands 'ResolveGstarPlotCommandSettings'
-Assert-Match 'gstarcad plot command uses resolved pdf settings' $batchPlotCommands 'BuildGstarPlotCommand\(frame,\s*resolvedSettings,\s*outputPath\)'
-Assert-Match 'gstarcad plot command uses resolved printer settings' $batchPlotCommands 'BuildGstarPlotCommand\(frame,\s*resolvedSettings,\s*null\)'
-Assert-Match 'gstarcad plot command builds command text' $batchPlotCommands 'BuildGstarPlotCommand'
-Assert-Match 'gstarcad plot command sends command text' $batchPlotCommands 'SendStringToExecute'
-Assert-Literal 'gstarcad plot command uses adaptive lisp plot wrapper' $batchPlotCommands '"(ct-plot (list "'
-Assert-Match 'gstarcad plot command checks functions with atoms family' $batchPlotCommands 'atoms-family'
-Assert-Match 'gstarcad plot command prefers vl-cmdf when available' $batchPlotCommands '\\"VL-CMDF\\"'
-Assert-Match 'gstarcad plot command avoids missing command-s errors' $batchPlotCommands '\\"COMMAND-S\\"'
-Assert-NotMatch 'gstarcad plot command does not use unsupported fboundp' $batchPlotCommands 'fboundp'
-Assert-NotMatch 'gstarcad plot command no longer calls command-s directly' $batchPlotCommands 'return\s+"\(command-s "'
-Assert-NotMatch 'gstarcad plot command no longer calls command directly per plot' $batchPlotCommands 'return\s+"\(command "'
-Assert-Match 'gstarcad plot command uses command line plot' $batchPlotCommands '"_\.-PLOT"'
-Assert-Match 'gstarcad plot command uses detailed plot mode' $batchPlotCommands '"Y"'
-Assert-Match 'gstarcad plot command uses model layout' $batchPlotCommands '"Model"'
-Assert-Match 'gstarcad plot command uses window option' $batchPlotCommands '"W"'
-Assert-Match 'gstarcad plot command uses mm expanded frame' $batchPlotCommands 'BatchPlotFrame\s+plotFrame\s*=\s*ExpandBatchPlotFrameByMarginMm\(frame,\s*settings\)'
-Assert-Match 'gstarcad plot lower left uses expanded frame' $batchPlotCommands 'FormatGstarPlotPoint\(plotFrame\.MinX,\s*plotFrame\.MinY\)'
-Assert-Match 'gstarcad plot upper right uses expanded frame' $batchPlotCommands 'FormatGstarPlotPoint\(plotFrame\.MaxX,\s*plotFrame\.MaxY\)'
-Assert-Match 'gstarcad plot command computes fit scale with margin' $batchPlotCommands 'BuildGstarPlotScaleInput\(frame,\s*settings\)'
-Assert-Match 'gstarcad plot command logs geometry diagnostics' $batchPlotCommands 'LogGstarPlotGeometry\(frame,\s*plotFrame,\s*settings,\s*scaleInput\)'
+Assert-Match 'zwcad batch plot uses command path for multiple frames' $batchPlotCommands '#if\s+GSTARCAD\s*\|\|\s*ZWCAD\s+success\s*=\s*RunBatchPlotWithPlotCommand\(frames,\s*settings,\s*outputToFile\);'
+Assert-Match 'plot command pdf helper exists' $batchPlotCommands 'static\s+bool\s+PlotFrameToPdfWithPlotCommand\s*\('
+Assert-Match 'plot command printer helper exists' $batchPlotCommands 'static\s+bool\s+PlotFrameToDeviceWithPlotCommand\s*\('
+Assert-Match 'batch plot command helper exists' $batchPlotCommands 'static\s+int\s+RunBatchPlotWithPlotCommand\s*\('
+Assert-Match 'batch plot command resolves settings once' $batchPlotCommands 'BatchPlotSettings\s+resolvedSettings\s*=\s*ResolvePlotCommandSettings\(settings\)'
+Assert-NotMatch 'batch plot command does not send one combined command' $batchPlotCommands 'SendPlotCommand\(string\.Join\(Environment\.NewLine,\s*commands\.ToArray\(\)\)\)'
+Assert-Match 'batch plot command submits each sheet independently' $batchPlotCommands 'SendPlotCommand\(BuildPlotCommand\(frames\[i\],\s*resolvedSettings,\s*outputPath\)\)'
+Assert-Match 'plot command resolves settings before build' $batchPlotCommands 'ResolvePlotCommandSettings'
+Assert-Match 'plot command uses resolved pdf settings' $batchPlotCommands 'BuildPlotCommand\(frame,\s*resolvedSettings,\s*outputPath\)'
+Assert-Match 'plot command uses resolved printer settings' $batchPlotCommands 'BuildPlotCommand\(frame,\s*resolvedSettings,\s*null\)'
+Assert-Match 'plot command builds command text' $batchPlotCommands 'BuildPlotCommand'
+Assert-Match 'plot command sends command text' $batchPlotCommands 'SendStringToExecute'
+Assert-Literal 'plot command uses adaptive lisp plot wrapper' $batchPlotCommands '"(ct-plot (list "'
+Assert-Match 'plot command checks functions with atoms family' $batchPlotCommands 'atoms-family'
+Assert-Match 'plot command prefers vl-cmdf when available' $batchPlotCommands '\\"VL-CMDF\\"'
+Assert-Match 'plot command avoids missing command-s errors' $batchPlotCommands '\\"COMMAND-S\\"'
+Assert-NotMatch 'plot command does not use unsupported fboundp' $batchPlotCommands 'fboundp'
+Assert-NotMatch 'plot command no longer calls command-s directly' $batchPlotCommands 'return\s+"\(command-s "'
+Assert-NotMatch 'plot command no longer calls command directly per plot' $batchPlotCommands 'return\s+"\(command "'
+Assert-Match 'plot command uses command line plot' $batchPlotCommands '"_\.-PLOT"'
+Assert-Match 'plot command uses detailed plot mode' $batchPlotCommands '"Y"'
+Assert-Match 'plot command uses model layout' $batchPlotCommands '"Model"'
+Assert-Match 'plot command uses window option' $batchPlotCommands '"W"'
+Assert-Match 'plot command uses mm expanded frame' $batchPlotCommands 'BatchPlotFrame\s+plotFrame\s*=\s*ExpandBatchPlotFrameByMarginMm\(frame,\s*settings\)'
+Assert-Match 'gstarcad plot lower left uses expanded frame' $batchPlotCommands 'FormatPlotCommandPoint\(plotFrame\.MinX,\s*plotFrame\.MinY\)'
+Assert-Match 'gstarcad plot upper right uses expanded frame' $batchPlotCommands 'FormatPlotCommandPoint\(plotFrame\.MaxX,\s*plotFrame\.MaxY\)'
+Assert-Match 'plot command computes fit scale with margin' $batchPlotCommands 'BuildPlotCommandScaleInput\(frame,\s*settings\)'
+Assert-Match 'plot command logs geometry diagnostics' $batchPlotCommands 'LogPlotCommandGeometry\(frame,\s*plotFrame,\s*settings,\s*scaleInput\)'
 Assert-Match 'gstarcad plot geometry describes original and plot frames' $batchPlotCommands 'DescribeBatchPlotFrame\(frame\)[\s\S]*DescribeBatchPlotFrame\(plotFrame\)'
 Assert-Match 'batch plot geometry diagnostics use shared number formatter' $batchPlotCommands 'static\s+string\s+FormatBatchPlotNumber\(double\s+value\)'
 Assert-Match 'batch plot shared scale rejects invalid frame before fallback' $batchPlotCommands 'frame\.Width\s*<=\s*0\s*\|\|\s*frame\.Height\s*<=\s*0\)\s*return\s+false;'
-Assert-Match 'gstarcad plot command computes explicit scale even when margin is zero' $batchPlotCommands 'return\s+BuildBatchPlotScaleInput\(frame,\s*settings\);'
-Assert-NotMatch 'gstarcad plot command does not use fit scale for zero margin' $batchPlotCommands 'marginMm\s*<=\s*0\s*\|\|\s*frame\.Width\s*<=\s*0'
-Assert-Match 'gstarcad plot command no longer always uses fit scale' $batchPlotCommands 'inputs\.Add\(QuoteGstarLispString\(scaleInput\)\)'
-Assert-Match 'gstarcad plot command includes device name' $batchPlotCommands 'settings\.DeviceName'
-Assert-Match 'gstarcad plot command includes paper name' $batchPlotCommands 'settings\.PaperName'
-Assert-Match 'gstarcad plot command includes style sheet' $batchPlotCommands 'settings\.PlotStyle'
-Assert-Match 'gstarcad plot command respects center setting directly' $batchPlotCommands 'settings\.CenterPlot\s*\?\s*"C"\s*:\s*"0,0"'
-Assert-Match 'gstarcad plot command sends wireframe shade setting after lineweights' $batchPlotCommands 'GetGstarPlotShadeInput\(\)'
-Assert-Match 'gstarcad plot command includes pdf output path' $batchPlotCommands 'outputPath'
-Assert-Match 'gstarcad plot command wraps send in a quiet progn' $batchPlotCommands 'quietCommandText\s*=\s*"\(progn'
-Assert-Match 'gstarcad plot command suppresses command echo' $batchPlotCommands 'setvar \\"CMDECHO\\" 0[\s\S]*setvar \\"CMDECHO\\" 1'
-Assert-Match 'gstarcad plot command saves background plot setting' $batchPlotCommands 'getvar \\"BACKGROUNDPLOT\\"'
-Assert-Match 'gstarcad plot command disables background plot while plotting' $batchPlotCommands 'setvar \\"BACKGROUNDPLOT\\" 0'
-Assert-Match 'gstarcad plot command restores background plot setting' $batchPlotCommands 'setvar \\"BACKGROUNDPLOT\\" _ctOldBgPlot'
-Assert-Match 'gstarcad plot command suppresses lisp return value noise' $batchPlotCommands '\(princ\)\)\\n"'
-Assert-Match 'gstarcad plot command sends lisp input without command line echo' $batchPlotCommands 'SendStringToExecute\(quietCommandText,\s*true,\s*false,\s*false\)'
-$gstarCommandBuilder = [regex]::Match($batchPlotCommands, 'static\s+string\s+BuildGstarPlotCommand[\s\S]*?static\s+BatchPlotSettings\s+ResolveGstarPlotCommandSettings').Value
-Assert-NotMatch 'gstarcad plot command does not send extra no answers before pdf filename' $gstarCommandBuilder 'GetGstarPlotShadeInput\(\)\)\);\s*inputs\.Add\(QuoteGstarLispString\("N"\)\);\s*inputs\.Add\(QuoteGstarLispString\("N"\)\);\s*if \(!string\.IsNullOrEmpty\(outputPath\)\)'
-Assert-Match 'gstarcad plot command confirms continue printing after page setup save answer' $gstarCommandBuilder 'inputs\.Add\(QuoteGstarLispString\("N"\)\);\s*inputs\.Add\(QuoteGstarLispString\("Y"\)\);'
-Assert-Match 'gstarcad plot command does not print physical printers to file' $gstarCommandBuilder 'else\s*\{\s*inputs\.Add\(QuoteGstarLispString\("N"\)\);\s*inputs\.Add\(QuoteGstarLispString\("N"\)\);\s*inputs\.Add\(QuoteGstarLispString\("Y"\)\);'
-Assert-Match 'gstarcad plot command escapes command arguments' $batchPlotCommands 'QuoteGstarLispString'
-Assert-Match 'gstarcad plot command strips argument newlines' $batchPlotCommands 'Replace\("\\r",\s*" "\)\.Replace\("\\n",\s*" "\)'
-Assert-Literal 'gstarcad plot command escapes lisp backslashes' $batchPlotCommands 'Replace("\\", "\\\\")'
-Assert-Literal 'gstarcad plot command escapes lisp quotes' $batchPlotCommands 'Replace("\"", "\\\"")'
-Assert-Match 'gstarcad plot command reads plot device list' $batchPlotCommands 'GetPlotDeviceList'
-Assert-Match 'gstarcad plot command reads canonical media list' $batchPlotCommands 'GetCanonicalMediaNameList'
-Assert-Match 'gstarcad plot command resolves paper name' $batchPlotCommands 'ResolveGstarPlotCommandPaperName'
-Assert-Match 'gstarcad plot command matches configured paper first' $batchPlotCommands 'MatchGstarPlotMediaName\(enumerable,\s*fallback\)'
-Assert-Match 'gstarcad plot command retries no-argument device list' $batchPlotCommands 'catch\s*\(MissingMethodException\)'
-Assert-Match 'gstarcad plot command matches pc3 base name' $batchPlotCommands 'Path\.GetFileNameWithoutExtension'
-Assert-Match 'gstarcad plot command matches candidate device base name for zwcad pc5' $batchPlotCommands 'NormalizeDeviceName\(Path\.GetFileNameWithoutExtension\(candidate\)\)'
-Assert-Match 'gstarcad plot command maps configured pc3 to zwcad pc5 by base name' $batchPlotCommands 'normalizedCandidateBase\.Equals\(normalizedBaseNeedle'
-Assert-Match 'gstarcad plot command matches configured device first' $batchPlotCommands 'MatchGstarPlotDeviceName\(enumerable,\s*fallback\)'
-Assert-Match 'gstarcad plot command logs available media' $batchPlotCommands 'AvailableMedia'
-Assert-NotMatch 'gstarcad plot command does not replace pc3 with driver display name' $batchPlotCommands 'DWG to PDF 1\.0'
-Assert-NotMatch 'gstarcad plot command does not directly write full command text by default' $batchPlotCommands '\bLog\("BatchPlot -PLOT command text'
-Assert-NotMatch 'gstarcad plot command does not directly write successful submissions by default' $batchPlotCommands '\bLog\("BatchPlot -PLOT command submitted'
-Assert-Match 'gstarcad plot command can be debug logged explicitly' $batchPlotCommands 'DebugBatchPlotLog\('
+Assert-Match 'plot command computes explicit scale even when margin is zero' $batchPlotCommands 'return\s+BuildBatchPlotScaleInput\(frame,\s*settings\);'
+Assert-NotMatch 'plot command does not use fit scale for zero margin' $batchPlotCommands 'marginMm\s*<=\s*0\s*\|\|\s*frame\.Width\s*<=\s*0'
+Assert-Match 'plot command no longer always uses fit scale' $batchPlotCommands 'inputs\.Add\(QuotePlotCommandLispString\(scaleInput\)\)'
+Assert-Match 'plot command includes device name' $batchPlotCommands 'settings\.DeviceName'
+Assert-Match 'plot command includes paper name' $batchPlotCommands 'settings\.PaperName'
+Assert-Match 'plot command includes style sheet' $batchPlotCommands 'settings\.PlotStyle'
+Assert-Match 'plot command respects center setting directly' $batchPlotCommands 'settings\.CenterPlot\s*\?\s*"C"\s*:\s*"0,0"'
+Assert-Match 'plot command sends wireframe shade setting after lineweights' $batchPlotCommands 'GetPlotCommandShadeInput\(\)'
+Assert-Match 'plot command includes pdf output path' $batchPlotCommands 'outputPath'
+Assert-Match 'plot command wraps send in a quiet progn' $batchPlotCommands 'quietCommandText\s*=\s*"\(progn'
+Assert-Match 'plot command suppresses command echo' $batchPlotCommands 'setvar \\"CMDECHO\\" 0[\s\S]*setvar \\"CMDECHO\\" 1'
+Assert-Match 'plot command saves background plot setting' $batchPlotCommands 'getvar \\"BACKGROUNDPLOT\\"'
+Assert-Match 'plot command disables background plot while plotting' $batchPlotCommands 'setvar \\"BACKGROUNDPLOT\\" 0'
+Assert-Match 'plot command restores background plot setting' $batchPlotCommands 'setvar \\"BACKGROUNDPLOT\\" _ctOldBgPlot'
+Assert-Match 'plot command suppresses lisp return value noise' $batchPlotCommands '\(princ\)\)\\n"'
+Assert-Match 'plot command sends lisp input without command line echo' $batchPlotCommands 'SendStringToExecute\(quietCommandText,\s*true,\s*false,\s*false\)'
+$gstarCommandBuilder = [regex]::Match($batchPlotCommands, 'static\s+string\s+BuildPlotCommand[\s\S]*?static\s+BatchPlotSettings\s+ResolvePlotCommandSettings').Value
+Assert-NotMatch 'plot command does not send extra no answers before pdf filename' $gstarCommandBuilder 'GetPlotCommandShadeInput\(\)\)\);\s*inputs\.Add\(QuotePlotCommandLispString\("N"\)\);\s*inputs\.Add\(QuotePlotCommandLispString\("N"\)\);\s*if \(!string\.IsNullOrEmpty\(outputPath\)\)'
+Assert-Match 'plot command confirms continue printing after page setup save answer' $gstarCommandBuilder 'inputs\.Add\(QuotePlotCommandLispString\("N"\)\);\s*inputs\.Add\(QuotePlotCommandLispString\("Y"\)\);'
+Assert-Match 'plot command does not print physical printers to file' $gstarCommandBuilder 'else\s*\{\s*inputs\.Add\(QuotePlotCommandLispString\("N"\)\);\s*inputs\.Add\(QuotePlotCommandLispString\("N"\)\);\s*inputs\.Add\(QuotePlotCommandLispString\("Y"\)\);'
+Assert-Match 'plot command escapes command arguments' $batchPlotCommands 'QuotePlotCommandLispString'
+Assert-Match 'plot command strips argument newlines' $batchPlotCommands 'Replace\("\\r",\s*" "\)\.Replace\("\\n",\s*" "\)'
+Assert-Literal 'plot command escapes lisp backslashes' $batchPlotCommands 'Replace("\\", "\\\\")'
+Assert-Literal 'plot command escapes lisp quotes' $batchPlotCommands 'Replace("\"", "\\\"")'
+Assert-Match 'plot command reads plot device list' $batchPlotCommands 'GetPlotDeviceList'
+Assert-Match 'plot command reads canonical media list' $batchPlotCommands 'GetCanonicalMediaNameList'
+Assert-Match 'plot command resolves paper name' $batchPlotCommands 'ResolvePlotCommandPaperName'
+Assert-Match 'plot command matches configured paper first' $batchPlotCommands 'MatchPlotCommandMediaName\(enumerable,\s*fallback\)'
+Assert-Match 'plot command retries no-argument device list' $batchPlotCommands 'catch\s*\(MissingMethodException\)'
+Assert-Match 'plot command matches pc3 base name' $batchPlotCommands 'Path\.GetFileNameWithoutExtension'
+Assert-Match 'plot command matches candidate device base name for zwcad pc5' $batchPlotCommands 'NormalizeDeviceName\(Path\.GetFileNameWithoutExtension\(candidate\)\)'
+Assert-Match 'plot command maps configured pc3 to zwcad pc5 by base name' $batchPlotCommands 'normalizedCandidateBase\.Equals\(normalizedBaseNeedle'
+Assert-Match 'plot command matches configured device first' $batchPlotCommands 'MatchPlotCommandDeviceName\(enumerable,\s*fallback\)'
+Assert-Match 'plot command logs available media' $batchPlotCommands 'AvailableMedia'
+Assert-NotMatch 'plot command does not replace pc3 with driver display name' $batchPlotCommands 'DWG to PDF 1\.0'
+Assert-NotMatch 'plot command does not directly write full command text by default' $batchPlotCommands '\bLog\("BatchPlot -PLOT command text'
+Assert-NotMatch 'plot command does not directly write successful submissions by default' $batchPlotCommands '\bLog\("BatchPlot -PLOT command submitted'
+Assert-Match 'plot command can be debug logged explicitly' $batchPlotCommands 'DebugBatchPlotLog\('
 Assert-Match 'batch plot reports sent to printer' $batchPlotCommands '\\u5DF2\\u53D1\\u9001\\u5230\\u6253\\u5370\\u673A'
 Assert-Match 'batch plot logs device details on failure' $batchPlotCommands 'Device='
 Assert-Match 'batch plot resolves types from candidates' $batchPlotCommands 'RequiredTypeFromCandidates'
@@ -453,6 +489,9 @@ $projectFiles = @(
 foreach ($projectFile in $projectFiles) {
     $project = Get-Content -Encoding UTF8 (Join-Path $repo $projectFile) -Raw
     Assert-Match "$projectFile includes batch plot commands" $project '<Compile Include="BatchPlotCommands\.cs" />'
+    foreach ($file in $batchPlotRefactorFiles) {
+        Assert-Match "$projectFile includes $file" $project ('<Compile Include="' + [regex]::Escape($file) + '" />')
+    }
 }
 
 Assert-Literal 'readme documents batch plot label' $readme $batchPlotLabel
@@ -481,3 +520,4 @@ Assert-Literal 'manual documents ctb-only style behavior' $manual '.ctb'
 Assert-Literal 'manual documents current position sorting rule' $manual $positionSortRuleText
 Assert-Literal 'manual documents system printer behavior' $manual $systemPrinterBehaviorText
 Assert-Literal 'manual documents common unknown CT_PANEL issue' $manual $unknownCtPanelText
+
