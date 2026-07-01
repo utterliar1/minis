@@ -20,7 +20,9 @@ namespace BlockBrowser
             int thumbnailCacheCount,
             string syncUserName,
             string localJournalPath,
-            string thumbnailCachePath)
+            string thumbnailCachePath,
+            string protectedLocalCategories,
+            string syncLogPath)
         {
             var activeKind = activeLibrary == null ? ActiveLibraryKind.None : activeLibrary.Kind;
             var activePath = activeLibrary == null ? "" : activeLibrary.ActivePath;
@@ -44,9 +46,12 @@ namespace BlockBrowser
             sb.AppendLine("NAS 可访问: " + YesNo(nasAvailable));
             sb.AppendLine("本地副本可访问: " + YesNo(localMirrorAvailable));
             sb.AppendLine("允许同步到 NAS: " + YesNo(allowNasSync));
+            sb.AppendLine("保护分类白名单: " + (protectedLocalCategories ?? ""));
             sb.AppendLine();
             sb.AppendLine("本地变更记录: " + localChangeCount);
+            sb.AppendLine("存在待同步本地变更: " + YesNo(localChangeCount > 0));
             sb.AppendLine("变更记录文件: " + (localJournalPath ?? ""));
+            sb.AppendLine("同步日志: " + (syncLogPath ?? ""));
             sb.AppendLine("缩略图缓存: " + thumbnailCacheCount);
             sb.AppendLine("缩略图目录: " + (thumbnailCachePath ?? ""));
             sb.AppendLine("同步用户: " + (syncUserName ?? ""));

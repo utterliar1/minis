@@ -12,6 +12,7 @@ namespace BlockBrowser
         private void DoInsert()
         {
             if (_selectedBlock == null) { MessageBox.Show("请先选择一个块。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            StopPanelBackgroundWork();
             SelectedInsertBlock = _selectedBlock;
             InsertScale = BlockLibrary.InsertScale;
             InsertRotation = BlockLibrary.InsertRotation;
@@ -126,6 +127,7 @@ namespace BlockBrowser
             PendingCategory = plan.Category;
             PendingBlockName = plan.BlockName;
             PendingCommand = plan.PendingCommand;
+            StopPanelBackgroundWork();
             this.DialogResult = DialogResult.Abort;
             this.Close();
         }
@@ -133,6 +135,7 @@ namespace BlockBrowser
         private void BtnExportBlock_Click(object sender, EventArgs e)
         {
             PendingCommand = "BBEXPORT";
+            StopPanelBackgroundWork();
             this.DialogResult = DialogResult.Abort;
             this.Close();
         }

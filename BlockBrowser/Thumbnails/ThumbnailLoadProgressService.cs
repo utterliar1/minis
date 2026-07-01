@@ -2,7 +2,7 @@ namespace BlockBrowser
 {
     public static class ThumbnailLoadProgressService
     {
-        public const int DefaultBatchSize = 5;
+        public const int DefaultBatchSize = 2;
 
         public static bool IsComplete(int currentIndex, int totalCount)
         {

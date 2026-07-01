@@ -92,6 +92,11 @@ namespace BlockBrowser
                 bool existed = File.Exists(dest);
                 if (existed)
                 {
+                    if (AreFilesEquivalent(file, dest))
+                    {
+                        result.UnchangedSkipCount++;
+                        continue;
+                    }
                     result.OverwrittenCount++;
                     AddEntry(result, MirrorDirectoryAction.Overwrite, rel);
                 }
@@ -175,6 +180,46 @@ namespace BlockBrowser
                 Action = action,
                 RelativePath = NormalizeRelativePath(relativePath)
             });
+        }
+
+        private static bool AreFilesEquivalent(string sourcePath, string targetPath)
+        {
+            try
+            {
+                var source = new FileInfo(sourcePath);
+                var target = new FileInfo(targetPath);
+                if (!source.Exists || !target.Exists) return false;
+                if (source.Length != target.Length) return false;
+                if (source.LastWriteTimeUtc == target.LastWriteTimeUtc) return true;
+                return HaveSameContent(sourcePath, targetPath);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool HaveSameContent(string sourcePath, string targetPath)
+        {
+            const int BufferSize = 1024 * 128;
+            byte[] sourceBuffer = new byte[BufferSize];
+            byte[] targetBuffer = new byte[BufferSize];
+
+            using (var source = File.Open(sourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var target = File.Open(targetPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                while (true)
+                {
+                    int sourceRead = source.Read(sourceBuffer, 0, sourceBuffer.Length);
+                    int targetRead = target.Read(targetBuffer, 0, targetBuffer.Length);
+                    if (sourceRead != targetRead) return false;
+                    if (sourceRead == 0) return true;
+                    for (int i = 0; i < sourceRead; i++)
+                    {
+                        if (sourceBuffer[i] != targetBuffer[i]) return false;
+                    }
+                }
+            }
         }
 
         public static bool CanRenameBlock(BlockInfo block, string newName, bool checkCollision)

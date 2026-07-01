@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,7 +8,7 @@ namespace BlockBrowser
     public static partial class BlockLibrary
     {
         public static string LibraryPath { get; set; }
-        public const string AppVersion = "1.3.3";
+        public const string AppVersion = "1.3.4";
         public static string PlatformName { get; set; }
         public static int ThumbSize { get; set; }
         public static double InsertScale { get; set; }

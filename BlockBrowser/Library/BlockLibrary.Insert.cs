@@ -37,7 +37,7 @@ namespace BlockBrowser
             {
                 PromptPointResult pr = ed.GetPoint("\n指定插入点: ");
                 if (pr.Status != PromptStatus.OK) return;
-                Point3d pt = pr.Value;
+                Point3d pt = pr.Value.TransformBy(ed.CurrentUserCoordinateSystem);
                 string bname = block.Name;
                 using (DocumentLock dl = doc.LockDocument())
                 {
@@ -85,8 +85,6 @@ namespace BlockBrowser
                 ed.WriteMessage("\n插入失败: " + ex.Message);
             }
         }
-
-
 
     }
 }

@@ -53,12 +53,14 @@ $result.CopiedNewCount = 1
 $result.OverwrittenCount = 2
 $result.DeletedCount = 3
 $result.ProtectedSkipCount = 4
+$result.UnchangedSkipCount = 5
 
 $dialog = [BlockBrowser.MirrorSummaryMessageService]::FormatDialog($result)
 Assert-True 'dialog includes new count' ($dialog.Contains('1'))
 Assert-True 'dialog includes overwritten count' ($dialog.Contains('2'))
 Assert-True 'dialog includes deleted count' ($dialog.Contains('3'))
 Assert-True 'dialog includes protected count' ($dialog.Contains('4'))
+Assert-True 'dialog includes unchanged skip count' ($dialog.Contains('5'))
 Assert-True 'dialog message is multiline' ($dialog.Contains("`n"))
 
 $command = [BlockBrowser.MirrorSummaryMessageService]::FormatCommand($result)
@@ -66,6 +68,7 @@ Assert-True 'command includes new count' ($command.Contains('1'))
 Assert-True 'command includes overwritten count' ($command.Contains('2'))
 Assert-True 'command includes deleted count' ($command.Contains('3'))
 Assert-True 'command includes protected count' ($command.Contains('4'))
+Assert-True 'command includes unchanged skip count' ($command.Contains('5'))
 Assert-False 'command message is single line' ($command.Contains("`n"))
 
 $entry = New-Object BlockBrowser.MirrorDirectoryEntry
@@ -137,8 +140,11 @@ Assert-Contains 'mirror preview protects pending local changes' $pluginSource 'C
 Assert-NotContains 'mirror preview does not block pending local changes' $pluginSource 'Local changes are pending'
 Assert-Contains 'BBMIRROR writes mirror summary' $pluginSource 'MirrorSummaryMessageService\.FormatCommand\(result\)'
 Assert-Contains 'BBMIRROR writes mirror preview' $pluginSource 'MirrorSummaryMessageService\.FormatPreviewCommand\(preview\)'
+Assert-Contains 'BBMIRROR skips confirmation when no writable changes' $pluginSource 'if\s*\(preview\.ChangedCount\s*==\s*0\)[\s\S]*?MirrorSummaryMessageService\.FormatCommand\(preview\)'
 Assert-Contains 'BBMIRROR asks for confirmation' $pluginSource 'GetString\([\s\S]*?\[Y/N\]'
 Assert-Contains 'panel shows tree mirror preview before update' $formSource 'new\s+MirrorPreviewDialog\(preview\)'
+Assert-Contains 'panel skips tree preview when no writable changes' $formSource 'if\s*\(preview\.ChangedCount\s*==\s*0\)[\s\S]*?MirrorSummaryMessageService\.FormatDialog\(preview\)'
+Assert-Contains 'panel no-change branch returns without reloading thumbnails' $formSource 'if\s*\(preview\.ChangedCount\s*==\s*0\)\s*\{\s*MessageBox\.Show\(MirrorSummaryMessageService\.FormatDialog\(preview\)[\s\S]*?\);\s*return;\s*\}'
 Assert-Contains 'panel confirms through tree preview dialog' $formSource 'previewDialog\.ShowDialog\(this\)\s*!=\s*DialogResult\.OK'
 Assert-NotContains 'panel no longer uses text message box preview' $formSource 'MirrorSummaryMessageService\.FormatPreviewDialog\(preview\)'
 Assert-Contains 'panel shows mirror summary' $formSource 'MirrorSummaryMessageService\.FormatDialog\(result\)'

@@ -17,14 +17,57 @@ namespace BlockBrowser
             return ThumbnailMemoryCacheService.HasValue(_thumbCache, card.Block.FilePath, _thumbSize);
         }
 
+        private bool IsCardNearThumbnailViewport(BlockThumbnailCard card)
+        {
+            if (card == null || _flowBlocks == null) return false;
+            if (_flowBlocks.ClientSize.Width <= 0 || _flowBlocks.ClientSize.Height <= 0) return true;
+
+            try
+            {
+                Rectangle cardBounds = card.RectangleToScreen(card.ClientRectangle);
+                Rectangle viewBounds = _flowBlocks.RectangleToScreen(_flowBlocks.ClientRectangle);
+                viewBounds.Inflate(0, Math.Max(_thumbSize, 120));
+                return viewBounds.IntersectsWith(cardBounds);
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
         private void QueueVisibleMissingThumbnails()
         {
             _thumbTimer.Stop();
-            var needLoad = _cards.Where(c => BlockFilterService.Matches(c.Block, _txtSearch.Text) && !HasThumbnail(c)).ToList();
+            var needLoad = _cards.Where(c => c.Visible && IsCardNearThumbnailViewport(c) && BlockFilterService.Matches(c.Block, _txtSearch.Text) && !HasThumbnail(c)).ToList();
             _failCount = 0;
             _pendingThumbCards = needLoad;
             _thumbIndex = 0;
             if (needLoad.Count > 0) _thumbTimer.Start();
+        }
+
+        private void RequestVisibleThumbnailQueue()
+        {
+            if (_viewportThumbTimer == null)
+            {
+                QueueVisibleMissingThumbnails();
+                return;
+            }
+            _viewportThumbTimer.Stop();
+            _viewportThumbTimer.Start();
+        }
+
+        private void StopPanelBackgroundWork()
+        {
+            _searchTimer.Stop();
+            _thumbTimer.Stop();
+            if (_viewportThumbTimer != null) _viewportThumbTimer.Stop();
+            if (_cardTimer != null) _cardTimer.Stop();
+            _cardLoadVersion++;
+            _pendingThumbCards = new List<BlockThumbnailCard>();
+            _pendingBlocks = new List<BlockInfo>();
+            _pendingCategoryKey = "";
+            _thumbIndex = 0;
+            _pendingCardIndex = 0;
         }
 
         // Load thumbnails one by one on UI thread (safe for GstarCAD API)

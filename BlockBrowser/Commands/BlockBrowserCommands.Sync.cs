@@ -60,6 +60,12 @@ namespace BlockBrowser
             {
                 var preview = BlockLibrary.PreviewLocalMirrorFromNas();
                 ed.WriteMessage("\n" + MirrorSummaryMessageService.FormatPreviewCommand(preview));
+                if (preview.ChangedCount == 0)
+                {
+                    ed.WriteMessage("\n" + MirrorSummaryMessageService.FormatCommand(preview));
+                    return;
+                }
+
                 var confirm = ed.GetString("\n\u786E\u8BA4\u66F4\u65B0\u672C\u5730\u56FE\u5E93? [Y/N] ");
                 if (confirm.Status != PromptStatus.OK || !string.Equals((confirm.StringResult ?? "").Trim(), "Y", StringComparison.OrdinalIgnoreCase))
                 {

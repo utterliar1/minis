@@ -11,6 +11,7 @@ namespace BlockBrowser
         public int OverwrittenCount { get; set; }
         public int DeletedCount { get; set; }
         public int ProtectedSkipCount { get; set; }
+        public int UnchangedSkipCount { get; set; }
         public System.Collections.Generic.List<MirrorDirectoryEntry> Entries { get; private set; }
 
         public int ChangedCount

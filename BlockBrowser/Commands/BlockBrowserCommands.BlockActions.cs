@@ -38,7 +38,7 @@ namespace BlockBrowser
                 var pr = ed.GetPoint("\n\u6307\u5B9A\u5757\u57FA\u70B9\uFF08\u56DE\u8F66\u7528\u539F\u70B9\uFF09: ");
                 Point3d basePt;
                 if (pr.Status == PromptStatus.OK)
-                    basePt = pr.Value;
+                    basePt = pr.Value.TransformBy(ed.CurrentUserCoordinateSystem);
                 else if (pr.Status == PromptStatus.None)
                     basePt = new Point3d(0, 0, 0);
                 else
@@ -116,7 +116,7 @@ namespace BlockBrowser
                 if (nr.Status != PromptStatus.OK || string.IsNullOrEmpty(nr.StringResult)) { ed.WriteMessage("\n\u53D6\u6D88\u3002"); return; }
                 var pr = ed.GetPoint("\n\u6307\u5B9A\u5757\u57FA\u70B9\uFF08\u56DE\u8F66\u7528\u539F\u70B9\uFF09: ");
                 Point3d basePt;
-                if (pr.Status == PromptStatus.OK) basePt = pr.Value;
+                if (pr.Status == PromptStatus.OK) basePt = pr.Value.TransformBy(ed.CurrentUserCoordinateSystem);
                 else if (pr.Status == PromptStatus.None) basePt = new Point3d(0, 0, 0);
                 else { ed.WriteMessage("\n\u53D6\u6D88\u3002"); return; }
                 var sr = ed.GetSelection();

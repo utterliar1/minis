@@ -11,22 +11,28 @@ namespace BlockBrowser
         {
             var counts = result ?? new MirrorDirectoryResult();
             return string.Format(
-                "\u66F4\u65B0\u672C\u5730\u56FE\u5E93\u5B8C\u6210:\n\u65B0\u589E: {0}\n\u8986\u76D6: {1}\n\u5220\u9664: {2}\n\u4FDD\u62A4\u8DF3\u8FC7: {3}",
+                counts.ChangedCount == 0
+                    ? "\u672C\u5730\u56FE\u5E93\u5DF2\u662F\u6700\u65B0:\n\u65B0\u589E: {0}\n\u8986\u76D6: {1}\n\u5220\u9664: {2}\n\u4FDD\u62A4\u8DF3\u8FC7: {3}\n\u672A\u53D8\u5316\u8DF3\u8FC7: {4}"
+                    : "\u66F4\u65B0\u672C\u5730\u56FE\u5E93\u5B8C\u6210:\n\u65B0\u589E: {0}\n\u8986\u76D6: {1}\n\u5220\u9664: {2}\n\u4FDD\u62A4\u8DF3\u8FC7: {3}\n\u672A\u53D8\u5316\u8DF3\u8FC7: {4}",
                 counts.CopiedNewCount,
                 counts.OverwrittenCount,
                 counts.DeletedCount,
-                counts.ProtectedSkipCount);
+                counts.ProtectedSkipCount,
+                counts.UnchangedSkipCount);
         }
 
         public static string FormatCommand(MirrorDirectoryResult result)
         {
             var counts = result ?? new MirrorDirectoryResult();
             return string.Format(
-                "\u66F4\u65B0\u672C\u5730\u56FE\u5E93\u5B8C\u6210: {0} \u65B0\u589E, {1} \u8986\u76D6, {2} \u5220\u9664, {3} \u4FDD\u62A4\u8DF3\u8FC7",
+                counts.ChangedCount == 0
+                    ? "\u672C\u5730\u56FE\u5E93\u5DF2\u662F\u6700\u65B0: {0} \u65B0\u589E, {1} \u8986\u76D6, {2} \u5220\u9664, {3} \u4FDD\u62A4\u8DF3\u8FC7, {4} \u672A\u53D8\u5316\u8DF3\u8FC7"
+                    : "\u66F4\u65B0\u672C\u5730\u56FE\u5E93\u5B8C\u6210: {0} \u65B0\u589E, {1} \u8986\u76D6, {2} \u5220\u9664, {3} \u4FDD\u62A4\u8DF3\u8FC7, {4} \u672A\u53D8\u5316\u8DF3\u8FC7",
                 counts.CopiedNewCount,
                 counts.OverwrittenCount,
                 counts.DeletedCount,
-                counts.ProtectedSkipCount);
+                counts.ProtectedSkipCount,
+                counts.UnchangedSkipCount);
         }
 
         public static string FormatPreviewDialog(MirrorDirectoryResult result)
@@ -57,6 +63,7 @@ namespace BlockBrowser
             sb.AppendLine(string.Format("\u8986\u76D6: {0}", counts.OverwrittenCount));
             sb.AppendLine(string.Format("\u5220\u9664: {0}", counts.DeletedCount));
             sb.AppendLine(string.Format("\u4FDD\u62A4\u8DF3\u8FC7: {0}", counts.ProtectedSkipCount));
+            sb.AppendLine(string.Format("\u672A\u53D8\u5316\u8DF3\u8FC7: {0}", counts.UnchangedSkipCount));
         }
 
         private static void AppendEntries(StringBuilder sb, MirrorDirectoryResult result, bool includeEmpty)

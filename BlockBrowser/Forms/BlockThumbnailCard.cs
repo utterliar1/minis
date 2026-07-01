@@ -181,6 +181,9 @@ namespace BlockBrowser
             _pic.Image = img;
             if (old != null) old.Dispose();
             SetThumbnailFailed(false);
+            _pic.Invalidate();
+            _pic.Update();
+            _imageFrame.Invalidate(true);
         }
 
         public void SetPlaceholder(int thumbSize)
@@ -194,6 +197,8 @@ namespace BlockBrowser
             _pic.Image = BlockLibrary.GeneratePlaceholder(Block.Name, thumbSize);
             if (old != null) old.Dispose();
             SetThumbnailFailed(false);
+            _pic.Invalidate();
+            _imageFrame.Invalidate(true);
         }
 
         public void SetThumbnailFailed(bool failed)

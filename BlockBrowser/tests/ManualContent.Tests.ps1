@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $manualFileName = -join ([char[]](0x4F7F, 0x7528, 0x624B, 0x518C)) + '.html'
@@ -100,7 +100,7 @@ Assert-Contains 'manual explains search only matches block names' $manual ([rege
 Assert-Contains 'manual explains search ignores categories' $manual ([regex]::Escape($searchIgnoresCategory))
 Assert-Contains 'manual explains space separated search keywords' $manual ([regex]::Escape($searchExample))
 Assert-NotContains 'manual does not contain stale v1.25 status' $manual 'v1\.25'
-Assert-Contains 'manual status example uses current version' $manual 'v1\.3\.3\s*\|\s*WLUP'
+Assert-Contains 'manual status example uses current version' $manual 'v1\.3\.4\s*\|\s*WLUP'
 Assert-Contains 'manual points insert scale to toolbar insert settings' $manual ([regex]::Escape($toolbarInsertSettings))
 Assert-NotContains 'manual does not say insertion is preset in settings dialog' $manual ([regex]::Escape($oldInsertSettingsTip))
 Assert-Contains 'manual names its target audience' $manual ([regex]::Escape($manualAudience))

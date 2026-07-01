@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
 setlocal EnableDelayedExpansion
 echo ========================================
@@ -10,9 +10,35 @@ set "BASE=%~dp0"
 set "GCAD_DIR=C:\Program Files\浩辰软件\浩辰CAD2022"
 set "ACAD_DIR=C:\Program Files\Autodesk\AutoCAD 2020"
 set "ZWCAD_DIR=C:\Program Files\ZWSOFT\ZWCAD 2020"
-set "MSBUILD=C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe"
 set "OUTPUT=C:\BlockBrowser"
 set "BUILD_FAILED=0"
+set "MSBUILD="
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+set "NET48_REF=%ProgramFiles(x86)%\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8"
+
+if exist "%VSWHERE%" (
+    for /f "usebackq delims=" %%M in (`"%VSWHERE%" -latest -products * -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe`) do (
+        if not defined MSBUILD set "MSBUILD=%%M"
+    )
+)
+if not defined MSBUILD if exist "%ProgramFiles%\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe" set "MSBUILD=%ProgramFiles%\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe"
+if not defined MSBUILD if exist "%ProgramFiles%\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" set "MSBUILD=%ProgramFiles%\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe"
+if not defined MSBUILD if exist "%ProgramFiles%\Microsoft Visual Studio\2022\Professional\MSBuild\Current\Bin\MSBuild.exe" set "MSBUILD=%ProgramFiles%\Microsoft Visual Studio\2022\Professional\MSBuild\Current\Bin\MSBuild.exe"
+if not defined MSBUILD if exist "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe" set "MSBUILD=%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe"
+if not defined MSBUILD if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe" set "MSBUILD=%ProgramFiles(x86)%\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe"
+if not defined MSBUILD if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe" set "MSBUILD=%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe"
+if not defined MSBUILD set "MSBUILD=C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe"
+
+echo MSBuild: !MSBUILD!
+if not exist "!MSBUILD!" (
+    echo ERROR: MSBuild not found.
+    exit /b 1
+)
+if not exist "!NET48_REF!" (
+    echo WARNING: .NET Framework 4.8 reference assemblies not found: !NET48_REF!
+    echo          Install Developer Pack or VS Build Tools to remove MSB3644 warnings.
+)
+echo.
 
 if not exist "%OUTPUT%" mkdir "%OUTPUT%"
 if not exist "%OUTPUT%\gcad" mkdir "%OUTPUT%\gcad"

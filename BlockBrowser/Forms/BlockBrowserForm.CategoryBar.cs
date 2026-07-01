@@ -11,7 +11,12 @@ namespace BlockBrowser
     {
         private void RefreshCategories()
         {
-            var categories = BlockLibrary.GetBrowsableCategories();
+            RefreshCategories(BlockLibrary.GetBrowsableCategories());
+        }
+
+        private void RefreshCategories(List<string> categories)
+        {
+            if (categories == null) categories = new List<string>();
             _catBar.SuspendLayout();
             _catBar.Controls.Clear();
             foreach (var cat in categories)

@@ -144,7 +144,7 @@ try {
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorSource 'A\NewOnNas.dwg') -Value 'nas new'
     New-Item -ItemType Directory -Force -Path (Join-Path $mirrorSource '个人块'), (Join-Path $mirrorTarget '个人块') | Out-Null
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorSource '个人块\NasPersonal.dwg') -Value 'nas personal'
-    Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\Keep.dwg') -Value 'local keep'
+    Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\Keep.dwg') -Value 'nas keep'
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\Changed.dwg') -Value 'old local'
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\DeletedOnNas.dwg') -Value 'stale'
     Set-Content -Encoding ASCII -Path (Join-Path $mirrorTarget 'A\LocalOnly.dwg') -Value 'personal'
@@ -169,8 +169,9 @@ try {
     Assert-True 'mirror keeps journal directory' (Test-Path (Join-Path $mirrorTarget '.blockbrowser\local-changes.json'))
     Assert-True 'mirror keeps thumbnail directory' (Test-Path (Join-Path $mirrorTarget '.thumbs\Keep.png'))
     Assert-Equal 'mirror result new count' 1 $mirrorResult.CopiedNewCount
-    Assert-Equal 'mirror result overwritten count' 2 $mirrorResult.OverwrittenCount
+    Assert-Equal 'mirror result overwritten count' 1 $mirrorResult.OverwrittenCount
     Assert-Equal 'mirror result deleted count' 1 $mirrorResult.DeletedCount
+    Assert-Equal 'mirror result unchanged skip count' 1 $mirrorResult.UnchangedSkipCount
     Assert-True 'mirror result protected skip count' ($mirrorResult.ProtectedSkipCount -ge 1)
     Assert-True 'mirror result records local change protected skip' ($mirrorResult.Entries | Where-Object { $_.Action -eq [BlockBrowser.MirrorDirectoryAction]::ProtectedLocalChangeSkip -and $_.RelativePath -eq 'A\LocalOnly.dwg' })
     Assert-True 'mirror result records category protected skip' ($mirrorResult.Entries | Where-Object { $_.Action -eq [BlockBrowser.MirrorDirectoryAction]::ProtectedCategorySkip -and $_.RelativePath -like '个人块\*' })
@@ -179,7 +180,9 @@ try {
     $previewTarget = Join-Path $tempRoot 'PreviewTarget'
     New-Item -ItemType Directory -Force -Path (Join-Path $previewSource 'A'), (Join-Path $previewTarget 'A'), (Join-Path $previewSource '个人块'), (Join-Path $previewTarget '个人块') | Out-Null
     Set-Content -Encoding ASCII -Path (Join-Path $previewSource 'A\New.dwg') -Value 'new'
+    Set-Content -Encoding ASCII -Path (Join-Path $previewSource 'A\Same.dwg') -Value 'same'
     Set-Content -Encoding ASCII -Path (Join-Path $previewSource 'A\Changed.dwg') -Value 'nas changed'
+    Set-Content -Encoding ASCII -Path (Join-Path $previewTarget 'A\Same.dwg') -Value 'same'
     Set-Content -Encoding ASCII -Path (Join-Path $previewTarget 'A\Changed.dwg') -Value 'local old'
     Set-Content -Encoding ASCII -Path (Join-Path $previewTarget 'A\Deleted.dwg') -Value 'delete'
     Set-Content -Encoding ASCII -Path (Join-Path $previewTarget 'A\Protected.dwg') -Value 'protected'
@@ -193,12 +196,31 @@ try {
     Assert-Equal 'mirror preview new count' 1 $previewResult.CopiedNewCount
     Assert-Equal 'mirror preview overwritten count' 1 $previewResult.OverwrittenCount
     Assert-Equal 'mirror preview deleted count' 1 $previewResult.DeletedCount
+    Assert-Equal 'mirror preview unchanged skip count' 1 $previewResult.UnchangedSkipCount
     Assert-True 'mirror preview protected skip count' ($previewResult.ProtectedSkipCount -ge 1)
     Assert-True 'mirror preview records local change protected skip' ($previewResult.Entries | Where-Object { $_.Action -eq [BlockBrowser.MirrorDirectoryAction]::ProtectedLocalChangeSkip -and $_.RelativePath -eq 'A\Protected.dwg' })
     Assert-True 'mirror preview records category protected skip' ($previewResult.Entries | Where-Object { $_.Action -eq [BlockBrowser.MirrorDirectoryAction]::ProtectedCategorySkip -and $_.RelativePath -like '个人块\*' })
     Assert-False 'mirror preview does not copy new file' (Test-Path (Join-Path $previewTarget 'A\New.dwg'))
     Assert-True 'mirror preview keeps delete candidate' (Test-Path (Join-Path $previewTarget 'A\Deleted.dwg'))
     Assert-True 'mirror preview includes action details' ($previewResult.Entries.Count -ge 4)
+    Assert-False 'mirror preview skips unchanged same-content file' ($previewResult.Entries | Where-Object { $_.RelativePath -eq 'A\Same.dwg' })
+
+    $applySameSource = Join-Path $tempRoot 'ApplySameSource'
+    $applySameTarget = Join-Path $tempRoot 'ApplySameTarget'
+    New-Item -ItemType Directory -Force -Path (Join-Path $applySameSource 'A'), (Join-Path $applySameTarget 'A') | Out-Null
+    $applySameSourceFile = Join-Path $applySameSource 'A\Same.dwg'
+    $applySameTargetFile = Join-Path $applySameTarget 'A\Same.dwg'
+    Set-Content -Encoding ASCII -Path $applySameSourceFile -Value 'same'
+    Set-Content -Encoding ASCII -Path $applySameTargetFile -Value 'same'
+    $oldTargetTime = [datetime]::SpecifyKind([datetime]'2026-01-01T00:00:00', [System.DateTimeKind]::Utc)
+    [System.IO.File]::SetLastWriteTimeUtc($applySameTargetFile, $oldTargetTime)
+    $sameResult = [BlockBrowser.BlockFileOperations]::MirrorDirectoryContents($applySameSource, $applySameTarget, $null, $null)
+    Assert-Equal 'mirror unchanged new count' 0 $sameResult.CopiedNewCount
+    Assert-Equal 'mirror unchanged overwritten count' 0 $sameResult.OverwrittenCount
+    Assert-Equal 'mirror unchanged deleted count' 0 $sameResult.DeletedCount
+    Assert-Equal 'mirror unchanged skip count' 1 $sameResult.UnchangedSkipCount
+    Assert-Equal 'mirror unchanged entries count' 0 $sameResult.Entries.Count
+    Assert-Equal 'mirror unchanged file timestamp preserved' $oldTargetTime ([System.IO.File]::GetLastWriteTimeUtc($applySameTargetFile))
 }
 finally {
     if (Test-Path $tempRoot) {

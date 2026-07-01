@@ -1,4 +1,4 @@
-;; BlockBrowser Auto-Loader
+﻿;; BlockBrowser Auto-Loader
 ;; GstarCAD / AutoCAD / ZWCAD
 
 (vl-load-com)
@@ -66,5 +66,5 @@
 
 (defun c:KLLQ () (c:BB))
 
-(princ "\nBlockBrowser v1.3.3 ready. Type BB to start.")
+(princ "\nBlockBrowser v1.3.4 ready. Type BB to start.")
 (princ)

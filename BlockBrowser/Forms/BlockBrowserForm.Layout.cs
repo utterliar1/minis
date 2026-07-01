@@ -9,6 +9,8 @@ namespace BlockBrowser
 {
     public partial class BlockBrowserForm
     {
+        private const int CreateCategoryButtonVerticalLift = 4;
+
         private void InitializeComponent()
         {
             Text = "块浏览器 - " + BlockLibrary.PlatformName;
@@ -28,6 +30,8 @@ namespace BlockBrowser
             _searchTimer.Tick += (s, e) => { _searchTimer.Stop(); DoFilter(); };
             _thumbTimer = new System.Windows.Forms.Timer { Interval = 10 };
             _thumbTimer.Tick += ThumbTimerTick;
+            _viewportThumbTimer = new System.Windows.Forms.Timer { Interval = 80 };
+            _viewportThumbTimer.Tick += (s, e) => { _viewportThumbTimer.Stop(); QueueVisibleMissingThumbnails(); };
 
             // Toolbar
             _toolbar = new ToolStrip { GripStyle = ToolStripGripStyle.Hidden, Padding = new Padding(4, 2, 4, 2) };
@@ -72,6 +76,11 @@ namespace BlockBrowser
                 try
                 {
                     var preview = BlockLibrary.PreviewLocalMirrorFromNas();
+                    if (preview.ChangedCount == 0)
+                    {
+                        MessageBox.Show(MirrorSummaryMessageService.FormatDialog(preview), "块浏览器", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
                     using (var previewDialog = new MirrorPreviewDialog(preview))
                     {
                         if (previewDialog.ShowDialog(this) != DialogResult.OK)
@@ -167,7 +176,6 @@ namespace BlockBrowser
                 Text = "+",
                 Dock = DockStyle.None,
                 Size = new Size(28, 24),
-                Location = new Point(4, 10),
                 FlatStyle = FlatStyle.Flat,
                 UseVisualStyleBackColor = false,
                 BackColor = Color.FromArgb(235, 238, 242),
@@ -176,9 +184,11 @@ namespace BlockBrowser
                 Margin = new Padding(0),
                 Padding = new Padding(0),
                 TextAlign = ContentAlignment.MiddleCenter,
+                TabStop = false,
                 Cursor = Cursors.Hand
             };
             _btnCreateCategory.FlatAppearance.BorderSize = 0;
+            _btnCreateCategory.FlatAppearance.BorderColor = Color.FromArgb(235, 238, 242);
             _btnCreateCategory.FlatAppearance.MouseOverBackColor = Color.FromArgb(224, 229, 236);
             _btnCreateCategory.FlatAppearance.MouseDownBackColor = Color.FromArgb(212, 218, 226);
             _btnCreateCategory.Click += BtnCreateCategory_Click;
@@ -191,6 +201,7 @@ namespace BlockBrowser
                 Padding = new Padding(0)
             };
             _catActionPanel.Controls.Add(_btnCreateCategory);
+            _catActionPanel.Layout += (s, e) => CenterCreateCategoryButton();
 
             _catViewport = new Panel
             {
@@ -260,6 +271,7 @@ namespace BlockBrowser
                 Padding = new Padding(10),
                 BackColor = Color.FromArgb(248, 249, 252)
             };
+            _flowBlocks.ViewportChanged += (s, e) => RequestVisibleThumbnailQueue();
 
             // Status bar
             _statusBar = new StatusStrip();
@@ -317,6 +329,13 @@ namespace BlockBrowser
         private string GetActiveLibraryStatus()
         {
             return ActiveLibraryStatusService.Format(BlockLibrary.ActiveLibrary);
+        }
+
+        private void CenterCreateCategoryButton()
+        {
+            if (_catActionPanel == null || _btnCreateCategory == null) return;
+            _btnCreateCategory.Left = Math.Max(0, (_catActionPanel.ClientSize.Width - _btnCreateCategory.Width) / 2);
+            _btnCreateCategory.Top = Math.Max(0, (_catActionPanel.ClientSize.Height - _btnCreateCategory.Height) / 2 - CreateCategoryButtonVerticalLift);
         }
     }
 }

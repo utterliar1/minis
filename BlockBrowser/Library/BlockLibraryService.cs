@@ -78,7 +78,7 @@ namespace BlockBrowser
             {
                 string name = Path.GetFileName(dir);
                 if (string.IsNullOrEmpty(name) || name.StartsWith(".")) continue;
-                if (requireBlocks && Directory.GetFiles(dir, "*.dwg").Length == 0) continue;
+                if (requireBlocks && !Directory.EnumerateFiles(dir, "*.dwg").Any()) continue;
                 dirs.Add(name);
             }
 

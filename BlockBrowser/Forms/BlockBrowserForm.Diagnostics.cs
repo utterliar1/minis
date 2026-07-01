@@ -40,7 +40,9 @@ namespace BlockBrowser
                     CountThumbnailCacheFiles(),
                     BlockLibrary.SyncUserName,
                     BlockLibrary.LocalJournalPath,
-                    BlockLibrary.ThumbnailCachePath);
+                    BlockLibrary.ThumbnailCachePath,
+                    BlockLibrary.GetProtectedLocalCategoriesText(),
+                    BlockLibrary.SyncLogPath);
                 using (var dlg = new StatusDiagnosticsDialog(report))
                 {
                     dlg.ShowDialog(this);

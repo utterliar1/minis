@@ -36,7 +36,7 @@ function Assert-False($name, $actual) {
     Write-Host "PASS $name"
 }
 
-Assert-Equal 'default batch size' 5 ([BlockBrowser.ThumbnailLoadProgressService]::DefaultBatchSize)
+Assert-Equal 'default batch size' 2 ([BlockBrowser.ThumbnailLoadProgressService]::DefaultBatchSize)
 Assert-True 'completed when index reaches total' ([BlockBrowser.ThumbnailLoadProgressService]::IsComplete(10, 10))
 Assert-True 'completed when index passes total' ([BlockBrowser.ThumbnailLoadProgressService]::IsComplete(11, 10))
 Assert-False 'not completed before total' ([BlockBrowser.ThumbnailLoadProgressService]::IsComplete(9, 10))

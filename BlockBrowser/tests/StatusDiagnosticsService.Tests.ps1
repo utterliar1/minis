@@ -52,6 +52,12 @@ $thumbnailCacheLabel = U @(0x7F29, 0x7565, 0x56FE, 0x7F13, 0x5B58)
 $syncUserLabel = U @(0x540C, 0x6B65, 0x7528, 0x6237)
 $journalPathLabel = U @(0x53D8, 0x66F4, 0x8BB0, 0x5F55, 0x6587, 0x4EF6)
 $thumbnailPathLabel = U @(0x7F29, 0x7565, 0x56FE, 0x76EE, 0x5F55)
+$protectedCategoriesLabel = U @(0x4FDD, 0x62A4, 0x5206, 0x7C7B, 0x767D, 0x540D, 0x5355)
+$hasPendingChangesLabel = U @(0x5B58, 0x5728, 0x5F85, 0x540C, 0x6B65, 0x672C, 0x5730, 0x53D8, 0x66F4)
+$syncLogLabel = U @(0x540C, 0x6B65, 0x65E5, 0x5FD7)
+$personalCategory = U @(0x4E2A, 0x4EBA, 0x5757)
+$tempCategory = U @(0x4E34, 0x65F6, 0x5757)
+$protectedCategoriesValue = $personalCategory + ';' + $tempCategory
 
 $active = New-Object BlockBrowser.ActiveLibraryResult
 $active.Kind = [BlockBrowser.ActiveLibraryKind]::LocalMirror
@@ -74,7 +80,9 @@ $report = [BlockBrowser.StatusDiagnosticsService]::FormatReport(
     42,
     'WLUP',
     'D:\Blocks\Mirror\.blockbrowser\local-changes.json',
-    'D:\Blocks\Mirror\.thumbs')
+    'D:\Blocks\Mirror\.thumbs',
+    $protectedCategoriesValue,
+    'D:\Blocks\Mirror\.blockbrowser\sync-log.txt')
 
 Assert-Contains 'report includes title' $report $title
 Assert-Contains 'report includes version' $report ($versionLabel + ': 1.3.2')
@@ -94,6 +102,9 @@ Assert-Contains 'report includes thumbnail count' $report ($thumbnailCacheLabel 
 Assert-Contains 'report includes user name' $report ($syncUserLabel + ': WLUP')
 Assert-Contains 'report includes journal path' $report ($journalPathLabel + ': D:\Blocks\Mirror\.blockbrowser\local-changes.json')
 Assert-Contains 'report includes thumbnail path' $report ($thumbnailPathLabel + ': D:\Blocks\Mirror\.thumbs')
+Assert-Contains 'report includes protected categories' $report ($protectedCategoriesLabel + ': ' + $protectedCategoriesValue)
+Assert-Contains 'report includes pending local changes state' $report ($hasPendingChangesLabel + ': ' + $yes)
+Assert-Contains 'report includes sync log path' $report ($syncLogLabel + ': D:\Blocks\Mirror\.blockbrowser\sync-log.txt')
 
 $emptyActiveReport = [BlockBrowser.StatusDiagnosticsService]::FormatReport(
     '1.3.2',
@@ -110,10 +121,13 @@ $emptyActiveReport = [BlockBrowser.StatusDiagnosticsService]::FormatReport(
     0,
     '',
     '',
+    '',
+    '',
     '')
 
 Assert-Contains 'null active report has fallback' $emptyActiveReport ($activeLabel + ': None')
 Assert-Contains 'false values are localized' $emptyActiveReport ($allowNasSyncLabel + ': ' + $no)
+Assert-Contains 'zero local changes has no pending state' $emptyActiveReport ($hasPendingChangesLabel + ': ' + $no)
 Assert-Equal 'report uses CRLF friendly lines' $true ($report.Contains([Environment]::NewLine))
 
 Write-Host 'StatusDiagnosticsService.Tests.ps1 passed'

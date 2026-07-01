@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -39,7 +39,7 @@
 
 <div class="header">
   <h1>BlockBrowser 块浏览器使用手册</h1>
-  <p>BlockBrowser v1.3.3 · 面向办公室 NAS、本地副本和移动电脑的 CAD 块图库工具</p>
+  <p>BlockBrowser v1.3.4 · 面向办公室 NAS、本地副本和移动电脑的 CAD 块图库工具</p>
 </div>
 
 <div class="card">
@@ -57,7 +57,7 @@
   <ol>
     <li>把完整的 <code>BlockBrowser</code> 文件夹放到本机，例如 <code>C:\BlockBrowser</code>。</li>
     <li>在 CAD 中输入 <code>APPLOAD</code>，加载 <code>C:\BlockBrowser\autoload.lsp</code>。</li>
-    <li>命令行出现 <code>BlockBrowser v1.3.3 ready. Type BB to start.</code> 后，输入 <code>BB</code> 打开面板。</li>
+    <li>命令行出现 <code>BlockBrowser v1.3.4 ready. Type BB to start.</code> 后，输入 <code>BB</code> 打开面板。</li>
     <li>打开「图库 &gt; 设置」，确认 NAS 主图库、本地副本、保护分类和图库模式。</li>
     <li>普通同事保持 <code>AllowNasSync=0</code>；只有指定维护人的电脑才设置为 <code>AllowNasSync=1</code>。</li>
   </ol>
@@ -74,7 +74,7 @@
 ├────────────────────────────────────────────┤
 │  缩略图卡片网格：单击选中，双击插入，右键操作 │
 ├────────────────────────────────────────────┤
-│ 就绪                         v1.3.3 | WLUP │  ← 状态栏
+│ 就绪                         v1.3.4 | WLUP │  ← 状态栏
 └────────────────────────────────────────────┘</div>
   <ul>
     <li>分类栏右侧 <code>+</code> 用于新建分类；分类过多时可用横向滚动条。</li>
@@ -263,7 +263,7 @@
 <div class="card">
   <h2>常见问题</h2>
   <h3>Q：加载 autoload.lsp 后输入 BB 没反应？</h3>
-  <p>先确认命令行是否出现 <code>BlockBrowser v1.3.3 ready. Type BB to start.</code>。如果没有，重新 <code>APPLOAD</code> 加载 <code>autoload.lsp</code>。如果刚更新过 DLL，请完全关闭 CAD 后重新打开。</p>
+  <p>先确认命令行是否出现 <code>BlockBrowser v1.3.4 ready. Type BB to start.</code>。如果没有，重新 <code>APPLOAD</code> 加载 <code>autoload.lsp</code>。如果刚更新过 DLL，请完全关闭 CAD 后重新打开。</p>
 
   <h3>Q：AutoCAD 显示 BBPANEL 未知命令？</h3>
   <p><code>BBPANEL</code> 是内部兼容命令，正常情况下由 <code>BB</code> 自动调用。出现未知命令时，通常是旧 DLL 仍在 CAD 进程里，或 AutoCAD 目录下 DLL 没更新。请完全关闭 CAD 后重新打开，再确认加载的是 <code>C:\BlockBrowser\acad\BlockBrowser.dll</code>。</p>
@@ -281,7 +281,7 @@
   <p>打开「图库 &gt; 状态诊断」，复制当前模式、NAS 路径、本地副本路径、本地变更记录和缩略图缓存数量，发给维护人排查。</p>
 </div>
 
-<div class="footer">BlockBrowser v1.3.3 · 制作人 WLUP</div>
+<div class="footer">BlockBrowser v1.3.4 · 制作人 WLUP</div>
 
 </div>
 </body>
